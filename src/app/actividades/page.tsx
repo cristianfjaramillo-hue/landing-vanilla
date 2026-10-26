@@ -30,7 +30,7 @@ import {
   ShieldCheck,
   ArrowRight
 } from "lucide-react";
-import { SECTIONS_DATA, TOTAL_ACTIVIDADES_COUNT } from "@/lib/actividades-data";
+import { SECTIONS_DATA, TOTAL_ACTIVIDADES_COUNT, RECOMENDACIONES_DATA } from "@/lib/actividades-data";
 import { ActivityProtocol } from "@/lib/types";
 import { generateActivityProtocolPDF } from "@/lib/pdf-generator";
 import { supabase } from "@/lib/supabase";
@@ -493,6 +493,54 @@ export default function ActividadesPage() {
                 </div>
               );
             })}
+
+            {/* Cuadro Adicional: Recomendaciones (Sin checklist, con puntos distintivos) */}
+            <div className="md:col-span-2 lg:col-span-3 rounded-xl border border-forest-900/30 bg-white hover:border-forest-800 transition-all shadow-sm overflow-hidden flex flex-col">
+              {/* Encabezado del Cuadro */}
+              <div className="bg-forest-900 text-white p-3 flex items-center justify-between border-b-2 border-vanilla-500">
+                <div className="flex items-center space-x-2.5 flex-1 min-w-0">
+                  <span className="w-6 h-6 rounded-full bg-vanilla-500 text-forest-950 font-bold text-xs flex items-center justify-center flex-shrink-0 shadow">
+                    ★
+                  </span>
+                  <div>
+                    <h3 className="text-xs sm:text-[13px] font-bold text-vanilla-200 uppercase tracking-tight truncate leading-snug">
+                      RECOMENDACIONES
+                    </h3>
+                  </div>
+                </div>
+                <div className="px-2.5 py-0.5 rounded bg-forest-800 text-vanilla-300 text-[10px] font-semibold border border-forest-700 uppercase tracking-wider">
+                  Directrices Técnicas • Sin Checklist
+                </div>
+              </div>
+
+              {/* Sub-barra informativa */}
+              <div className="bg-forest-950/90 px-3 py-1 flex items-center justify-between text-[11px] text-forest-200">
+                <span>
+                  Total: <strong>{RECOMENDACIONES_DATA.length}</strong> directrices esenciales de manejo agronómico y bioseguridad
+                </span>
+                <span className="text-vanilla-300 text-[10px] font-medium hidden sm:inline">
+                  Supervisión ITEC Ecuador
+                </span>
+              </div>
+
+              {/* Lista de Recomendaciones con Punto Distintivo */}
+              <div className="p-4 bg-gradient-to-b from-[#FAF7F2] to-white grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 flex-1">
+                {RECOMENDACIONES_DATA.map((item, idx) => (
+                  <div
+                    key={idx}
+                    className="flex items-start space-x-2.5 p-2 rounded-lg bg-white border border-vanilla-200/90 shadow-[0_1px_2px_rgba(0,0,0,0.03)] hover:border-forest-600 transition-all"
+                  >
+                    {/* Punto distintivo */}
+                    <div className="w-4 h-4 rounded-full border border-forest-800 bg-vanilla-400 flex items-center justify-center flex-shrink-0 mt-0.5 shadow-xs">
+                      <div className="w-1.5 h-1.5 rounded-full bg-forest-950" />
+                    </div>
+                    <span className="text-xs font-semibold text-forest-950 leading-snug">
+                      {item}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
 
           {/* Sección Inferior: Observaciones y Firma */}

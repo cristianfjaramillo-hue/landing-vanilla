@@ -1,7 +1,7 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { DailyReport, ActivityProtocol } from "./types";
-import { SECTIONS_DATA } from "./actividades-data";
+import { SECTIONS_DATA, RECOMENDACIONES_DATA } from "./actividades-data";
 
 // Helper para convertir URLs de imágenes o blobs a DataURL Base64
 async function getBase64Image(url: string | undefined): Promise<string | null> {
@@ -312,6 +312,30 @@ export async function generateActivityProtocolPDF(protocol: ActivityProtocol) {
         },
       ]);
     });
+  });
+
+  // Sección Adicional: Recomendaciones Técnicas
+  tableBody.push([
+    {
+      content: `RECOMENDACIONES AGRONÓMICAS & DIRECTRICES DE CAMPO`,
+      colSpan: 2,
+      styles: { fillColor: [40, 80, 50], textColor: [255, 255, 255], fontStyle: "bold", fontSize: 8 },
+    },
+  ]);
+
+  RECOMENDACIONES_DATA.forEach((rec, idx) => {
+    tableBody.push([
+      `•  ${rec}`,
+      {
+        content: "DIRECTRIZ TÉCNICA",
+        styles: {
+          textColor: [140, 100, 20],
+          fontStyle: "bold",
+          fontSize: 6.5,
+          halign: "center",
+        },
+      },
+    ]);
   });
 
   autoTable(doc, {

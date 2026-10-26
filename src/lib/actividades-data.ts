@@ -158,3 +158,15 @@ export const SECTIONS_DATA: ActivitySection[] = [
 ];
 
 export const TOTAL_ACTIVIDADES_COUNT = SECTIONS_DATA.reduce((acc, s) => acc + s.items.length, 0);
+
+export const RECOMENDACIONES_DATA: string[] = [
+  "No dejar ingresar las gallinas",
+  "Área de desinfección",
+  "Formar el manto - Ramas hacia abajo",
+  "Invernadero 1, rehacer las camas.",
+  "Esqueje seco, NO POLINIZAR o cargar poco.",
+  "Poner + Sustrato - (Clorosis).",
+  "Limpieza de hierbas",
+  "Amarrar con el hilo flojo.",
+  "Alambre fino"
+];

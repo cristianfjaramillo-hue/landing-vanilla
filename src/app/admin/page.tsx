@@ -38,7 +38,7 @@ import {
 import { INITIAL_MOCK_REPORTS, DEFAULT_ACTIVITIES, DEFAULT_TOOLS } from "@/lib/constants";
 import { DailyReport, ActivityItem, ToolItem, ActivityProtocol } from "@/lib/types";
 import { generateDailyReportPDF, generateActivityProtocolPDF } from "@/lib/pdf-generator";
-import { SECTIONS_DATA } from "@/lib/actividades-data";
+import { SECTIONS_DATA, RECOMENDACIONES_DATA } from "@/lib/actividades-data";
 import { supabase } from "@/lib/supabase";
 
 export default function AdminPage() {
@@ -1417,6 +1417,27 @@ export default function AdminPage() {
                         </div>
                       );
                     })}
+                  </div>
+
+                  {/* Cuadro Adicional de Recomendaciones Técnicas */}
+                  <div className="mt-3 rounded-lg border border-forest-900/20 bg-white overflow-hidden shadow-xs">
+                    <div className="bg-forest-900 text-white px-3 py-1.5 flex items-center justify-between text-xs">
+                      <span className="font-bold flex items-center space-x-1.5">
+                        <span className="w-4 h-4 rounded-full bg-vanilla-500 text-forest-950 font-bold text-[10px] flex items-center justify-center">★</span>
+                        <span>RECOMENDACIONES</span>
+                      </span>
+                      <span className="text-[10px] text-vanilla-300">Directrices Técnicas • Sin Checklist</span>
+                    </div>
+                    <div className="p-3 grid grid-cols-1 md:grid-cols-3 gap-2 bg-[#FAF7F2]">
+                      {RECOMENDACIONES_DATA.map((rec, idx) => (
+                        <div key={idx} className="flex items-start space-x-2 text-[11px] p-2 rounded bg-white border border-vanilla-200">
+                          <div className="w-3.5 h-3.5 rounded-full border border-forest-800 bg-vanilla-400 flex items-center justify-center flex-shrink-0 mt-0.5">
+                            <div className="w-1.5 h-1.5 rounded-full bg-forest-900" />
+                          </div>
+                          <span className="font-medium text-forest-950 leading-snug">{rec}</span>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </div>
 
