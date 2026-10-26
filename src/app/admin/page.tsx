@@ -27,6 +27,9 @@ import {
   Maximize2,
   X,
   Loader2,
+  Eye,
+  CheckSquare,
+  Square,
 } from "lucide-react";
 import { INITIAL_MOCK_REPORTS, DEFAULT_ACTIVITIES, DEFAULT_TOOLS } from "@/lib/constants";
 import { DailyReport, ActivityItem, ToolItem } from "@/lib/types";
@@ -46,6 +49,9 @@ export default function AdminPage() {
   // Visualizador de Fotografías (Lightbox) y estado de PDF
   const [selectedPhoto, setSelectedPhoto] = useState<{ url: string; title: string } | null>(null);
   const [generatingPdfId, setGeneratingPdfId] = useState<string | null>(null);
+
+  // Modal de Vista Previa Completa del Informe
+  const [previewReport, setPreviewReport] = useState<DailyReport | null>(null);
 
   // Pestañas (Repositorio vs Configuración de Formulario)
   const [activeTab, setActiveTab] = useState<"repositorio" | "configuracion">("repositorio");
@@ -520,8 +526,17 @@ export default function AdminPage() {
                         )}
                       </div>
 
-                      {/* Botones de Acción (Descarga PDF con fotos, WhatsApp, Eliminar) */}
-                      <div className="flex items-center space-x-2 pt-3 md:pt-0 border-t md:border-t-0 border-vanilla-100">
+                      {/* Botones de Acción (Vista Previa, Descarga PDF con fotos, WhatsApp, Eliminar) */}
+                      <div className="flex flex-wrap items-center gap-2 pt-3 md:pt-0 border-t md:border-t-0 border-vanilla-100">
+                        <button
+                          onClick={() => setPreviewReport(report)}
+                          className="inline-flex items-center space-x-1.5 px-3 py-2 rounded-lg bg-vanilla-500 hover:bg-vanilla-600 text-forest-950 text-xs font-bold transition-transform active:scale-95 shadow-sm"
+                          title="Ver Vista Previa Completa del Informe"
+                        >
+                          <Eye className="w-3.5 h-3.5 text-forest-950" />
+                          <span>Vista Previa</span>
+                        </button>
+
                         <button
                           onClick={() => handleDownloadPdf(report)}
                           disabled={generatingPdfId === report.id}
@@ -674,6 +689,363 @@ export default function AdminPage() {
                   <Download className="w-3.5 h-3.5 text-vanilla-400" />
                   <span>Descargar Foto</span>
                 </a>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Modal de Vista Previa Completa del Informe */}
+        {previewReport && (
+          <div
+            onClick={() => setPreviewReport(null)}
+            className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 overflow-y-auto animate-in fade-in duration-200"
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              className="bg-white rounded-2xl max-w-4xl w-full max-h-[92vh] overflow-y-auto shadow-2xl border border-vanilla-200 flex flex-col my-auto"
+            >
+              {/* Cabecera Oficial del Informe */}
+              <div className="bg-forest-900 text-white p-5 sm:p-6 border-b-4 border-vanilla-500 sticky top-0 z-10 flex items-center justify-between">
+                <div className="flex items-center space-x-3.5">
+                  <div className="relative w-12 h-12 bg-white/10 rounded-xl p-1 flex-shrink-0">
+                    <Image
+                      src="/assets/logo-amazon-vanilla-white.png"
+                      alt="Logo"
+                      fill
+                      className="object-contain"
+                    />
+                  </div>
+                  <div>
+                    <div className="flex items-center space-x-2">
+                      <span className="font-mono text-xs font-bold px-2 py-0.5 rounded bg-vanilla-500 text-forest-950">
+                        {previewReport.id}
+                      </span>
+                      <h2 className="text-base sm:text-lg font-serif font-bold text-vanilla-200">
+                        INFORME DIARIO - CULTIVO DE VAINILLA
+                      </h2>
+                    </div>
+                    <p className="text-[11px] text-forest-200 uppercase tracking-wider">
+                      Seguimiento y Control del Cultivo | ITEC Ecuador - Territorio Waorani
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => setPreviewReport(null)}
+                  className="p-1.5 rounded-full hover:bg-forest-800 text-forest-200 hover:text-white transition-colors"
+                  title="Cerrar Vista Previa"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Contenido Completo del Informe */}
+              <div className="p-6 space-y-6 text-xs text-forest-900">
+                {/* 1. Rango de Fechas & Responsable */}
+                <div className="bg-vanilla-50 p-4 rounded-xl border border-vanilla-200 grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div>
+                    <span className="font-bold text-forest-700 block uppercase text-[10px]">
+                      Rango de Fechas del Informe:
+                    </span>
+                    <p className="font-medium text-sm mt-0.5">
+                      Desde: <span className="font-semibold">{previewReport.fechaDesde}</span> — Hasta:{" "}
+                      <span className="font-semibold">{previewReport.fechaHasta}</span>
+                    </p>
+                  </div>
+
+                  <div>
+                    <span className="font-bold text-forest-700 block uppercase text-[10px]">
+                      Lote / Chakra:
+                    </span>
+                    <p className="font-bold text-sm text-forest-950 mt-0.5">
+                      {previewReport.lote}
+                    </p>
+                  </div>
+
+                  <div>
+                    <span className="font-bold text-forest-700 block uppercase text-[10px]">
+                      Responsable de Campo:
+                    </span>
+                    <p className="font-semibold text-sm mt-0.5">
+                      {previewReport.responsable}
+                    </p>
+                  </div>
+                </div>
+
+                {/* 2. Condiciones del Día */}
+                <div className="bg-forest-50/60 p-4 rounded-xl border border-forest-100 flex flex-wrap items-center justify-between gap-4">
+                  <div className="flex items-center space-x-2">
+                    <Calendar className="w-4 h-4 text-vanilla-600" />
+                    <span>Fecha de Registro: <strong>{previewReport.fechaReporte}</strong></span>
+                  </div>
+
+                  <div className="flex items-center space-x-2">
+                    <Sun className="w-4 h-4 text-vanilla-600" />
+                    <span>Clima: <strong>{previewReport.clima} {previewReport.climaOtro ? `(${previewReport.climaOtro})` : ""}</strong></span>
+                  </div>
+
+                  <div className="flex items-center space-x-2">
+                    <Thermometer className="w-4 h-4 text-forest-700" />
+                    <span>Temperatura: <strong>{previewReport.tempMin}°C - {previewReport.tempMax}°C</strong></span>
+                  </div>
+
+                  <div className="flex items-center space-x-2">
+                    <Droplets className="w-4 h-4 text-blue-600" />
+                    <span>Humedad: <strong>{previewReport.humedad}%</strong></span>
+                  </div>
+                </div>
+
+                {/* 3. Actividades Realizadas */}
+                <div>
+                  <h3 className="font-bold uppercase tracking-wider text-forest-900 mb-2.5 flex items-center justify-between">
+                    <span>Actividades Realizadas:</span>
+                    <span className="text-[11px] text-forest-600 font-medium">
+                      {previewReport.actividades.filter((a) => a.realizado).length} ejecutadas
+                    </span>
+                  </h3>
+                  <div className="overflow-x-auto border border-vanilla-200 rounded-xl">
+                    <table className="w-full text-left">
+                      <thead className="bg-forest-900 text-white text-[11px]">
+                        <tr>
+                          <th className="py-2 px-3 w-10 text-center">N°</th>
+                          <th className="py-2 px-3 w-48">Actividad</th>
+                          <th className="py-2 px-3">Descripción / Observaciones Breves</th>
+                          <th className="py-2 px-3 w-32">Área / Lote</th>
+                          <th className="py-2 px-3 w-20 text-center">Realizado</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-vanilla-100 bg-white">
+                        {previewReport.actividades.map((act) => (
+                          <tr
+                            key={act.id}
+                            className={act.realizado ? "bg-vanilla-50/70" : "hover:bg-vanilla-50/20"}
+                          >
+                            <td className="py-2 px-3 text-center font-mono text-forest-600 font-bold">
+                              {act.id}
+                            </td>
+                            <td className="py-2 px-3 font-semibold text-forest-950">
+                              {act.nombre}
+                            </td>
+                            <td className="py-2 px-3 text-forest-700">
+                              {act.descripcion || "-"}
+                            </td>
+                            <td className="py-2 px-3 text-forest-600">
+                              {act.areaLote || "-"}
+                            </td>
+                            <td className="py-2 px-3 text-center">
+                              {act.realizado ? (
+                                <span className="inline-flex items-center px-2 py-0.5 rounded bg-green-100 text-green-800 font-bold text-[10px]">
+                                  SÍ [✓]
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center px-2 py-0.5 rounded bg-vanilla-100 text-forest-400 text-[10px]">
+                                  NO
+                                </span>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {/* 4. Herramientas & Estado General */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Herramientas */}
+                  <div className="bg-vanilla-50/60 p-4 rounded-xl border border-vanilla-200">
+                    <h3 className="font-bold uppercase tracking-wider text-forest-900 mb-2.5">
+                      Herramientas Utilizadas:
+                    </h3>
+                    <div className="flex flex-wrap gap-1.5">
+                      {previewReport.herramientas.filter((h) => h.utilizada).length > 0 ? (
+                        previewReport.herramientas
+                          .filter((h) => h.utilizada)
+                          .map((tool) => (
+                            <span
+                              key={tool.id}
+                              className="px-2.5 py-1 rounded-lg bg-forest-900 text-white font-medium text-[11px]"
+                            >
+                              ✓ {tool.nombre}
+                            </span>
+                          ))
+                      ) : (
+                        <span className="text-forest-400 italic">No se registraron herramientas en esta jornada.</span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Estado General */}
+                  <div className="bg-forest-900 text-white p-4 rounded-xl">
+                    <h3 className="font-bold uppercase tracking-wider text-vanilla-300 mb-2.5">
+                      Estado General del Cultivo:
+                    </h3>
+                    <div className="grid grid-cols-2 gap-2 text-[11px]">
+                      {[
+                        { label: "Desarrollo Vegetativo", val: previewReport.estadoCultivo?.desarrolloVegetativo },
+                        { label: "Floración", val: previewReport.estadoCultivo?.floracion },
+                        { label: "Formación de Vainas", val: previewReport.estadoCultivo?.formacionVainas },
+                        { label: "Estado Fitosanitario", val: previewReport.estadoCultivo?.estadoFitosanitario },
+                      ].map((item, idx) => (
+                        <div key={idx} className="bg-forest-800/90 p-2 rounded-lg border border-forest-700 flex justify-between items-center">
+                          <span className="text-vanilla-200">{item.label}:</span>
+                          <span
+                            className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                              item.val === "Bueno"
+                                ? "bg-green-600 text-white"
+                                : item.val === "Regular"
+                                ? "bg-amber-600 text-white"
+                                : "bg-red-600 text-white"
+                            }`}
+                          >
+                            {item.val || "Bueno"}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* 5. Insumos Aplicados */}
+                {previewReport.insumos && previewReport.insumos.length > 0 && (
+                  <div>
+                    <h3 className="font-bold uppercase tracking-wider text-forest-900 mb-2">
+                      Insumos Aplicados:
+                    </h3>
+                    <div className="overflow-x-auto border border-vanilla-200 rounded-xl">
+                      <table className="w-full text-left">
+                        <thead className="bg-forest-900 text-white text-[11px]">
+                          <tr>
+                            <th className="py-2 px-3">Insumo</th>
+                            <th className="py-2 px-3">Dosis</th>
+                            <th className="py-2 px-3">Método de Aplicación</th>
+                            <th className="py-2 px-3">Área / Lote</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-vanilla-100 bg-white">
+                          {previewReport.insumos.map((i, idx) => (
+                            <tr key={idx} className="hover:bg-vanilla-50/50">
+                              <td className="py-2 px-3 font-semibold">{i.insumo}</td>
+                              <td className="py-2 px-3">{i.dosis}</td>
+                              <td className="py-2 px-3">{i.metodo}</td>
+                              <td className="py-2 px-3">{i.areaLote}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+
+                {/* 6. Observaciones */}
+                <div>
+                  <h3 className="font-bold uppercase tracking-wider text-forest-900 mb-1.5">
+                    Observaciones / Eventos Importantes:
+                  </h3>
+                  <div className="p-3 bg-vanilla-50 rounded-xl border border-vanilla-200 text-forest-800 leading-relaxed italic">
+                    "{previewReport.observaciones || "Sin observaciones adicionales registradas para este día."}"
+                  </div>
+                </div>
+
+                {/* 7. Registro Fotográfico de Campo */}
+                {(previewReport.foto1Url || previewReport.foto2Url || previewReport.foto3Url) && (
+                  <div>
+                    <h3 className="font-bold uppercase tracking-wider text-forest-900 mb-2.5 flex items-center space-x-1.5">
+                      <Camera className="w-4 h-4 text-vanilla-600" />
+                      <span>Fotografías de Inspección de Campo:</span>
+                    </h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      {[
+                        { label: "Foto 1", url: previewReport.foto1Url },
+                        { label: "Foto 2", url: previewReport.foto2Url },
+                        { label: "Foto 3", url: previewReport.foto3Url },
+                      ].map((item, idx) =>
+                        item.url ? (
+                          <div
+                            key={idx}
+                            onClick={() =>
+                              setSelectedPhoto({
+                                url: item.url!,
+                                title: `${item.label} | ${previewReport.lote} (${previewReport.fechaReporte})`,
+                              })
+                            }
+                            className="group relative h-40 rounded-xl overflow-hidden border-2 border-vanilla-300 hover:border-forest-600 cursor-pointer shadow transition-all hover:scale-[1.02] bg-vanilla-100"
+                          >
+                            <img
+                              src={item.url}
+                              alt={item.label}
+                              className="w-full h-full object-cover transition-transform group-hover:scale-105"
+                            />
+                            <div className="absolute inset-0 bg-forest-950/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white">
+                              <Maximize2 className="w-5 h-5 text-white" />
+                            </div>
+                            <span className="absolute bottom-0 inset-x-0 bg-forest-950/80 text-white text-[10px] text-center py-1 font-semibold">
+                              {item.label} (Click para ampliar)
+                            </span>
+                          </div>
+                        ) : (
+                          <div
+                            key={idx}
+                            className="h-40 rounded-xl border-2 border-dashed border-vanilla-200 bg-vanilla-50/50 flex flex-col items-center justify-center text-forest-400"
+                          >
+                            <Camera className="w-6 h-6 mb-1 text-forest-300" />
+                            <span className="text-[11px] italic">Sin captura {item.label}</span>
+                          </div>
+                        )
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Barra de Acciones del Modal */}
+              <div className="p-4 bg-vanilla-50 border-t border-vanilla-200 flex flex-wrap items-center justify-between gap-3 sticky bottom-0 z-10">
+                <span className="text-xs text-forest-600">
+                  Documento Oficial de Trazabilidad | Amazon Vanilla & ITEC Ecuador
+                </span>
+
+                <div className="flex items-center space-x-2">
+                  <button
+                    onClick={() => handleDownloadPdf(previewReport)}
+                    disabled={generatingPdfId === previewReport.id}
+                    className="inline-flex items-center space-x-1.5 px-4 py-2 rounded-lg bg-forest-900 hover:bg-forest-800 text-white text-xs font-semibold shadow transition-colors disabled:opacity-50"
+                  >
+                    {generatingPdfId === previewReport.id ? (
+                      <>
+                        <Loader2 className="w-3.5 h-3.5 animate-spin text-vanilla-400" />
+                        <span>Generando...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Download className="w-3.5 h-3.5 text-vanilla-400" />
+                        <span>Descargar PDF con Fotos</span>
+                      </>
+                    )}
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      const text = `🌿 *INFORME DIARIO CULTIVO DE VAINILLA*%0A` +
+                        `*ID:* ${previewReport.id}%0A` +
+                        `*Lote:* ${previewReport.lote}%0A` +
+                        `*Fecha:* ${previewReport.fechaReporte}%0A` +
+                        `*Responsable:* ${previewReport.responsable}%0A` +
+                        `*Clima:* ${previewReport.clima} (${previewReport.tempMin}°C - ${previewReport.tempMax}°C)`;
+                      window.open(`https://api.whatsapp.com/send?text=${text}`, "_blank");
+                    }}
+                    className="p-2 rounded-lg bg-[#25D366] hover:bg-[#1EBE5D] text-white transition-colors"
+                    title="Compartir por WhatsApp"
+                  >
+                    <MessageCircle className="w-4 h-4" />
+                  </button>
+
+                  <button
+                    onClick={() => setPreviewReport(null)}
+                    className="px-4 py-2 rounded-lg border border-vanilla-300 hover:bg-white text-forest-800 text-xs font-medium transition-colors"
+                  >
+                    Cerrar
+                  </button>
+                </div>
               </div>
             </div>
           </div>
