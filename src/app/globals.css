@@ -43,19 +43,6 @@ body {
   }
 }
 
-@keyframes contourGlow {
-  0%, 100% {
-    filter: drop-shadow(0 0 2px rgba(255, 255, 255, 0.25));
-  }
-  50% {
-    filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.8)) drop-shadow(0 0 16px rgba(200, 148, 78, 0.4));
-  }
-}
-
 .animate-line-shimmer {
   animation: lineShimmer 3.2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
-}
-
-.animate-contour-glow {
-  animation: contourGlow 3.5s ease-in-out infinite;
 }

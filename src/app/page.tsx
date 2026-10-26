@@ -14,17 +14,10 @@ export default function HomePage() {
     <div className="space-y-16 pb-20">
       {/* 1. HERO SECTION */}
       <section className="relative overflow-hidden bg-forest-950 text-white pt-24 pb-28 sm:pb-36 border-b-4 border-vanilla-500">
-        {/* Glow de fondo decorativo */}
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-7xl h-full opacity-20 pointer-events-none">
-          <div className="absolute top-10 left-1/4 w-96 h-96 bg-vanilla-500 rounded-full blur-3xl"></div>
-          <div className="absolute bottom-10 right-1/4 w-96 h-96 bg-forest-600 rounded-full blur-3xl"></div>
-        </div>
-
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center space-y-8">
-          {/* Logo Principal (40% más grande, sin cuadro, con brillo que recorre las líneas y letras) */}
+          {/* Logo Principal (40% más grande, sin cuadro ni sombra de fondo, con brillo que recorre las letras) */}
           <div className="relative w-[340px] sm:w-[540px] md:w-[670px] lg:w-[720px] h-40 sm:h-52 md:h-64 lg:h-72 mx-auto flex items-center justify-center my-2">
-            {/* Logo Base con resplandor en los contornos */}
-            <div className="relative w-full h-full animate-contour-glow flex items-center justify-center">
+            <div className="relative w-full h-full flex items-center justify-center">
               <Image
                 src="/assets/logo-amazon-vanilla-hero.png"
                 alt="Amazon Vanilla By Waorani People"
