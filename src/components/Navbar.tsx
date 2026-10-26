@@ -12,7 +12,7 @@ export default function Navbar() {
         <div className="flex items-center justify-between h-20">
           {/* Logo & Brand */}
           <Link href="/" className="flex items-center group flex-shrink-0" title="Amazon Vanilla By Waorani People">
-            <div className="relative w-36 sm:w-48 md:w-56 h-12 sm:h-14 flex-shrink-0">
+            <div className="relative w-40 sm:w-52 md:w-60 h-11 sm:h-13 md:h-14 flex-shrink-0">
               <Image
                 src="/assets/logo-navbar.png"
                 alt="Amazon Vanilla - By Waorani People"
