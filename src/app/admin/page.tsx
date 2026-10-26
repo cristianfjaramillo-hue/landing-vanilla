@@ -645,55 +645,6 @@ export default function AdminPage() {
           </div>
         )}
 
-        {/* Modal Lightbox de Fotografía */}
-        {selectedPhoto && (
-          <div
-            onClick={() => setSelectedPhoto(null)}
-            className="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200"
-          >
-            <div
-              onClick={(e) => e.stopPropagation()}
-              className="bg-white rounded-2xl max-w-4xl w-full max-h-[92vh] overflow-hidden shadow-2xl flex flex-col"
-            >
-              <div className="p-4 bg-forest-900 text-white flex items-center justify-between">
-                <span className="text-xs sm:text-sm font-semibold text-vanilla-200 truncate">
-                  {selectedPhoto.title}
-                </span>
-                <button
-                  onClick={() => setSelectedPhoto(null)}
-                  className="p-1 rounded-full hover:bg-forest-800 text-forest-200 hover:text-white transition-colors"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-
-              <div className="p-4 flex-1 flex items-center justify-center bg-forest-950/95 overflow-auto min-h-[300px]">
-                <img
-                  src={selectedPhoto.url}
-                  alt="Fotografía de campo"
-                  className="max-h-[68vh] w-auto max-w-full object-contain rounded-lg shadow-lg"
-                />
-              </div>
-
-              <div className="p-3 bg-vanilla-50 flex items-center justify-between border-t border-vanilla-200">
-                <span className="text-xs text-forest-700">
-                  Inspección fitosanitaria y seguimiento agronómico ITEC
-                </span>
-                <a
-                  href={selectedPhoto.url}
-                  download={`foto_vainilla_${Date.now()}.jpg`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-forest-900 hover:bg-forest-800 text-white text-xs font-semibold transition-colors"
-                >
-                  <Download className="w-3.5 h-3.5 text-vanilla-400" />
-                  <span>Descargar Foto</span>
-                </a>
-              </div>
-            </div>
-          </div>
-        )}
-
         {/* Modal de Vista Previa Completa del Informe */}
         {previewReport && (
           <div
@@ -1042,6 +993,63 @@ export default function AdminPage() {
                   <button
                     onClick={() => setPreviewReport(null)}
                     className="px-4 py-2 rounded-lg border border-vanilla-300 hover:bg-white text-forest-800 text-xs font-medium transition-colors"
+                  >
+                    Cerrar
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+        {/* Modal Lightbox de Fotografía (Se renderiza delante de la Vista Previa con z-[70]) */}
+        {selectedPhoto && (
+          <div
+            onClick={() => setSelectedPhoto(null)}
+            className="fixed inset-0 z-[70] bg-black/90 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 animate-in fade-in duration-200"
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              className="bg-white rounded-2xl max-w-4xl w-full max-h-[92vh] overflow-hidden shadow-2xl flex flex-col border border-vanilla-300"
+            >
+              <div className="p-4 bg-forest-900 text-white flex items-center justify-between">
+                <span className="text-xs sm:text-sm font-semibold text-vanilla-200 truncate">
+                  {selectedPhoto.title}
+                </span>
+                <button
+                  onClick={() => setSelectedPhoto(null)}
+                  className="p-1.5 rounded-full hover:bg-forest-800 text-forest-200 hover:text-white transition-colors"
+                  title="Cerrar imagen y volver a la vista previa"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="p-4 flex-1 flex items-center justify-center bg-forest-950/95 overflow-auto min-h-[300px]">
+                <img
+                  src={selectedPhoto.url}
+                  alt="Fotografía de campo"
+                  className="max-h-[70vh] w-auto max-w-full object-contain rounded-lg shadow-2xl"
+                />
+              </div>
+
+              <div className="p-3 bg-vanilla-50 flex items-center justify-between border-t border-vanilla-200">
+                <span className="text-xs text-forest-700">
+                  Inspección fitosanitaria y seguimiento agronómico ITEC
+                </span>
+                <div className="flex items-center space-x-2">
+                  <a
+                    href={selectedPhoto.url}
+                    download={`foto_vainilla_${Date.now()}.jpg`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-forest-900 hover:bg-forest-800 text-white text-xs font-semibold transition-colors"
+                  >
+                    <Download className="w-3.5 h-3.5 text-vanilla-400" />
+                    <span>Descargar Foto</span>
+                  </a>
+                  <button
+                    onClick={() => setSelectedPhoto(null)}
+                    className="px-3 py-1.5 rounded-lg border border-vanilla-300 text-forest-800 text-xs font-medium hover:bg-white"
                   >
                     Cerrar
                   </button>
