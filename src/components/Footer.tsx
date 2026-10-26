@@ -53,11 +53,6 @@ export default function Footer() {
                 </Link>
               </li>
               <li>
-                <Link href="/#trazabilidad" className="hover:text-white transition-colors">
-                  Ventana de Trazabilidad
-                </Link>
-              </li>
-              <li>
                 <Link href="/reportes/nuevo" className="hover:text-white transition-colors">
                   Llenar Formulario Diario
                 </Link>

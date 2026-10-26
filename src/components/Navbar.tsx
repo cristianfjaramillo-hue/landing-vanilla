@@ -41,10 +41,6 @@ export default function Navbar() {
             <Link href="/#calidad" className="hover:text-vanilla-600 transition-colors">
               Innovación ITEC
             </Link>
-            <Link href="/#trazabilidad" className="hover:text-vanilla-600 transition-colors flex items-center space-x-1">
-              <Sprout className="w-4 h-4 text-forest-600" />
-              <span>Trazabilidad de Campo</span>
-            </Link>
           </nav>
 
           {/* Action Buttons */}
@@ -102,13 +98,6 @@ export default function Navbar() {
             className="block py-2 text-forest-900 font-medium hover:text-vanilla-600"
           >
             Innovación ITEC
-          </Link>
-          <Link
-            href="/#trazabilidad"
-            onClick={() => setIsOpen(false)}
-            className="block py-2 text-forest-900 font-medium hover:text-vanilla-600"
-          >
-            Trazabilidad de Campo
           </Link>
           <div className="pt-3 border-t border-vanilla-200 flex flex-col space-y-2">
             <Link

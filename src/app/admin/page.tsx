@@ -19,6 +19,10 @@ import {
   ExternalLink,
   MessageCircle,
   Lock,
+  Sprout,
+  Sun,
+  Droplets,
+  Thermometer,
 } from "lucide-react";
 import { INITIAL_MOCK_REPORTS, DEFAULT_ACTIVITIES, DEFAULT_TOOLS } from "@/lib/constants";
 import { DailyReport, ActivityItem, ToolItem } from "@/lib/types";
@@ -250,11 +254,11 @@ export default function AdminPage() {
               <div className="flex items-center space-x-2">
                 <ShieldCheck className="w-5 h-5 text-vanilla-400" />
                 <h1 className="text-xl sm:text-2xl font-serif font-bold text-vanilla-200">
-                  Panel de Control Administrativo
+                  Panel de Administración & Trazabilidad de Campo
                 </h1>
               </div>
               <p className="text-xs text-forest-200 mt-0.5">
-                Repositorio Oficial de Informes Diarios | ITEC Ecuador & Territorio Waorani
+                Repositorio Oficial y Control Agronómico de Informes Diarios | ITEC Ecuador & Territorio Waorani
               </p>
             </div>
           </div>
@@ -296,8 +300,8 @@ export default function AdminPage() {
                 : "bg-white text-forest-800 border border-vanilla-200 hover:bg-vanilla-100"
             }`}
           >
-            <Database className="w-4 h-4 text-vanilla-400" />
-            <span>Repositorio de Informes ({reports.length})</span>
+            <Sprout className="w-4 h-4 text-vanilla-400" />
+            <span>Trazabilidad de Campo & Informes ({reports.length})</span>
           </button>
 
           <button
@@ -313,9 +317,43 @@ export default function AdminPage() {
           </button>
         </div>
 
-        {/* PESTAÑA 1: REPOSITORIO DE INFORMES */}
+        {/* PESTAÑA 1: REPOSITORIO Y TRAZABILIDAD DE CAMPO */}
         {activeTab === "repositorio" && (
           <div className="space-y-6">
+            {/* Resumen de Métricas de Trazabilidad */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              <div className="bg-white p-4 rounded-xl border border-vanilla-200 shadow-sm text-center">
+                <span className="text-xs text-forest-600 font-medium">Informes Emitidos</span>
+                <p className="text-2xl font-serif font-bold text-forest-900 mt-1">{reports.length}</p>
+                <span className="text-[10px] text-forest-400">Total en territorio</span>
+              </div>
+              <div className="bg-white p-4 rounded-xl border border-vanilla-200 shadow-sm text-center">
+                <span className="text-xs text-forest-600 font-medium">Chakras / Lotes</span>
+                <p className="text-2xl font-serif font-bold text-vanilla-600 mt-1">{uniqueLotes.length}</p>
+                <span className="text-[10px] text-forest-400">En monitoreo activo</span>
+              </div>
+              <div className="bg-white p-4 rounded-xl border border-vanilla-200 shadow-sm text-center">
+                <span className="text-xs text-forest-600 font-medium">Temp. Promedio</span>
+                <p className="text-2xl font-serif font-bold text-forest-900 mt-1">
+                  {reports.length > 0
+                    ? Math.round(reports.reduce((acc, r) => acc + (r.tempMax || 28), 0) / reports.length)
+                    : 28}
+                  °C
+                </p>
+                <span className="text-[10px] text-forest-400">Condición térmica</span>
+              </div>
+              <div className="bg-white p-4 rounded-xl border border-vanilla-200 shadow-sm text-center">
+                <span className="text-xs text-forest-600 font-medium">Humedad Promedio</span>
+                <p className="text-2xl font-serif font-bold text-blue-600 mt-1">
+                  {reports.length > 0
+                    ? Math.round(reports.reduce((acc, r) => acc + (r.humedad || 85), 0) / reports.length)
+                    : 85}
+                  %
+                </p>
+                <span className="text-[10px] text-forest-400">Humedad de bosque</span>
+              </div>
+            </div>
+
             {/* Barra de Filtros y Búsqueda */}
             <div className="bg-white p-4 rounded-xl border border-vanilla-200 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
               <div className="relative w-full sm:w-80">

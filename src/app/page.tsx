@@ -1,48 +1,16 @@
-"use client";
-
-import React, { useState, useEffect } from "react";
+import React from "react";
 import Image from "next/image";
 import Link from "next/link";
 import {
-  Sprout,
-  ShieldCheck,
   FileText,
-  Download,
-  Calendar,
-  Thermometer,
-  Droplets,
-  Sun,
-  Award,
-  Globe2,
   TreePine,
   CheckCircle2,
-  Send,
-  ArrowRight,
-  ExternalLink,
   Sparkles,
+  ArrowRight,
+  ShieldCheck,
 } from "lucide-react";
-import { INITIAL_MOCK_REPORTS } from "@/lib/constants";
-import { DailyReport } from "@/lib/types";
-import { generateDailyReportPDF } from "@/lib/pdf-generator";
 
 export default function HomePage() {
-  const [reports, setReports] = useState<DailyReport[]>(INITIAL_MOCK_REPORTS);
-
-  useEffect(() => {
-    // Cargar reportes guardados localmente para actualizar la ventana en vivo
-    try {
-      const local = JSON.parse(localStorage.getItem("vanilla_daily_reports") || "[]");
-      if (local.length > 0) {
-        const combined = [...local, ...INITIAL_MOCK_REPORTS];
-        const unique = Array.from(new Map(combined.map((item) => [item.id, item])).values());
-        unique.sort(
-          (a, b) => new Date(b.created_at || b.fechaReporte).getTime() - new Date(a.created_at || a.fechaReporte).getTime()
-        );
-        setReports(unique);
-      }
-    } catch (e) {}
-  }, []);
-
   return (
     <div className="space-y-24 pb-20">
       {/* 1. HERO SECTION */}
@@ -94,11 +62,10 @@ export default function HomePage() {
               <span>+ Llenar Informe Diario</span>
             </Link>
             <a
-              href="#trazabilidad"
+              href="#origen"
               className="w-full sm:w-auto px-8 py-4 rounded-xl bg-forest-900/90 hover:bg-forest-800 text-white font-semibold text-sm border border-forest-700 transition-all flex items-center justify-center space-x-2"
             >
-              <Sprout className="w-4 h-4 text-vanilla-400" />
-              <span>Ver Trazabilidad en Vivo</span>
+              <span>Conocer Territorio Waorani</span>
             </a>
           </div>
         </div>
@@ -139,12 +106,12 @@ export default function HomePage() {
 
           <div className="text-center p-3 border-l border-vanilla-200">
             <div className="text-2xl sm:text-3xl font-serif font-bold text-vanilla-600">
-              Punto a Punto
+              Sello ITEC
             </div>
             <div className="text-xs text-forest-600 font-medium mt-1">
-              Trazabilidad ITEC
+              Innovación Sostenible
             </div>
-            <p className="text-[10px] text-forest-400 mt-0.5">Informes diarios de campo</p>
+            <p className="text-[10px] text-forest-400 mt-0.5">Rigor técnico y científico</p>
           </div>
         </div>
       </section>
@@ -255,138 +222,6 @@ export default function HomePage() {
               </p>
             </div>
           </div>
-        </div>
-      </section>
-
-      {/* 5. VENTANA DE INFORMACIÓN Y TRAZABILIDAD EN VIVO (REQUERIMIENTO CLAVE) */}
-      <section id="trazabilidad" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-vanilla-300 pb-6">
-          <div>
-            <div className="inline-flex items-center space-x-2 text-xs font-bold uppercase tracking-widest text-forest-800 bg-forest-100 px-3 py-1 rounded-md mb-2">
-              <Sprout className="w-4 h-4 text-forest-700" />
-              <span>Transparencia y Datos en Tiempo Real</span>
-            </div>
-            <h2 className="text-2xl sm:text-4xl font-serif font-bold text-forest-950">
-              Ventana de Informes Diarios de Cultivo
-            </h2>
-            <p className="text-xs sm:text-sm text-forest-600 mt-1 max-w-2xl">
-              Aquí puedes auditar el seguimiento agronómico en territorio. Cada informe se actualiza automáticamente al ser emitido desde el campo y cuenta con descarga en PDF oficial ITEC.
-            </p>
-          </div>
-
-          <div className="flex items-center space-x-3">
-            <Link
-              href="/reportes/nuevo"
-              className="inline-flex items-center space-x-2 px-4 py-2.5 rounded-xl bg-forest-900 hover:bg-forest-800 text-white font-bold text-xs shadow-md transition-transform active:scale-95"
-            >
-              <FileText className="w-4 h-4 text-vanilla-400" />
-              <span>+ Llenar Informe Diario</span>
-            </Link>
-
-            <Link
-              href="/admin"
-              className="inline-flex items-center space-x-1.5 px-3 py-2.5 rounded-xl border border-vanilla-300 text-forest-900 font-semibold text-xs hover:bg-white transition-colors"
-            >
-              <ShieldCheck className="w-4 h-4 text-forest-700" />
-              <span>Ver Todo</span>
-            </Link>
-          </div>
-        </div>
-
-        {/* Tarjetas de Informes Recientes */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {reports.slice(0, 4).map((report) => {
-            const actRealizadas = report.actividades.filter((a) => a.realizado);
-            return (
-              <div
-                key={report.id}
-                className="bg-white rounded-2xl p-6 border border-vanilla-200 shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between space-y-4"
-              >
-                <div className="space-y-3">
-                  {/* Encabezado del reporte */}
-                  <div className="flex items-center justify-between">
-                    <span className="font-mono text-xs font-bold px-2.5 py-1 rounded-md bg-forest-100 text-forest-900">
-                      {report.id}
-                    </span>
-                    <div className="flex items-center space-x-1 text-xs text-forest-600">
-                      <Calendar className="w-3.5 h-3.5 text-vanilla-600" />
-                      <span>{report.fechaReporte}</span>
-                    </div>
-                  </div>
-
-                  {/* Lote y Responsable */}
-                  <div>
-                    <h3 className="text-base font-bold text-forest-950">
-                      {report.lote}
-                    </h3>
-                    <p className="text-xs text-forest-600">
-                      Responsable: <strong>{report.responsable}</strong>
-                    </p>
-                  </div>
-
-                  {/* Condiciones climáticas */}
-                  <div className="flex items-center space-x-4 bg-vanilla-50/70 p-2.5 rounded-lg text-xs text-forest-800">
-                    <span className="flex items-center space-x-1">
-                      <Sun className="w-3.5 h-3.5 text-vanilla-600" />
-                      <span>{report.clima}</span>
-                    </span>
-                    <span className="flex items-center space-x-1">
-                      <Thermometer className="w-3.5 h-3.5 text-forest-600" />
-                      <span>{report.tempMin}°C - {report.tempMax}°C</span>
-                    </span>
-                    <span className="flex items-center space-x-1">
-                      <Droplets className="w-3.5 h-3.5 text-blue-600" />
-                      <span>{report.humedad}% Hum</span>
-                    </span>
-                  </div>
-
-                  {/* Actividades destacadas */}
-                  <div>
-                    <p className="text-[11px] font-bold uppercase tracking-wider text-forest-500 mb-1.5">
-                      Actividades Ejecutadas:
-                    </p>
-                    <div className="flex flex-wrap gap-1.5">
-                      {actRealizadas.length > 0 ? (
-                        actRealizadas.map((act) => (
-                          <span
-                            key={act.id}
-                            className="text-[11px] px-2 py-0.5 rounded bg-forest-50 text-forest-800 border border-forest-200"
-                          >
-                            ✓ {act.nombre}
-                          </span>
-                        ))
-                      ) : (
-                        <span className="text-xs text-forest-400 italic">
-                          Sin actividades marcadas
-                        </span>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Observaciones */}
-                  {report.observaciones && (
-                    <p className="text-xs text-forest-700 italic bg-vanilla-50/40 p-2.5 rounded-md border-l-2 border-vanilla-500">
-                      "{report.observaciones}"
-                    </p>
-                  )}
-                </div>
-
-                {/* Botón de Descarga del Informe en PDF */}
-                <div className="pt-3 border-t border-vanilla-100 flex items-center justify-between">
-                  <span className="text-[11px] text-forest-500">
-                    Seguimiento y Control ITEC
-                  </span>
-                  <button
-                    onClick={() => generateDailyReportPDF(report)}
-                    className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-forest-900 hover:bg-forest-800 text-white text-xs font-semibold transition-colors"
-                  >
-                    <Download className="w-3.5 h-3.5 text-vanilla-400" />
-                    <span>Descargar PDF</span>
-                  </button>
-                </div>
-              </div>
-            );
-          })}
         </div>
       </section>
     </div>
