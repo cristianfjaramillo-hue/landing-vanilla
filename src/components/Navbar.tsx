@@ -11,23 +11,15 @@ export default function Navbar() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-20">
           {/* Logo & Brand */}
-          <Link href="/" className="flex items-center space-x-3 group">
-            <div className="relative w-12 h-12 flex-shrink-0">
+          <Link href="/" className="flex items-center group flex-shrink-0" title="Amazon Vanilla By Waorani People">
+            <div className="relative w-36 sm:w-48 md:w-56 h-12 sm:h-14 flex-shrink-0">
               <Image
-                src="/assets/logo-amazon-vanilla-white.png"
-                alt="Amazon Vanilla By Waorani People"
+                src="/assets/logo-navbar.png"
+                alt="Amazon Vanilla - By Waorani People"
                 fill
-                className="object-contain"
+                className="object-contain object-left group-hover:opacity-85 transition-opacity"
                 priority
               />
-            </div>
-            <div className="flex flex-col">
-              <span className="font-serif tracking-widest text-lg font-bold text-forest-900 group-hover:text-vanilla-600 transition-colors">
-                AMAZON VANILLA
-              </span>
-              <span className="text-[10px] tracking-wider uppercase text-vanilla-600 font-semibold">
-                By Waorani People & ITEC
-              </span>
             </div>
           </Link>
 
