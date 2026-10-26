@@ -245,8 +245,30 @@ export default function NuevoReportePage() {
 
     const adminPhone = process.env.NEXT_PUBLIC_WHATSAPP_ADMIN_PHONE || "593962577613";
     const whatsappUrl = `https://api.whatsapp.com/send?phone=${adminPhone}&text=${encodeURIComponent(text)}`;
-    if (typeof window !== "undefined") {
-      window.open(whatsappUrl, "_blank");
+
+    // 1. Intentar envío silencioso 100% automático desde el servidor
+    try {
+      fetch("/api/notificar-whatsapp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mensaje: text, telefono: adminPhone }),
+      })
+        .then(async (res) => {
+          const json = await res.json().catch(() => ({}));
+          // Si no hay proveedor API de backend configurado, se abre la app como respaldo
+          if (json.configured === false && typeof window !== "undefined") {
+            window.open(whatsappUrl, "_blank");
+          }
+        })
+        .catch(() => {
+          if (typeof window !== "undefined") {
+            window.open(whatsappUrl, "_blank");
+          }
+        });
+    } catch {
+      if (typeof window !== "undefined") {
+        window.open(whatsappUrl, "_blank");
+      }
     }
   };
 
