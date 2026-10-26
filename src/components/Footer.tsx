@@ -43,8 +43,8 @@ export default function Footer() {
             </h4>
             <ul className="space-y-2.5 text-sm text-forest-200/80">
               <li>
-                <Link href="/#origen" className="hover:text-white transition-colors">
-                  Territorio y Comunidad
+                <Link href="/" className="hover:text-white transition-colors">
+                  Inicio
                 </Link>
               </li>
               <li>

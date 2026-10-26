@@ -3,16 +3,13 @@ import Image from "next/image";
 import Link from "next/link";
 import {
   FileText,
-  TreePine,
-  CheckCircle2,
   Sparkles,
-  ArrowRight,
   ShieldCheck,
 } from "lucide-react";
 
 export default function HomePage() {
   return (
-    <div className="space-y-24 pb-20">
+    <div className="space-y-16 pb-20">
       {/* 1. HERO SECTION */}
       <section className="relative overflow-hidden bg-forest-950 text-white pt-24 pb-28 sm:pb-36 border-b-4 border-vanilla-500">
         {/* Glow de fondo decorativo */}
@@ -61,12 +58,13 @@ export default function HomePage() {
               <FileText className="w-4 h-4" />
               <span>+ Llenar Informe Diario</span>
             </Link>
-            <a
-              href="#origen"
+            <Link
+              href="/admin"
               className="w-full sm:w-auto px-8 py-4 rounded-xl bg-forest-900/90 hover:bg-forest-800 text-white font-semibold text-sm border border-forest-700 transition-all flex items-center justify-center space-x-2"
             >
-              <span>Conocer Territorio Waorani</span>
-            </a>
+              <ShieldCheck className="w-4 h-4 text-vanilla-400" />
+              <span>Acceso Panel de Administración</span>
+            </Link>
           </div>
         </div>
       </section>
@@ -112,60 +110,6 @@ export default function HomePage() {
               Innovación Sostenible
             </div>
             <p className="text-[10px] text-forest-400 mt-0.5">Rigor técnico y científico</p>
-          </div>
-        </div>
-      </section>
-
-      {/* 3. SECCIÓN: ORIGEN Y COMUNIDAD WAORANI */}
-      <section id="origen" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-          <div className="space-y-6">
-            <div className="inline-flex items-center space-x-2 text-xs font-bold uppercase tracking-widest text-vanilla-700 bg-vanilla-100 px-3 py-1 rounded-md">
-              <TreePine className="w-4 h-4 text-forest-800" />
-              <span>Territorio Ancestral & Conservación</span>
-            </div>
-
-            <h2 className="text-2xl sm:text-4xl font-serif font-bold text-forest-950 leading-snug">
-              Guardianes del Yasuní: Cultivando Vida donde el Bosque es Sagrado
-            </h2>
-
-            <p className="text-sm sm:text-base text-forest-800/90 leading-relaxed">
-              En las profundidades de la Amazonía ecuatoriana, las familias de la nacionalidad Waorani cultivan orquídeas de vainilla en armonía con los árboles tutores de la chakra tradicional.
-            </p>
-
-            <p className="text-sm sm:text-base text-forest-800/90 leading-relaxed">
-              Este proyecto es una respuesta contundente y sostenible a las actividades extractivas: un modelo de bioeconomía donde la protección del territorio genera prosperidad directa para las comunidades que lo defienden.
-            </p>
-
-            <div className="space-y-3 pt-2">
-              {[
-                "Recolección y polinización liderada por mujeres guardianas Waorani.",
-                "Especies nativas como Vanilla odorata adaptadas naturalmente al microclima amazónico.",
-                "Sistemas agroforestales que protegen la biodiversidad y cuencas hídricas.",
-              ].map((item, idx) => (
-                <div key={idx} className="flex items-start space-x-3 text-sm text-forest-900">
-                  <CheckCircle2 className="w-5 h-5 text-forest-700 flex-shrink-0 mt-0.5" />
-                  <span>{item}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="relative bg-gradient-to-br from-forest-900 to-forest-950 p-8 sm:p-12 rounded-3xl text-white shadow-2xl border border-forest-800 space-y-6">
-            <div className="relative w-20 h-20 bg-white/10 rounded-2xl p-2">
-              <Image
-                src="/assets/logo-amazon-vanilla-white.png"
-                alt="Logo"
-                fill
-                className="object-contain"
-              />
-            </div>
-            <blockquote className="font-serif italic text-lg sm:text-xl text-vanilla-200 leading-relaxed">
-              "Nuestra selva no se tala ni se vende; florece en cada orquídea de vainilla que cuidamos con nuestras manos para el futuro de nuestros hijos."
-            </blockquote>
-            <div className="text-xs font-semibold tracking-wider uppercase text-forest-300">
-              — Alianza Comunitaria Waorani & ITEC Ecuador
-            </div>
           </div>
         </div>
       </section>
