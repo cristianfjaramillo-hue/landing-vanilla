@@ -67,3 +67,17 @@ export interface DailyReport {
   foto2Url?: string;
   foto3Url?: string;
 }
+
+export interface ActivityProtocol {
+  id: string;
+  created_at: string;
+  fecha: string;
+  lote: string;
+  responsable: string;
+  observaciones: string;
+  checkedItems: Record<string, boolean>;
+  totalActividades: number;
+  completadas: number;
+  porcentaje: number;
+  tipo?: string;
+}

@@ -31,10 +31,14 @@ import {
   Eye,
   CheckSquare,
   Square,
+  CheckCircle2,
+  Printer,
+  Warehouse,
 } from "lucide-react";
 import { INITIAL_MOCK_REPORTS, DEFAULT_ACTIVITIES, DEFAULT_TOOLS } from "@/lib/constants";
-import { DailyReport, ActivityItem, ToolItem } from "@/lib/types";
-import { generateDailyReportPDF } from "@/lib/pdf-generator";
+import { DailyReport, ActivityItem, ToolItem, ActivityProtocol } from "@/lib/types";
+import { generateDailyReportPDF, generateActivityProtocolPDF } from "@/lib/pdf-generator";
+import { SECTIONS_DATA } from "@/lib/actividades-data";
 import { supabase } from "@/lib/supabase";
 
 export default function AdminPage() {
@@ -47,6 +51,12 @@ export default function AdminPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterLote, setFilterLote] = useState("todos");
 
+  // Listados de Actividades Guardados
+  const [protocols, setProtocols] = useState<ActivityProtocol[]>([]);
+  const [searchProtocolTerm, setSearchProtocolTerm] = useState("");
+  const [previewProtocol, setPreviewProtocol] = useState<ActivityProtocol | null>(null);
+  const [generatingProtocolPdfId, setGeneratingProtocolPdfId] = useState<string | null>(null);
+
   // Visualizador de Fotografías (Lightbox) y estado de PDF
   const [selectedPhoto, setSelectedPhoto] = useState<{ url: string; title: string } | null>(null);
   const [generatingPdfId, setGeneratingPdfId] = useState<string | null>(null);
@@ -54,8 +64,8 @@ export default function AdminPage() {
   // Modal de Vista Previa Completa del Informe
   const [previewReport, setPreviewReport] = useState<DailyReport | null>(null);
 
-  // Pestañas (Repositorio vs Configuración de Formulario)
-  const [activeTab, setActiveTab] = useState<"repositorio" | "configuracion">("repositorio");
+  // Pestañas (Repositorio vs Actividades vs Configuración de Formulario)
+  const [activeTab, setActiveTab] = useState<"repositorio" | "actividades" | "configuracion">("repositorio");
 
   // Configuración dinámica de actividades y herramientas
   const [customActivities, setCustomActivities] = useState<ActivityItem[]>(DEFAULT_ACTIVITIES);
@@ -77,13 +87,48 @@ export default function AdminPage() {
       );
       setReports(unique);
 
-      // 2. Intentar cargar desde Supabase si existen
+      // 2. Cargar Protocolos de Actividades desde localStorage (más reciente primero)
+      const localProtocols: ActivityProtocol[] = JSON.parse(
+        localStorage.getItem("vanilla_saved_actividades") || "[]"
+      );
+      localProtocols.sort(
+        (a, b) => new Date(b.created_at || b.fecha).getTime() - new Date(a.created_at || a.fecha).getTime()
+      );
+      setProtocols(localProtocols);
+
+      // 3. Intentar cargar desde Supabase si existen
       try {
         const { data, error } = await supabase.from("reportes_diarios").select("*").order("created_at", { ascending: false });
         if (data && data.length > 0) {
-          const fromDb = data.map((d) => d.data as DailyReport);
-          const allTogether = Array.from(new Map([...fromDb, ...unique].map((item) => [item.id, item])).values());
-          setReports(allTogether);
+          const dbReports: DailyReport[] = [];
+          const dbProtocols: ActivityProtocol[] = [];
+
+          data.forEach((row) => {
+            const rowData = row.data as any;
+            if (row.report_id?.startsWith("ACT-") || rowData?.tipo === "protocolo_actividades") {
+              dbProtocols.push(rowData as ActivityProtocol);
+            } else {
+              dbReports.push(rowData as DailyReport);
+            }
+          });
+
+          if (dbReports.length > 0) {
+            const allTogether = Array.from(new Map([...dbReports, ...unique].map((item) => [item.id, item])).values());
+            allTogether.sort(
+              (a, b) => new Date(b.created_at || b.fechaReporte).getTime() - new Date(a.created_at || a.fechaReporte).getTime()
+            );
+            setReports(allTogether);
+          }
+
+          if (dbProtocols.length > 0) {
+            const allProtocols = Array.from(
+              new Map([...dbProtocols, ...localProtocols].map((item) => [item.id, item])).values()
+            );
+            allProtocols.sort(
+              (a, b) => new Date(b.created_at || b.fecha).getTime() - new Date(a.created_at || a.fecha).getTime()
+            );
+            setProtocols(allProtocols);
+          }
         }
       } catch (e) {
         // Silencioso si no hay tabla
@@ -138,6 +183,34 @@ export default function AdminPage() {
       try {
         supabase.from("reportes_diarios").delete().eq("report_id", id);
       } catch (e) {}
+    }
+  };
+
+  // Descargar PDF del Protocolo de Actividades
+  const handleDownloadProtocolPdf = async (protocol: ActivityProtocol) => {
+    try {
+      setGeneratingProtocolPdfId(protocol.id);
+      await generateActivityProtocolPDF(protocol);
+    } catch (err) {
+      console.error("Error al generar PDF del protocolo:", err);
+      alert("Hubo un error al generar el PDF del protocolo.");
+    } finally {
+      setGeneratingProtocolPdfId(null);
+    }
+  };
+
+  // Eliminar protocolo de actividades
+  const handleDeleteProtocol = async (id: string) => {
+    if (confirm(`¿Estás seguro de que deseas eliminar permanentemente el protocolo de actividades ${id}?`)) {
+      const updated = protocols.filter((p) => p.id !== id);
+      setProtocols(updated);
+      localStorage.setItem("vanilla_saved_actividades", JSON.stringify(updated));
+
+      try {
+        await supabase.from("reportes_diarios").delete().eq("report_id", id);
+      } catch (e) {
+        console.warn("Error eliminando protocolo en Supabase:", e);
+      }
     }
   };
 
@@ -199,6 +272,17 @@ export default function AdminPage() {
     const matchesLote = filterLote === "todos" || r.lote === filterLote;
 
     return matchesSearch && matchesLote;
+  });
+
+  // Filtrado de protocolos de actividades (organizados con el más reciente primero)
+  const filteredProtocols = protocols.filter((p) => {
+    const term = searchProtocolTerm.toLowerCase();
+    return (
+      (p.id && p.id.toLowerCase().includes(term)) ||
+      (p.lote && p.lote.toLowerCase().includes(term)) ||
+      (p.responsable && p.responsable.toLowerCase().includes(term)) ||
+      (p.fecha && p.fecha.includes(term))
+    );
   });
 
   const uniqueLotes = Array.from(new Set(reports.map((r) => r.lote)));
@@ -340,7 +424,19 @@ export default function AdminPage() {
             }`}
           >
             <Sprout className="w-4 h-4 text-vanilla-400" />
-            <span>Trazabilidad de Campo & Informes ({reports.length})</span>
+            <span>Trazabilidad & Informes ({reports.length})</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab("actividades")}
+            className={`px-4 py-2 rounded-lg text-xs font-bold flex items-center space-x-2 transition-all ${
+              activeTab === "actividades"
+                ? "bg-forest-900 text-white shadow-sm"
+                : "bg-white text-forest-800 border border-vanilla-200 hover:bg-vanilla-100"
+            }`}
+          >
+            <ClipboardList className="w-4 h-4 text-vanilla-400" />
+            <span>Listados de Actividades ({protocols.length})</span>
           </button>
 
           <button
@@ -583,6 +679,196 @@ export default function AdminPage() {
                           onClick={() => handleDeleteReport(report.id)}
                           className="p-2 rounded-lg text-red-600 hover:bg-red-50 border border-transparent hover:border-red-200 transition-colors"
                           title="Eliminar Reporte"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* PESTAÑA 2: LISTADOS DE ACTIVIDADES GUARDADOS */}
+        {activeTab === "actividades" && (
+          <div className="space-y-6">
+            {/* Métricas de Protocolos */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="bg-white p-4 rounded-xl border border-vanilla-200 shadow-sm text-center">
+                <span className="text-xs text-forest-600 font-medium">Protocolos Registrados</span>
+                <p className="text-2xl font-serif font-bold text-forest-900 mt-1">{protocols.length}</p>
+                <span className="text-[10px] text-forest-400">Total guardados en sistema</span>
+              </div>
+
+              <div className="bg-white p-4 rounded-xl border border-vanilla-200 shadow-sm text-center">
+                <span className="text-xs text-forest-600 font-medium">Promedio de Cumplimiento</span>
+                <p className="text-2xl font-serif font-bold text-emerald-700 mt-1">
+                  {protocols.length > 0
+                    ? Math.round(protocols.reduce((acc, p) => acc + (p.porcentaje || 0), 0) / protocols.length)
+                    : 0}
+                  %
+                </p>
+                <span className="text-[10px] text-forest-400">Avance agronómico general</span>
+              </div>
+
+              <div className="bg-white p-4 rounded-xl border border-vanilla-200 shadow-sm text-center">
+                <span className="text-xs text-forest-600 font-medium">Invernaderos Monitoreados</span>
+                <p className="text-2xl font-serif font-bold text-vanilla-600 mt-1">
+                  {Array.from(new Set(protocols.map((p) => p.lote))).length}
+                </p>
+                <span className="text-[10px] text-forest-400">Chakras / sectores</span>
+              </div>
+            </div>
+
+            {/* Barra de Búsqueda y Acciones */}
+            <div className="bg-white p-4 rounded-xl border border-vanilla-200 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-3">
+              <div className="relative flex-1 w-full">
+                <Search className="w-4 h-4 text-forest-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  placeholder="Buscar por código, invernadero, responsable o fecha..."
+                  value={searchProtocolTerm}
+                  onChange={(e) => setSearchProtocolTerm(e.target.value)}
+                  className="w-full pl-9 pr-4 py-2 rounded-lg border border-vanilla-300 text-xs text-forest-900 focus:outline-none focus:border-forest-700 bg-vanilla-50/40"
+                />
+              </div>
+
+              <div className="flex items-center space-x-2 w-full sm:w-auto justify-end">
+                <Link
+                  href="/actividades"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center space-x-1.5 px-3.5 py-2 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold shadow-sm transition-colors"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Nuevo Protocolo</span>
+                  <ExternalLink className="w-3 h-3 text-vanilla-300 ml-0.5" />
+                </Link>
+
+                <button
+                  onClick={loadReports}
+                  className="p-2 rounded-lg border border-vanilla-300 hover:bg-vanilla-50 text-forest-700 transition-colors"
+                  title="Actualizar listado"
+                >
+                  <RefreshCw className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+
+            {/* Listado de Protocolos Guardados (Nuevo primero) */}
+            {filteredProtocols.length === 0 ? (
+              <div className="bg-white rounded-2xl p-12 text-center border border-vanilla-200">
+                <ClipboardList className="w-12 h-12 text-forest-300 mx-auto mb-3" />
+                <h3 className="text-base font-semibold text-forest-900">
+                  No se encontraron protocolos de actividades guardados
+                </h3>
+                <p className="text-xs text-forest-600 mt-1 mb-4">
+                  Comienza completando y guardando las actividades desde la lámina integral de invernadero.
+                </p>
+                <Link
+                  href="/actividades"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center space-x-2 px-4 py-2 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-semibold"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Crear Primer Protocolo</span>
+                </Link>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 gap-4">
+                {filteredProtocols.map((protocol) => {
+                  return (
+                    <div
+                      key={protocol.id}
+                      className="bg-white rounded-xl p-5 border border-vanilla-200 shadow-sm hover:shadow-md transition-shadow flex flex-col md:flex-row md:items-center justify-between gap-4"
+                    >
+                      {/* Datos Principales */}
+                      <div className="space-y-1.5 flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="font-mono text-xs font-bold px-2 py-0.5 rounded bg-forest-900 text-vanilla-300">
+                            {protocol.id}
+                          </span>
+                          <span className="text-xs font-semibold text-forest-700 flex items-center space-x-1">
+                            <Calendar className="w-3.5 h-3.5 text-vanilla-600" />
+                            <span>{protocol.fecha}</span>
+                          </span>
+                          <span
+                            className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${
+                              protocol.porcentaje >= 75
+                                ? "bg-emerald-100 text-emerald-800"
+                                : protocol.porcentaje >= 40
+                                ? "bg-amber-100 text-amber-800"
+                                : "bg-forest-100 text-forest-800"
+                            }`}
+                          >
+                            {protocol.completadas} de {protocol.totalActividades} completadas ({protocol.porcentaje}%)
+                          </span>
+                        </div>
+
+                        <div>
+                          <h3 className="text-sm font-bold text-forest-950">
+                            {protocol.lote || "Invernadero Principal"}
+                          </h3>
+                          <p className="text-xs text-forest-600">
+                            Responsable: <span className="font-semibold text-forest-800">{protocol.responsable}</span>
+                          </p>
+                        </div>
+
+                        {/* Barra de progreso visual */}
+                        <div className="w-full max-w-md bg-vanilla-100 rounded-full h-2 overflow-hidden">
+                          <div
+                            className="bg-emerald-600 h-2 rounded-full transition-all"
+                            style={{ width: `${protocol.porcentaje}%` }}
+                          />
+                        </div>
+
+                        {protocol.observaciones && (
+                          <p className="text-xs text-forest-700 italic bg-vanilla-50/80 p-2 rounded-lg border border-vanilla-200 line-clamp-2">
+                            "{protocol.observaciones}"
+                          </p>
+                        )}
+                      </div>
+
+                      {/* Botones de Acción */}
+                      <div className="flex items-center space-x-2 self-end md:self-center flex-shrink-0">
+                        {/* Vista Previa */}
+                        <button
+                          onClick={() => setPreviewProtocol(protocol)}
+                          className="inline-flex items-center space-x-1 px-3 py-1.5 rounded-lg bg-forest-900 hover:bg-forest-800 text-white text-xs font-semibold transition-colors"
+                          title="Ver Vista Previa del Protocolo"
+                        >
+                          <Eye className="w-3.5 h-3.5 text-vanilla-400" />
+                          <span>Vista Previa</span>
+                        </button>
+
+                        {/* Descarga PDF */}
+                        <button
+                          onClick={() => handleDownloadProtocolPdf(protocol)}
+                          disabled={generatingProtocolPdfId === protocol.id}
+                          className="inline-flex items-center space-x-1 px-3 py-1.5 rounded-lg bg-vanilla-500 hover:bg-vanilla-600 text-forest-950 text-xs font-bold transition-colors disabled:opacity-50"
+                          title="Descargar Protocolo en PDF"
+                        >
+                          {generatingProtocolPdfId === protocol.id ? (
+                            <>
+                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                              <span>Generando...</span>
+                            </>
+                          ) : (
+                            <>
+                              <Download className="w-3.5 h-3.5" />
+                              <span>Descargar PDF</span>
+                            </>
+                          )}
+                        </button>
+
+                        {/* Eliminar */}
+                        <button
+                          onClick={() => handleDeleteProtocol(protocol.id)}
+                          className="p-2 rounded-lg text-red-600 hover:bg-red-50 border border-transparent hover:border-red-200 transition-colors"
+                          title="Eliminar Protocolo"
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
@@ -1004,6 +1290,183 @@ export default function AdminPage() {
 
                   <button
                     onClick={() => setPreviewReport(null)}
+                    className="px-4 py-2 rounded-lg border border-vanilla-300 hover:bg-white text-forest-800 text-xs font-medium transition-colors"
+                  >
+                    Cerrar
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Modal de Vista Previa Completa del Protocolo de Actividades */}
+        {previewProtocol && (
+          <div
+            style={{ zIndex: 99990 }}
+            onClick={() => setPreviewProtocol(null)}
+            className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 overflow-y-auto animate-in fade-in duration-200"
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              className="bg-white rounded-2xl max-w-4xl w-full max-h-[92vh] overflow-y-auto shadow-2xl border border-vanilla-200 flex flex-col my-auto"
+            >
+              {/* Cabecera Oficial del Protocolo */}
+              <div className="bg-forest-900 text-white p-5 sm:p-6 border-b-4 border-vanilla-500 sticky top-0 z-10 flex items-center justify-between">
+                <div className="flex items-center space-x-3.5">
+                  <div className="relative w-12 h-12 bg-white/10 rounded-xl p-1 flex-shrink-0">
+                    <Image
+                      src="/assets/logo-amazon-vanilla-white.png"
+                      alt="Logo"
+                      fill
+                      className="object-contain"
+                    />
+                  </div>
+                  <div>
+                    <div className="flex items-center space-x-2">
+                      <span className="font-mono text-xs font-bold px-2 py-0.5 rounded bg-vanilla-500 text-forest-950">
+                        {previewProtocol.id}
+                      </span>
+                      <h2 className="text-base sm:text-lg font-serif font-bold text-vanilla-200">
+                        LISTADO INTEGRAL DE ACTIVIDADES - VISTA PREVIA
+                      </h2>
+                    </div>
+                    <p className="text-[11px] text-forest-200 uppercase tracking-wider">
+                      Cultivo de Vainilla en Invernadero | ITEC Ecuador - Innovación Sostenible
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => setPreviewProtocol(null)}
+                  className="p-1.5 rounded-full hover:bg-forest-800 text-forest-200 hover:text-white transition-colors"
+                  title="Cerrar Vista Previa"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Contenido Completo del Protocolo */}
+              <div className="p-6 space-y-6 text-xs text-forest-900">
+                {/* 1. Metadatos Rápidos */}
+                <div className="bg-vanilla-50 p-4 rounded-xl border border-vanilla-200 grid grid-cols-1 sm:grid-cols-4 gap-4">
+                  <div>
+                    <span className="font-bold text-forest-700 block uppercase text-[10px]">Fecha de Registro:</span>
+                    <p className="font-bold text-sm text-forest-950 mt-0.5">{previewProtocol.fecha}</p>
+                  </div>
+                  <div>
+                    <span className="font-bold text-forest-700 block uppercase text-[10px]">Invernadero / Lote:</span>
+                    <p className="font-bold text-sm text-forest-950 mt-0.5">{previewProtocol.lote}</p>
+                  </div>
+                  <div>
+                    <span className="font-bold text-forest-700 block uppercase text-[10px]">Responsable Técnico:</span>
+                    <p className="font-semibold text-sm mt-0.5">{previewProtocol.responsable}</p>
+                  </div>
+                  <div>
+                    <span className="font-bold text-forest-700 block uppercase text-[10px]">Avance Cumplido:</span>
+                    <p className="font-bold text-sm text-emerald-700 mt-0.5">
+                      {previewProtocol.completadas} / {previewProtocol.totalActividades} ({previewProtocol.porcentaje}%)
+                    </p>
+                  </div>
+                </div>
+
+                {/* 2. Cuadrícula de las 9 Fases con Estados */}
+                <div>
+                  <h3 className="font-bold uppercase text-xs text-forest-800 mb-3 border-b border-vanilla-200 pb-1">
+                    Verificación de Fases Agronómicas
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {SECTIONS_DATA.map((section) => {
+                      const secCompleted = section.items.filter(
+                        (_, idx) => previewProtocol.checkedItems[`${section.id}-${idx}`]
+                      ).length;
+
+                      return (
+                        <div
+                          key={section.id}
+                          className="rounded-lg border border-forest-900/20 bg-white overflow-hidden shadow-xs"
+                        >
+                          <div className="bg-forest-900 text-white px-2.5 py-1.5 flex items-center justify-between text-[11px]">
+                            <span className="font-bold truncate">
+                              {section.id}. {section.title}
+                            </span>
+                            <span className="font-mono text-[10px] text-vanilla-300 ml-1">
+                              {secCompleted}/{section.items.length}
+                            </span>
+                          </div>
+                          <div className="p-2 space-y-1 max-h-48 overflow-y-auto">
+                            {section.items.map((item, idx) => {
+                              const isChecked = !!previewProtocol.checkedItems[`${section.id}-${idx}`];
+                              return (
+                                <div
+                                  key={idx}
+                                  className={`flex items-start space-x-1.5 text-[11px] p-1 rounded ${
+                                    isChecked ? "bg-green-50 text-forest-950 font-medium" : "text-forest-600 opacity-60"
+                                  }`}
+                                >
+                                  {isChecked ? (
+                                    <CheckSquare className="w-3.5 h-3.5 text-green-700 flex-shrink-0 mt-0.5" />
+                                  ) : (
+                                    <Square className="w-3.5 h-3.5 text-forest-300 flex-shrink-0 mt-0.5" />
+                                  )}
+                                  <span className={isChecked ? "" : "line-through text-gray-400"}>{item}</span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* 3. Observaciones */}
+                <div className="bg-vanilla-50 p-4 rounded-xl border border-vanilla-200">
+                  <span className="font-bold text-forest-700 block uppercase text-[10px] mb-1">
+                    Observaciones y Novedades de Campo:
+                  </span>
+                  <p className="text-xs text-forest-900 italic">
+                    {previewProtocol.observaciones || "Sin novedades adicionales reportadas durante esta verificación."}
+                  </p>
+                </div>
+
+                {/* 4. Validación / Firma */}
+                <div className="border-t border-forest-200 pt-3 flex items-center justify-between text-xs text-forest-700">
+                  <div>
+                    <span>Documento Oficial: <strong>ITEC-PROT-VAINILLA-01</strong></span>
+                  </div>
+                  <div className="text-right">
+                    <span>Firma / Responsable: <strong>{previewProtocol.responsable}</strong></span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Pie de Acciones del Modal */}
+              <div className="p-4 bg-vanilla-50 border-t border-vanilla-200 flex items-center justify-between">
+                <span className="text-xs text-forest-600">
+                  Registro agronómico oficial ITEC Ecuador
+                </span>
+                <div className="flex items-center space-x-2">
+                  <button
+                    onClick={() => handleDownloadProtocolPdf(previewProtocol)}
+                    disabled={generatingProtocolPdfId === previewProtocol.id}
+                    className="inline-flex items-center space-x-1.5 px-3.5 py-2 rounded-lg bg-forest-900 hover:bg-forest-800 text-white text-xs font-semibold transition-colors disabled:opacity-50"
+                  >
+                    {generatingProtocolPdfId === previewProtocol.id ? (
+                      <>
+                        <Loader2 className="w-3.5 h-3.5 animate-spin text-vanilla-400" />
+                        <span>Generando PDF...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Download className="w-3.5 h-3.5 text-vanilla-400" />
+                        <span>Descargar PDF</span>
+                      </>
+                    )}
+                  </button>
+
+                  <button
+                    onClick={() => setPreviewProtocol(null)}
                     className="px-4 py-2 rounded-lg border border-vanilla-300 hover:bg-white text-forest-800 text-xs font-medium transition-colors"
                   >
                     Cerrar

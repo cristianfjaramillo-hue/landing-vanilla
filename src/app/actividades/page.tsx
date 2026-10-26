@@ -24,167 +24,16 @@ import {
   FileText,
   Calendar,
   User,
-  ExternalLink
+  ExternalLink,
+  Save,
+  Check,
+  ShieldCheck,
+  ArrowRight
 } from "lucide-react";
-
-interface ActivitySection {
-  id: number;
-  title: string;
-  iconName: string;
-  items: string[];
-}
-
-const SECTIONS_DATA: ActivitySection[] = [
-  {
-    id: 1,
-    title: "PLANIFICACIÓN E INSTALACIÓN DEL INVERNADERO",
-    iconName: "Warehouse",
-    items: [
-      "Selección del sitio y análisis del microclima",
-      "Diseño del invernadero y distribución de áreas",
-      "Preparación del suelo o sustrato",
-      "Instalación de drenajes",
-      "Desinfección del área de cultivo",
-      "Instalación de sistema de riego",
-      "Instalación de mallas, sombra y ventilación",
-      "Colocación de tutores o soportes",
-      "Delimitación de lotes y codificación",
-      "Registro inicial del cultivo"
-    ]
-  },
-  {
-    id: 2,
-    title: "ESTABLECIMIENTO DEL CULTIVO",
-    iconName: "Sprout",
-    items: [
-      "Selección de esquejes o material vegetativo sano",
-      "Desinfección del material de siembra",
-      "Siembra o trasplante",
-      "Etiquetado por lote y fecha",
-      "Amarre inicial de guías",
-      "Manejo de sombra inicial",
-      "Riego de establecimiento",
-      "Reposición de plantas fallantes",
-      "Monitoreo de prendimiento"
-    ]
-  },
-  {
-    id: 3,
-    title: "MANTENIMIENTO DEL CULTIVO",
-    iconName: "Wrench",
-    items: [
-      "Riego programado",
-      "Fertilización",
-      "Aplicación de materia orgánica",
-      "Deshierbe o control de malezas",
-      "Aporcado o manejo de base",
-      "Poda sanitaria",
-      "Poda de formación",
-      "Guiado y amarre de lianas",
-      "Manejo de tutores",
-      "Regulación de sombra y ventilación",
-      "Monitoreo de temperatura y humedad",
-      "Muestreo y análisis de suelo o sustrato",
-      "Limpieza del invernadero",
-      "Mantenimiento de herramientas y equipos"
-    ]
-  },
-  {
-    id: 4,
-    title: "SANIDAD Y CONTROL FITOSANITARIO",
-    iconName: "ShieldAlert",
-    items: [
-      "Monitoreo de plagas",
-      "Monitoreo de enfermedades",
-      "Identificación de síntomas",
-      "Retiro de material vegetal afectado",
-      "Aplicación de controles biológicos",
-      "Aplicación de controles preventivos",
-      "Aplicación fitosanitaria correctiva",
-      "Desinfección de herramientas",
-      "Registro de incidencias fitosanitarias"
-    ]
-  },
-  {
-    id: 5,
-    title: "FLORACIÓN Y PRODUCCIÓN",
-    iconName: "Sparkles",
-    items: [
-      "Monitoreo de inducción floral",
-      "Identificación de botones florales",
-      "Polinización manual",
-      "Registro de flores polinizadas",
-      "Manejo de fructificación",
-      "Raleo o selección de vainas si aplica",
-      "Seguimiento del desarrollo de vainas",
-      "Protección de vainas",
-      "Evaluación de rendimiento por planta o lote"
-    ]
-  },
-  {
-    id: 6,
-    title: "COSECHA",
-    iconName: "ShoppingBag",
-    items: [
-      "Determinación del punto óptimo de cosecha",
-      "Corte y recolección de vainas",
-      "Clasificación preliminar",
-      "Conteo y pesaje",
-      "Registro de producción por lote",
-      "Transporte interno al área de beneficiado"
-    ]
-  },
-  {
-    id: 7,
-    title: "BENEFICIADO / CURADO DE VAINILLA",
-    iconName: "Sun",
-    items: [
-      "Selección y clasificación de vainas",
-      "Escaldado o matado",
-      "Sudado",
-      "Secado al sol o secado controlado",
-      "Oreado y estabilización",
-      "Acondicionamiento",
-      "Clasificación por tamaño, aroma y calidad",
-      "Control de humedad del producto",
-      "Registro del proceso de beneficiado"
-    ]
-  },
-  {
-    id: 8,
-    title: "EMPAQUE Y ALMACENAMIENTO",
-    iconName: "Package",
-    items: [
-      "Limpieza del área de empaque",
-      "Selección final del producto",
-      "Pesaje final",
-      "Empaque primario",
-      "Etiquetado",
-      "Sellado",
-      "Empaque secundario",
-      "Almacenamiento en condiciones adecuadas",
-      "Control de inventario",
-      "Trazabilidad por lote"
-    ]
-  },
-  {
-    id: 9,
-    title: "GESTIÓN, CALIDAD Y SEGUIMIENTO",
-    iconName: "TrendingUp",
-    items: [
-      "Registro diario de actividades",
-      "Registro fotográfico",
-      "Control de fechas de siembra, floración y cosecha",
-      "Control de insumos utilizados",
-      "Verificación de herramientas y EPP",
-      "Capacitación del personal",
-      "Cumplimiento de bioseguridad",
-      "Elaboración de informes de seguimiento",
-      "Evaluación de productividad",
-      "Mejora continua del proceso"
-    ]
-  }
-];
+import { SECTIONS_DATA, TOTAL_ACTIVIDADES_COUNT } from "@/lib/actividades-data";
+import { ActivityProtocol } from "@/lib/types";
+import { generateActivityProtocolPDF } from "@/lib/pdf-generator";
+import { supabase } from "@/lib/supabase";
 
 export default function ActividadesPage() {
   const [checkedItems, setCheckedItems] = useState<Record<string, boolean>>({});
@@ -193,6 +42,8 @@ export default function ActividadesPage() {
   const [lote, setLote] = useState("");
   const [observaciones, setObservaciones] = useState("");
   const [showOriginalModal, setShowOriginalModal] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [savedSuccessProtocol, setSavedSuccessProtocol] = useState<ActivityProtocol | null>(null);
 
   // Cargar estado guardado de localStorage
   useEffect(() => {
@@ -230,7 +81,7 @@ export default function ActividadesPage() {
   const markAll = () => {
     const next: Record<string, boolean> = {};
     SECTIONS_DATA.forEach((sec) => {
-      sec.items.forEach((item, idx) => {
+      sec.items.forEach((_, idx) => {
         next[`${sec.id}-${idx}`] = true;
       });
     });
@@ -250,9 +101,71 @@ export default function ActividadesPage() {
   };
 
   // Cálculos de progreso
-  const totalItemsCount = SECTIONS_DATA.reduce((acc, s) => acc + s.items.length, 0);
+  const totalItemsCount = TOTAL_ACTIVIDADES_COUNT;
   const completedItemsCount = Object.values(checkedItems).filter(Boolean).length;
   const progressPercentage = Math.round((completedItemsCount / totalItemsCount) * 100);
+
+  // Guardar Envío / Protocolo
+  const handleSaveProtocol = async () => {
+    setIsSaving(true);
+    try {
+      const now = new Date();
+      const pad = (n: number) => String(n).padStart(2, "0");
+      const protocolId = `ACT-${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
+
+      const newProtocol: ActivityProtocol = {
+        id: protocolId,
+        created_at: now.toISOString(),
+        fecha: fecha || now.toISOString().split("T")[0],
+        lote: lote.trim() || "Invernadero Principal",
+        responsable: responsable.trim() || "Técnico Agrónomo",
+        observaciones: observaciones.trim(),
+        checkedItems: { ...checkedItems },
+        totalActividades: totalItemsCount,
+        completadas: completedItemsCount,
+        porcentaje: progressPercentage,
+        tipo: "protocolo_actividades",
+      };
+
+      // 1. Guardar en localStorage histórico (apareciendo el más reciente primero)
+      const existing: ActivityProtocol[] = JSON.parse(
+        localStorage.getItem("vanilla_saved_actividades") || "[]"
+      );
+      const updated = [newProtocol, ...existing.filter((p) => p.id !== newProtocol.id)];
+      localStorage.setItem("vanilla_saved_actividades", JSON.stringify(updated));
+
+      // 2. Sincronizar en Supabase
+      try {
+        await supabase.from("reportes_diarios").insert([
+          {
+            report_id: newProtocol.id,
+            lote: newProtocol.lote,
+            responsable: newProtocol.responsable,
+            fecha_reporte: newProtocol.fecha,
+            data: newProtocol,
+          },
+        ]);
+      } catch (dbErr) {
+        console.warn("Sincronización con Supabase (disponible en local):", dbErr);
+      }
+
+      setSavedSuccessProtocol(newProtocol);
+    } catch (err) {
+      console.error("Error al guardar protocolo:", err);
+      alert("Error al procesar el guardado.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleDownloadPdf = async (protocol: ActivityProtocol) => {
+    try {
+      await generateActivityProtocolPDF(protocol);
+    } catch (err) {
+      console.error("Error generando PDF:", err);
+      alert("Error al generar el PDF del protocolo.");
+    }
+  };
 
   const renderSectionIcon = (iconName: string) => {
     const props = { className: "w-5 h-5 text-vanilla-300 flex-shrink-0" };
@@ -283,19 +196,19 @@ export default function ActividadesPage() {
   return (
     <div className="min-h-screen bg-[#F4EFEA] text-forest-950 pb-16 font-sans">
       {/* Barra Superior Flotante de Controles (Oculta al imprimir) */}
-      <div className="print:hidden sticky top-0 z-40 bg-forest-900/95 backdrop-blur-md text-white border-b border-vanilla-600/30 px-4 py-3 shadow-md">
+      <div className="print:hidden sticky top-0 z-40 bg-forest-900/95 backdrop-blur-md text-white border-b border-vanilla-600/30 px-3 sm:px-4 py-2.5 shadow-md">
         <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center space-x-3">
             <Link
               href="/"
               className="text-xs text-vanilla-300 hover:text-white flex items-center space-x-1"
             >
-              <span>← Volver al Inicio</span>
+              <span>← Inicio</span>
             </Link>
             <span className="text-forest-400">|</span>
             <div className="flex items-center space-x-2">
-              <span className="text-xs font-semibold text-white">Progreso General:</span>
-              <div className="w-28 sm:w-40 bg-forest-950 rounded-full h-2.5 overflow-hidden border border-forest-700">
+              <span className="text-xs font-semibold text-white hidden md:inline">Progreso:</span>
+              <div className="w-24 sm:w-36 bg-forest-950 rounded-full h-2.5 overflow-hidden border border-forest-700">
                 <div
                   className="bg-vanilla-400 h-2.5 rounded-full transition-all duration-300"
                   style={{ width: `${progressPercentage}%` }}
@@ -308,13 +221,24 @@ export default function ActividadesPage() {
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
+            {/* Botón Principal Guardar Envío */}
+            <button
+              onClick={handleSaveProtocol}
+              disabled={isSaving}
+              className="inline-flex items-center space-x-1.5 px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-md transition-all active:scale-95 disabled:opacity-50"
+              title="Guardar este protocolo de actividades"
+            >
+              <Save className="w-3.5 h-3.5" />
+              <span>{isSaving ? "Guardando..." : "Guardar Envío"}</span>
+            </button>
+
             <button
               onClick={() => setShowOriginalModal(true)}
-              className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-forest-800 hover:bg-forest-700 text-vanilla-200 text-xs font-medium border border-forest-600 transition-colors"
+              className="inline-flex items-center space-x-1 px-2.5 py-1.5 rounded-lg bg-forest-800 hover:bg-forest-700 text-vanilla-200 text-xs font-medium border border-forest-600 transition-colors"
               title="Ver diseño original escaneado de ITEC"
             >
               <Eye className="w-3.5 h-3.5 text-vanilla-400" />
-              <span>Ver Lámina Original HD</span>
+              <span className="hidden sm:inline">Lámina HD</span>
             </button>
 
             <button
@@ -337,11 +261,20 @@ export default function ActividadesPage() {
 
             <button
               onClick={() => window.print()}
-              className="inline-flex items-center space-x-1.5 px-3.5 py-1.5 rounded-lg bg-vanilla-500 hover:bg-vanilla-600 text-forest-950 text-xs font-bold shadow transition-all"
+              className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-vanilla-500 hover:bg-vanilla-600 text-forest-950 text-xs font-bold shadow transition-all"
             >
               <Printer className="w-3.5 h-3.5" />
-              <span>Imprimir / Guardar PDF</span>
+              <span className="hidden sm:inline">Imprimir</span>
             </button>
+
+            <Link
+              href="/admin"
+              className="inline-flex items-center space-x-1 px-2.5 py-1.5 rounded-lg bg-forest-800/80 hover:bg-forest-700 text-forest-200 hover:text-white text-xs border border-forest-700"
+              title="Ir al Panel de Administración"
+            >
+              <ShieldCheck className="w-3.5 h-3.5 text-vanilla-400" />
+              <span className="hidden md:inline">Admin</span>
+            </Link>
           </div>
         </div>
       </div>
@@ -586,7 +519,7 @@ export default function ActividadesPage() {
               />
             </div>
 
-            {/* Cuadro de Firma y Validación */}
+            {/* Cuadro de Firma, Validación y Botón Guardar */}
             <div className="bg-forest-50/70 rounded-xl p-4 border border-forest-200 flex flex-col justify-between">
               <div>
                 <h4 className="text-xs font-bold uppercase tracking-wider text-forest-900 mb-2">
@@ -597,7 +530,7 @@ export default function ActividadesPage() {
                 </p>
               </div>
 
-              <div className="mt-4 pt-6 border-t border-forest-300/80 text-center">
+              <div className="mt-4 pt-4 border-t border-forest-300/80 text-center">
                 <div className="text-xs font-bold text-forest-900">
                   {responsable || "_________________________________"}
                 </div>
@@ -607,6 +540,16 @@ export default function ActividadesPage() {
                 <div className="text-[10px] text-forest-500 mt-1">
                   Fecha: {fecha || "____ / ____ / ________"}
                 </div>
+
+                <button
+                  type="button"
+                  onClick={handleSaveProtocol}
+                  disabled={isSaving}
+                  className="w-full mt-4 py-2.5 px-4 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold shadow-md transition-all flex items-center justify-center space-x-2 print:hidden disabled:opacity-50"
+                >
+                  <Save className="w-4 h-4 text-vanilla-300" />
+                  <span>{isSaving ? "Guardando Protocolo..." : "Guardar Envío de Actividades"}</span>
+                </button>
               </div>
             </div>
           </div>
@@ -629,6 +572,75 @@ export default function ActividadesPage() {
           </footer>
         </div>
       </main>
+
+      {/* Modal de Confirmación de Guardado Exitoso */}
+      {savedSuccessProtocol && (
+        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-vanilla-300 text-center space-y-4">
+            <div className="w-16 h-16 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center mx-auto shadow-inner">
+              <Check className="w-8 h-8 stroke-[3]" />
+            </div>
+
+            <div>
+              <span className="font-mono text-xs font-bold px-2.5 py-1 rounded bg-forest-900 text-vanilla-300">
+                {savedSuccessProtocol.id}
+              </span>
+              <h3 className="text-xl font-serif font-bold text-forest-950 mt-2">
+                ¡Protocolo Guardado Exitosamente!
+              </h3>
+              <p className="text-xs text-forest-600 mt-1">
+                El envío ha sido registrado en el sistema histórico y sincronizado con el repositorio institucional.
+              </p>
+            </div>
+
+            <div className="bg-vanilla-50 p-3.5 rounded-xl border border-vanilla-200 text-left text-xs space-y-1.5">
+              <div className="flex justify-between">
+                <span className="text-forest-600">Fecha:</span>
+                <span className="font-bold text-forest-900">{savedSuccessProtocol.fecha}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-forest-600">Invernadero / Lote:</span>
+                <span className="font-bold text-forest-900">{savedSuccessProtocol.lote}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-forest-600">Responsable:</span>
+                <span className="font-bold text-forest-900">{savedSuccessProtocol.responsable}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-forest-600">Actividades completadas:</span>
+                <span className="font-bold text-emerald-700">
+                  {savedSuccessProtocol.completadas} de {savedSuccessProtocol.totalActividades} ({savedSuccessProtocol.porcentaje}%)
+                </span>
+              </div>
+            </div>
+
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-2 pt-2">
+              <button
+                onClick={() => handleDownloadPdf(savedSuccessProtocol)}
+                className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-forest-900 hover:bg-forest-800 text-white text-xs font-bold shadow flex items-center justify-center space-x-1.5 transition-colors"
+              >
+                <Download className="w-4 h-4 text-vanilla-400" />
+                <span>Descargar PDF</span>
+              </button>
+
+              <Link
+                href="/admin"
+                className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-vanilla-500 hover:bg-vanilla-600 text-forest-950 text-xs font-bold shadow flex items-center justify-center space-x-1.5 transition-colors"
+              >
+                <ShieldCheck className="w-4 h-4" />
+                <span>Ver en Administrador</span>
+              </Link>
+
+              <button
+                onClick={() => setSavedSuccessProtocol(null)}
+                className="w-full sm:w-auto px-4 py-2.5 rounded-xl border border-vanilla-300 hover:bg-vanilla-50 text-forest-800 text-xs font-medium transition-colors"
+              >
+                Cerrar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Modal para ver la Lámina Original Escaneada de ITEC en Alta Definición */}
       {showOriginalModal && (

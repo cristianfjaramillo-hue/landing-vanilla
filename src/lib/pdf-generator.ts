@@ -1,6 +1,7 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
-import { DailyReport } from "./types";
+import { DailyReport, ActivityProtocol } from "./types";
+import { SECTIONS_DATA } from "./actividades-data";
 
 // Helper para convertir URLs de imágenes o blobs a DataURL Base64
 async function getBase64Image(url: string | undefined): Promise<string | null> {
@@ -234,4 +235,151 @@ export async function generateDailyReportPDF(report: DailyReport) {
   }
 
   doc.save(`Informe_Vainilla_${report.lote.replace(/\s+/g, "_")}_${report.fechaReporte}.pdf`);
+}
+
+export async function generateActivityProtocolPDF(protocol: ActivityProtocol) {
+  const doc = new jsPDF({
+    orientation: "portrait",
+    unit: "mm",
+    format: "a4",
+  });
+
+  const greenHeader = [28, 59, 36];
+
+  // 1. Encabezado principal
+  doc.setFillColor(greenHeader[0], greenHeader[1], greenHeader[2]);
+  doc.rect(0, 0, 210, 26, "F");
+
+  doc.setTextColor(255, 255, 255);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(15);
+  doc.text("LISTADO INTEGRAL DE ACTIVIDADES", 105, 10, { align: "center" });
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(9.5);
+  doc.text("CULTIVO DE VAINILLA EN INVERNADERO | ITEC ECUADOR", 105, 17, { align: "center" });
+  doc.setFontSize(7.5);
+  doc.text("Mantenimiento, producción, beneficiado, empaque y seguimiento", 105, 22, { align: "center" });
+
+  // 2. Metadatos del Protocolo
+  autoTable(doc, {
+    startY: 29,
+    theme: "grid",
+    head: [["DATOS DEL PROTOCOLO", "ESTADO DE EJECUCIÓN"]],
+    body: [
+      [
+        `Código: ${protocol.id}\nFecha: ${protocol.fecha}\nInvernadero / Lote: ${protocol.lote || "No especificado"}\nResponsable: ${protocol.responsable || "No especificado"}`,
+        `Actividades Completadas: ${protocol.completadas} de ${protocol.totalActividades}\nPorcentaje de Avance: ${protocol.porcentaje}%\nEstado: ${protocol.porcentaje >= 80 ? "Alto Cumplimiento" : protocol.porcentaje >= 50 ? "En Progreso" : "Inicial"}`,
+      ],
+    ],
+    headStyles: {
+      fillColor: [28, 59, 36],
+      textColor: [255, 255, 255],
+      fontSize: 8.5,
+      fontStyle: "bold",
+    },
+    styles: {
+      fontSize: 8,
+      cellPadding: 2.5,
+    },
+  });
+
+  // 3. Fases y Actividades
+  let lastY = (doc as any).lastAutoTable.finalY + 3;
+
+  const tableBody: any[] = [];
+  SECTIONS_DATA.forEach((sec) => {
+    const secDone = sec.items.filter((_, idx) => protocol.checkedItems[`${sec.id}-${idx}`]).length;
+    tableBody.push([
+      {
+        content: `FASE ${sec.id}: ${sec.title} (${secDone}/${sec.items.length})`,
+        colSpan: 2,
+        styles: { fillColor: [40, 80, 50], textColor: [255, 255, 255], fontStyle: "bold", fontSize: 8 },
+      },
+    ]);
+
+    sec.items.forEach((item, idx) => {
+      const isChecked = !!protocol.checkedItems[`${sec.id}-${idx}`];
+      tableBody.push([
+        item,
+        {
+          content: isChecked ? "[ X ] REALIZADO" : "[   ] PENDIENTE",
+          styles: {
+            textColor: isChecked ? [20, 120, 40] : [120, 120, 120],
+            fontStyle: isChecked ? "bold" : "normal",
+            halign: "center",
+          },
+        },
+      ]);
+    });
+  });
+
+  autoTable(doc, {
+    startY: lastY,
+    theme: "striped",
+    head: [["ACTIVIDAD AGRONÓMICA / CONTROL", "ESTADO"]],
+    body: tableBody,
+    headStyles: {
+      fillColor: [28, 59, 36],
+      textColor: [255, 255, 255],
+      fontSize: 8,
+      fontStyle: "bold",
+    },
+    columnStyles: {
+      0: { cellWidth: 150 },
+      1: { cellWidth: 40, halign: "center" },
+    },
+    styles: {
+      fontSize: 7,
+      cellPadding: 1.5,
+    },
+  });
+
+  lastY = (doc as any).lastAutoTable.finalY + 4;
+  if (lastY > 250) {
+    doc.addPage();
+    lastY = 20;
+  }
+
+  // 4. Observaciones y Firma
+  autoTable(doc, {
+    startY: lastY,
+    theme: "grid",
+    head: [["OBSERVACIONES Y NOVEDADES DE CAMPO", "FIRMA Y CONFORMIDAD"]],
+    body: [
+      [
+        protocol.observaciones || "Sin observaciones adicionales registradas durante esta verificación.",
+        `Responsable: ${protocol.responsable || "____________________"}\n\n__________________________________\nFirma Técnico / Inspector ITEC`,
+      ],
+    ],
+    headStyles: {
+      fillColor: [28, 59, 36],
+      textColor: [255, 255, 255],
+      fontSize: 8,
+      fontStyle: "bold",
+    },
+    styles: {
+      fontSize: 8,
+      cellPadding: 3,
+    },
+  });
+
+  // Footer en todas las páginas
+  const pageCount = (doc as any).internal.getNumberOfPages();
+  for (let i = 1; i <= pageCount; i++) {
+    doc.setPage(i);
+    const pageHeight = doc.internal.pageSize.height;
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(7.5);
+    doc.setTextColor(110, 110, 110);
+    doc.text(
+      `Amazon Vanilla By Waorani People | ITEC Ecuador - Innovación para un campo sostenible (Pág. ${i}/${pageCount})`,
+      105,
+      pageHeight - 6,
+      { align: "center" }
+    );
+  }
+
+  const cleanLote = (protocol.lote || "Invernadero").replace(/\s+/g, "_");
+  doc.save(`Protocolo_Actividades_Vainilla_${cleanLote}_${protocol.fecha || "registro"}.pdf`);
 }
