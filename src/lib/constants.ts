@@ -60,6 +60,8 @@ export const INITIAL_MOCK_REPORTS: DailyReport[] = [
     },
     observaciones: "Floración en pico óptimo. Polinización ejecutada entre las 06:30 y las 10:00 con éxito por las guardianas de la comunidad. Excelente retención de humedad en el suelo de bosque.",
     foto1Url: "/assets/informe-diario-referencia.jpg",
+    foto2Url: "/assets/logo-amazon-vanilla-cream.png",
+    foto3Url: "/assets/logo-amazon-vanilla-white.png",
   },
   {
     id: "rep-2026-002",

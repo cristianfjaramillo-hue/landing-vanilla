@@ -23,6 +23,10 @@ import {
   Sun,
   Droplets,
   Thermometer,
+  Camera,
+  Maximize2,
+  X,
+  Loader2,
 } from "lucide-react";
 import { INITIAL_MOCK_REPORTS, DEFAULT_ACTIVITIES, DEFAULT_TOOLS } from "@/lib/constants";
 import { DailyReport, ActivityItem, ToolItem } from "@/lib/types";
@@ -38,6 +42,10 @@ export default function AdminPage() {
   const [reports, setReports] = useState<DailyReport[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterLote, setFilterLote] = useState("todos");
+
+  // Visualizador de Fotografías (Lightbox) y estado de PDF
+  const [selectedPhoto, setSelectedPhoto] = useState<{ url: string; title: string } | null>(null);
+  const [generatingPdfId, setGeneratingPdfId] = useState<string | null>(null);
 
   // Pestañas (Repositorio vs Configuración de Formulario)
   const [activeTab, setActiveTab] = useState<"repositorio" | "configuracion">("repositorio");
@@ -97,6 +105,19 @@ export default function AdminPage() {
       loadReports();
     } else {
       setAuthError(true);
+    }
+  };
+
+  // Descargar PDF con Fotos
+  const handleDownloadPdf = async (report: DailyReport) => {
+    try {
+      setGeneratingPdfId(report.id);
+      await generateDailyReportPDF(report);
+    } catch (err) {
+      console.error("Error al generar PDF:", err);
+      alert("Hubo un error al generar el PDF.");
+    } finally {
+      setGeneratingPdfId(null);
     }
   };
 
@@ -452,17 +473,72 @@ export default function AdminPage() {
                             Floración: {report.estadoCultivo?.floracion || "Bueno"}
                           </span>
                         </div>
+
+                        {/* Fotografías de Campo Adjuntas */}
+                        {Boolean(report.foto1Url || report.foto2Url || report.foto3Url) && (
+                          <div className="pt-2.5 mt-2 border-t border-vanilla-100">
+                            <span className="text-[11px] font-bold text-forest-700 flex items-center space-x-1 mb-2">
+                              <Camera className="w-3.5 h-3.5 text-vanilla-600" />
+                              <span>
+                                Registro Fotográfico ({[report.foto1Url, report.foto2Url, report.foto3Url].filter(Boolean).length} fotos):
+                              </span>
+                            </span>
+                            <div className="flex flex-wrap items-center gap-2.5">
+                              {[
+                                { label: "Foto 1", url: report.foto1Url },
+                                { label: "Foto 2", url: report.foto2Url },
+                                { label: "Foto 3", url: report.foto3Url },
+                              ]
+                                .filter((item) => Boolean(item.url))
+                                .map((item, idx) => (
+                                  <div
+                                    key={idx}
+                                    onClick={() =>
+                                      setSelectedPhoto({
+                                        url: item.url!,
+                                        title: `${item.label} | ${report.lote} (${report.fechaReporte})`,
+                                      })
+                                    }
+                                    className="group relative w-16 h-16 sm:w-20 sm:h-20 rounded-xl overflow-hidden border-2 border-vanilla-300 hover:border-forest-600 cursor-pointer shadow-sm transition-all hover:scale-105 bg-vanilla-100"
+                                    title={`Click para ampliar ${item.label}`}
+                                  >
+                                    <img
+                                      src={item.url!}
+                                      alt={item.label}
+                                      className="w-full h-full object-cover transition-transform group-hover:scale-110"
+                                    />
+                                    <div className="absolute inset-0 bg-forest-950/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white">
+                                      <Maximize2 className="w-4 h-4 text-white" />
+                                    </div>
+                                    <span className="absolute bottom-0 inset-x-0 bg-forest-950/80 text-white text-[9px] text-center py-0.5 font-semibold">
+                                      {item.label}
+                                    </span>
+                                  </div>
+                                ))}
+                            </div>
+                          </div>
+                        )}
                       </div>
 
-                      {/* Botones de Acción (Descarga PDF, WhatsApp, Eliminar) */}
+                      {/* Botones de Acción (Descarga PDF con fotos, WhatsApp, Eliminar) */}
                       <div className="flex items-center space-x-2 pt-3 md:pt-0 border-t md:border-t-0 border-vanilla-100">
                         <button
-                          onClick={() => generateDailyReportPDF(report)}
-                          className="inline-flex items-center space-x-1.5 px-3 py-2 rounded-lg bg-forest-900 hover:bg-forest-800 text-white text-xs font-semibold transition-colors"
-                          title="Descargar PDF Oficial"
+                          onClick={() => handleDownloadPdf(report)}
+                          disabled={generatingPdfId === report.id}
+                          className="inline-flex items-center space-x-1.5 px-3 py-2 rounded-lg bg-forest-900 hover:bg-forest-800 text-white text-xs font-semibold transition-colors disabled:opacity-50"
+                          title="Descargar PDF Oficial con Fotos"
                         >
-                          <Download className="w-3.5 h-3.5 text-vanilla-400" />
-                          <span>PDF</span>
+                          {generatingPdfId === report.id ? (
+                            <>
+                              <Loader2 className="w-3.5 h-3.5 animate-spin text-vanilla-400" />
+                              <span>Generando...</span>
+                            </>
+                          ) : (
+                            <>
+                              <Download className="w-3.5 h-3.5 text-vanilla-400" />
+                              <span>PDF con Fotos</span>
+                            </>
+                          )}
                         </button>
 
                         <button
@@ -550,6 +626,55 @@ export default function AdminPage() {
             {/* Mensaje de Persistencia */}
             <div className="p-4 bg-forest-50 rounded-xl border border-forest-200 text-xs text-forest-800">
               💡 <strong>Nota del Sistema:</strong> Cualquier cambio en los catálogos se refleja de inmediato en la interfaz del formulario de campo en territorio.
+            </div>
+          </div>
+        )}
+
+        {/* Modal Lightbox de Fotografía */}
+        {selectedPhoto && (
+          <div
+            onClick={() => setSelectedPhoto(null)}
+            className="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200"
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              className="bg-white rounded-2xl max-w-4xl w-full max-h-[92vh] overflow-hidden shadow-2xl flex flex-col"
+            >
+              <div className="p-4 bg-forest-900 text-white flex items-center justify-between">
+                <span className="text-xs sm:text-sm font-semibold text-vanilla-200 truncate">
+                  {selectedPhoto.title}
+                </span>
+                <button
+                  onClick={() => setSelectedPhoto(null)}
+                  className="p-1 rounded-full hover:bg-forest-800 text-forest-200 hover:text-white transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="p-4 flex-1 flex items-center justify-center bg-forest-950/95 overflow-auto min-h-[300px]">
+                <img
+                  src={selectedPhoto.url}
+                  alt="Fotografía de campo"
+                  className="max-h-[68vh] w-auto max-w-full object-contain rounded-lg shadow-lg"
+                />
+              </div>
+
+              <div className="p-3 bg-vanilla-50 flex items-center justify-between border-t border-vanilla-200">
+                <span className="text-xs text-forest-700">
+                  Inspección fitosanitaria y seguimiento agronómico ITEC
+                </span>
+                <a
+                  href={selectedPhoto.url}
+                  download={`foto_vainilla_${Date.now()}.jpg`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-forest-900 hover:bg-forest-800 text-white text-xs font-semibold transition-colors"
+                >
+                  <Download className="w-3.5 h-3.5 text-vanilla-400" />
+                  <span>Descargar Foto</span>
+                </a>
+              </div>
             </div>
           </div>
         )}

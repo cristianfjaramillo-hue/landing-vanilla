@@ -2,7 +2,27 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { DailyReport } from "./types";
 
-export function generateDailyReportPDF(report: DailyReport) {
+// Helper para convertir URLs de imágenes o blobs a DataURL Base64
+async function getBase64Image(url: string | undefined): Promise<string | null> {
+  if (!url) return null;
+  if (url.startsWith("data:image")) return url;
+
+  try {
+    const res = await fetch(url);
+    const blob = await res.blob();
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.onerror = () => resolve(null);
+      reader.readAsDataURL(blob);
+    });
+  } catch (err) {
+    console.warn("No se pudo cargar la imagen para el PDF:", err);
+    return null;
+  }
+}
+
+export async function generateDailyReportPDF(report: DailyReport) {
   const doc = new jsPDF({
     orientation: "portrait",
     unit: "mm",
@@ -132,16 +152,86 @@ export function generateDailyReportPDF(report: DailyReport) {
     styles: { fontSize: 8.5, cellPadding: 3 },
   });
 
-  // Footer
-  const pageHeight = doc.internal.pageSize.height;
-  doc.setFontSize(8);
-  doc.setTextColor(100, 100, 100);
-  doc.text(
-    "Amazon Vanilla By Waorani People | ITEC Ecuador - Innovación para un campo sostenible",
-    105,
-    pageHeight - 6,
-    { align: "center" }
-  );
+  // 8. REGISTRO FOTOGRÁFICO DE CAMPO (FOTO 1, FOTO 2, FOTO 3)
+  let currentY = (doc as any).lastAutoTable.finalY + 4;
+
+  // Si no hay suficiente espacio para las fotos (mínimo 58mm), agregar página nueva
+  if (currentY + 58 > 275) {
+    doc.addPage();
+    currentY = 16;
+  }
+
+  // Título de la sección de fotos
+  doc.setFillColor(greenHeader[0], greenHeader[1], greenHeader[2]);
+  doc.rect(14, currentY, 182, 6, "F");
+  doc.setTextColor(255, 255, 255);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(9);
+  doc.text("REGISTRO FOTOGRÁFICO DE CAMPO", 105, currentY + 4.2, { align: "center" });
+
+  const photoY = currentY + 8;
+  const photoW = 56;
+  const photoH = 40;
+  const photoPositions = [14, 77, 140]; // x1, x2, x3 centradas
+
+  // Cargar fotos en paralelo
+  const [img1, img2, img3] = await Promise.all([
+    getBase64Image(report.foto1Url),
+    getBase64Image(report.foto2Url),
+    getBase64Image(report.foto3Url),
+  ]);
+
+  const images = [
+    { label: "Foto 1", data: img1, x: photoPositions[0] },
+    { label: "Foto 2", data: img2, x: photoPositions[1] },
+    { label: "Foto 3", data: img3, x: photoPositions[2] },
+  ];
+
+  for (const img of images) {
+    if (img.data) {
+      try {
+        doc.addImage(img.data, "JPEG", img.x, photoY, photoW, photoH, undefined, "FAST");
+        // Borde fino
+        doc.setDrawColor(200, 200, 200);
+        doc.rect(img.x, photoY, photoW, photoH);
+      } catch (err) {
+        console.warn(`Error al incrustar ${img.label}:`, err);
+        doc.setFillColor(245, 245, 245);
+        doc.rect(img.x, photoY, photoW, photoH, "F");
+      }
+    } else {
+      // Placeholder si no hay foto
+      doc.setFillColor(248, 248, 248);
+      doc.setDrawColor(220, 220, 220);
+      doc.rect(img.x, photoY, photoW, photoH, "FD");
+      doc.setTextColor(150, 150, 150);
+      doc.setFont("helvetica", "italic");
+      doc.setFontSize(7.5);
+      doc.text("Sin foto registrada", img.x + photoW / 2, photoY + photoH / 2, { align: "center" });
+    }
+
+    // Pie de la foto
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(7.5);
+    doc.setTextColor(70, 70, 70);
+    doc.text(img.label, img.x + photoW / 2, photoY + photoH + 4, { align: "center" });
+  }
+
+  // Footer institucional en todas las páginas
+  const pageCount = (doc as any).internal.getNumberOfPages();
+  for (let i = 1; i <= pageCount; i++) {
+    doc.setPage(i);
+    const pageHeight = doc.internal.pageSize.height;
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.setTextColor(100, 100, 100);
+    doc.text(
+      `Amazon Vanilla By Waorani People | ITEC Ecuador - Innovación para un campo sostenible (Pág. ${i}/${pageCount})`,
+      105,
+      pageHeight - 6,
+      { align: "center" }
+    );
+  }
 
   doc.save(`Informe_Vainilla_${report.lote.replace(/\s+/g, "_")}_${report.fechaReporte}.pdf`);
 }

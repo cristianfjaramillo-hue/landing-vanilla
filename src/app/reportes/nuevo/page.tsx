@@ -262,7 +262,7 @@ export default function NuevoReportePage() {
                 </p>
                 <div className="mt-5 flex flex-wrap gap-3">
                   <button
-                    onClick={() => generateDailyReportPDF(successReport)}
+                    onClick={async () => await generateDailyReportPDF(successReport)}
                     className="inline-flex items-center space-x-2 px-4 py-2.5 rounded-lg bg-vanilla-500 hover:bg-vanilla-600 text-forest-950 font-bold text-xs shadow-md transition-transform active:scale-95"
                   >
                     <Download className="w-4 h-4" />
@@ -814,7 +814,7 @@ export default function NuevoReportePage() {
               <div className="flex items-center space-x-3 w-full sm:w-auto">
                 <button
                   type="button"
-                  onClick={() => generateDailyReportPDF(buildReportObject())}
+                  onClick={async () => await generateDailyReportPDF(buildReportObject())}
                   className="flex-1 sm:flex-initial inline-flex items-center justify-center space-x-2 px-4 py-3 rounded-xl border border-vanilla-400 text-forest-900 font-semibold text-xs hover:bg-vanilla-100 transition-colors"
                 >
                   <Download className="w-4 h-4 text-forest-700" />
