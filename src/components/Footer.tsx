@@ -48,11 +48,6 @@ export default function Footer() {
                 </Link>
               </li>
               <li>
-                <Link href="/#calidad" className="hover:text-white transition-colors">
-                  Método Agronómico ITEC
-                </Link>
-              </li>
-              <li>
                 <Link href="/reportes/nuevo" className="hover:text-white transition-colors">
                   Llenar Formulario Diario
                 </Link>

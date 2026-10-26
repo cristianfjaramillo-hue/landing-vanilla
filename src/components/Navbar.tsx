@@ -38,9 +38,6 @@ export default function Navbar() {
             <Link href="/#origen" className="hover:text-vanilla-600 transition-colors">
               Territorio Waorani
             </Link>
-            <Link href="/#calidad" className="hover:text-vanilla-600 transition-colors">
-              Innovación ITEC
-            </Link>
           </nav>
 
           {/* Action Buttons */}
@@ -91,13 +88,6 @@ export default function Navbar() {
             className="block py-2 text-forest-900 font-medium hover:text-vanilla-600"
           >
             Territorio Waorani
-          </Link>
-          <Link
-            href="/#calidad"
-            onClick={() => setIsOpen(false)}
-            className="block py-2 text-forest-900 font-medium hover:text-vanilla-600"
-          >
-            Innovación ITEC
           </Link>
           <div className="pt-3 border-t border-vanilla-200 flex flex-col space-y-2">
             <Link

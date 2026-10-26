@@ -169,61 +169,6 @@ export default function HomePage() {
           </div>
         </div>
       </section>
-
-      {/* 4. SECCIÓN: INNOVACIÓN Y CALIDAD ITEC ECUADOR */}
-      <section id="calidad" className="bg-forest-900 text-white py-20 border-y border-forest-800">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-12">
-          <div className="text-center max-w-3xl mx-auto space-y-4">
-            <span className="text-xs font-bold uppercase tracking-widest text-vanilla-400">
-              ITEC Ecuador | Innovación para un campo sostenible
-            </span>
-            <h2 className="text-2xl sm:text-4xl font-serif font-bold text-white">
-              El Rigor Técnico que Garantiza un Estándar de Exportación
-            </h2>
-            <p className="text-sm sm:text-base text-forest-200 font-light">
-              Uniendo la sabiduría milenaria indígena con protocolos agronómicos modernos de seguimiento diario, sanidad vegetal orgánica y curado artesanal.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <div className="bg-forest-950/80 p-8 rounded-2xl border border-forest-800 space-y-4">
-              <div className="w-12 h-12 rounded-xl bg-forest-800 flex items-center justify-center text-vanilla-400 font-bold text-lg">
-                01
-              </div>
-              <h3 className="text-lg font-serif font-bold text-vanilla-300">
-                Polinización de Precisión
-              </h3>
-              <p className="text-xs sm:text-sm text-forest-200/80 leading-relaxed">
-                Cada flor de orquídea abre solo una mañana. El equipo técnico capacita y acompaña en la polinización manual flor por flor en las primeras horas del alba para máxima fecundación.
-              </p>
-            </div>
-
-            <div className="bg-forest-950/80 p-8 rounded-2xl border border-forest-800 space-y-4">
-              <div className="w-12 h-12 rounded-xl bg-forest-800 flex items-center justify-center text-vanilla-400 font-bold text-lg">
-                02
-              </div>
-              <h3 className="text-lg font-serif font-bold text-vanilla-300">
-                Nutrición y Sanidad Biológica
-              </h3>
-              <p className="text-xs sm:text-sm text-forest-200/80 leading-relaxed">
-                Uso exclusivo de bioles fermentados, microorganismos eficientes de montaña y biochar para fortalecer los tutores vivos y prevenir patógenos de forma 100% orgánica.
-              </p>
-            </div>
-
-            <div className="bg-forest-950/80 p-8 rounded-2xl border border-forest-800 space-y-4">
-              <div className="w-12 h-12 rounded-xl bg-forest-800 flex items-center justify-center text-vanilla-400 font-bold text-lg">
-                03
-              </div>
-              <h3 className="text-lg font-serif font-bold text-vanilla-300">
-                Curado y Concentración Aromática
-              </h3>
-              <p className="text-xs sm:text-sm text-forest-200/80 leading-relaxed">
-                Proceso escalonado de sudado solar, secado en sombra y maduración en cajones de madera noble amazónica para alcanzar vainas negras y cristalizadas con alta vanillina.
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
     </div>
   );
 }
