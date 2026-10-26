@@ -27,7 +27,6 @@ import { generateDailyReportPDF } from "@/lib/pdf-generator";
 
 export default function HomePage() {
   const [reports, setReports] = useState<DailyReport[]>(INITIAL_MOCK_REPORTS);
-  const [contactSubmitted, setContactSubmitted] = useState(false);
 
   useEffect(() => {
     // Cargar reportes guardados localmente para actualizar la ventana en vivo
@@ -87,12 +86,13 @@ export default function HomePage() {
 
           {/* CTAs */}
           <div className="pt-4 flex flex-col sm:flex-row items-center justify-center gap-4">
-            <a
-              href="#b2b"
-              className="w-full sm:w-auto px-8 py-4 rounded-xl bg-vanilla-500 hover:bg-vanilla-600 text-forest-950 font-bold text-sm tracking-wider uppercase shadow-lg shadow-vanilla-500/20 transition-all hover:scale-105 active:scale-95"
+            <Link
+              href="/reportes/nuevo"
+              className="w-full sm:w-auto px-8 py-4 rounded-xl bg-vanilla-500 hover:bg-vanilla-600 text-forest-950 font-bold text-sm tracking-wider uppercase shadow-lg shadow-vanilla-500/20 transition-all hover:scale-105 active:scale-95 flex items-center justify-center space-x-2"
             >
-              Solicitar Muestra B2B
-            </a>
+              <FileText className="w-4 h-4" />
+              <span>+ Llenar Informe Diario</span>
+            </Link>
             <a
               href="#trazabilidad"
               className="w-full sm:w-auto px-8 py-4 rounded-xl bg-forest-900/90 hover:bg-forest-800 text-white font-semibold text-sm border border-forest-700 transition-all flex items-center justify-center space-x-2"
@@ -387,120 +387,6 @@ export default function HomePage() {
               </div>
             );
           })}
-        </div>
-      </section>
-
-      {/* 6. FORMULARIO B2B: SOLICITUD DE MUESTRAS Y CONTACTO */}
-      <section id="b2b" className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="bg-white rounded-3xl p-8 sm:p-12 shadow-xl border border-vanilla-200">
-          <div className="text-center max-w-xl mx-auto mb-8 space-y-2">
-            <span className="text-xs font-bold uppercase tracking-widest text-vanilla-600">
-              Canal Comercial Exclusivo B2B
-            </span>
-            <h2 className="text-2xl sm:text-3xl font-serif font-bold text-forest-950">
-              Solicita Muestras Comerciales o Reserva de Lotes
-            </h2>
-            <p className="text-xs sm:text-sm text-forest-700">
-              Atendemos a maestros chocolateros, alta repostería gourmet, perfumería botánica y fondos de impacto global.
-            </p>
-          </div>
-
-          {contactSubmitted ? (
-            <div className="p-6 bg-forest-900 text-white rounded-2xl text-center space-y-3">
-              <CheckCircle2 className="w-10 h-10 text-vanilla-400 mx-auto" />
-              <h3 className="text-lg font-serif font-bold text-vanilla-200">
-                ¡Solicitud Recibida Correctamente!
-              </h3>
-              <p className="text-xs text-forest-200 max-w-md mx-auto">
-                El equipo comercial de Amazon Vanilla e ITEC Ecuador se comunicará contigo en menos de 24 horas con la ficha técnica y opciones de envío.
-              </p>
-              <button
-                onClick={() => setContactSubmitted(false)}
-                className="mt-2 text-xs text-vanilla-300 underline"
-              >
-                Enviar otra solicitud
-              </button>
-            </div>
-          ) : (
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                setContactSubmitted(true);
-              }}
-              className="space-y-4 text-xs"
-            >
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block font-semibold text-forest-900 mb-1">
-                    Nombre Completo:
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="Tu nombre y apellido"
-                    className="w-full text-xs p-3 bg-vanilla-50/50 rounded-xl border border-vanilla-300 focus:outline-none focus:ring-2 focus:ring-forest-600"
-                  />
-                </div>
-
-                <div>
-                  <label className="block font-semibold text-forest-900 mb-1">
-                    Empresa / Marca:
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="Chocolatería, Pastelería, etc."
-                    className="w-full text-xs p-3 bg-vanilla-50/50 rounded-xl border border-vanilla-300 focus:outline-none focus:ring-2 focus:ring-forest-600"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block font-semibold text-forest-900 mb-1">
-                    Correo Electrónico Corporativo:
-                  </label>
-                  <input
-                    type="email"
-                    required
-                    placeholder="contacto@empresa.com"
-                    className="w-full text-xs p-3 bg-vanilla-50/50 rounded-xl border border-vanilla-300 focus:outline-none focus:ring-2 focus:ring-forest-600"
-                  />
-                </div>
-
-                <div>
-                  <label className="block font-semibold text-forest-900 mb-1">
-                    País / Ciudad de Destino:
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="Ej. Ecuador, Francia, EE.UU., Japón"
-                    className="w-full text-xs p-3 bg-vanilla-50/50 rounded-xl border border-vanilla-300 focus:outline-none focus:ring-2 focus:ring-forest-600"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block font-semibold text-forest-900 mb-1">
-                  Mensaje o Especificación de Interés:
-                </label>
-                <textarea
-                  rows={3}
-                  required
-                  placeholder="Indícanos si buscas muestras de vaina curada Grado A, volumen estimado de compra, o interés en visitas a territorio..."
-                  className="w-full text-xs p-3 bg-vanilla-50/50 rounded-xl border border-vanilla-300 focus:outline-none focus:ring-2 focus:ring-forest-600"
-                ></textarea>
-              </div>
-
-              <button
-                type="submit"
-                className="w-full py-3.5 rounded-xl bg-forest-900 hover:bg-forest-800 text-white font-bold text-xs tracking-wider uppercase shadow-lg transition-transform active:scale-98"
-              >
-                Enviar Solicitud Comercial
-              </button>
-            </form>
-          )}
         </div>
       </section>
     </div>

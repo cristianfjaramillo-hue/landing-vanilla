@@ -45,9 +45,6 @@ export default function Navbar() {
               <Sprout className="w-4 h-4 text-forest-600" />
               <span>Trazabilidad de Campo</span>
             </Link>
-            <Link href="/#b2b" className="hover:text-vanilla-600 transition-colors">
-              Muestras B2B
-            </Link>
           </nav>
 
           {/* Action Buttons */}
@@ -112,13 +109,6 @@ export default function Navbar() {
             className="block py-2 text-forest-900 font-medium hover:text-vanilla-600"
           >
             Trazabilidad de Campo
-          </Link>
-          <Link
-            href="/#b2b"
-            onClick={() => setIsOpen(false)}
-            className="block py-2 text-forest-900 font-medium hover:text-vanilla-600"
-          >
-            Muestras Comerciales B2B
           </Link>
           <div className="pt-3 border-t border-vanilla-200 flex flex-col space-y-2">
             <Link
