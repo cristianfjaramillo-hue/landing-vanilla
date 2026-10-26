@@ -17,6 +17,7 @@ import {
   Database,
   RefreshCw,
   ExternalLink,
+  ClipboardList,
   MessageCircle,
   Lock,
   Sprout,
@@ -297,6 +298,17 @@ export default function AdminPage() {
             >
               <Plus className="w-3.5 h-3.5" />
               <span>Generar Informe Diario</span>
+            </Link>
+            <Link
+              href="/actividades"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center space-x-1.5 px-3.5 py-2 rounded-lg bg-forest-800 hover:bg-forest-700 text-vanilla-200 text-xs font-semibold border border-forest-600 transition-colors"
+              title="Abrir Listado Integral de Actividades en nueva ventana"
+            >
+              <ClipboardList className="w-3.5 h-3.5 text-vanilla-400" />
+              <span>Listado de Actividades</span>
+              <ExternalLink className="w-3 h-3 text-vanilla-400" />
             </Link>
             <button
               onClick={exportAllToCSV}

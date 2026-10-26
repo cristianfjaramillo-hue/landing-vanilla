@@ -3,7 +3,7 @@
 import React from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { FileText, ShieldCheck } from "lucide-react";
+import { FileText, ShieldCheck, ClipboardList, ExternalLink } from "lucide-react";
 
 export default function Navbar() {
   return (
@@ -32,13 +32,26 @@ export default function Navbar() {
           </Link>
 
           {/* Action Buttons */}
-          <div className="flex items-center space-x-3">
+          <div className="flex items-center space-x-2 sm:space-x-3">
             <Link
               href="/reportes/nuevo"
-              className="inline-flex items-center space-x-2 px-3.5 sm:px-4 py-2 rounded-lg bg-forest-900 hover:bg-forest-800 text-white text-xs font-semibold tracking-wide transition-all shadow-sm hover:shadow"
+              className="inline-flex items-center space-x-1.5 sm:space-x-2 px-3 sm:px-4 py-2 rounded-lg bg-forest-900 hover:bg-forest-800 text-white text-xs font-semibold tracking-wide transition-all shadow-sm hover:shadow"
             >
               <FileText className="w-3.5 h-3.5 text-vanilla-400" />
               <span>Generar Informe Diario</span>
+            </Link>
+
+            <Link
+              href="/actividades"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center space-x-1.5 px-3 py-2 rounded-lg bg-vanilla-500/20 hover:bg-vanilla-500/30 text-forest-900 border border-vanilla-400 text-xs font-semibold transition-all shadow-sm"
+              title="Abrir Listado Integral de Actividades en nueva ventana"
+            >
+              <ClipboardList className="w-3.5 h-3.5 text-forest-800" />
+              <span className="hidden sm:inline">Listado de Actividades</span>
+              <span className="sm:hidden">Actividades</span>
+              <ExternalLink className="w-3 h-3 text-forest-600 ml-0.5" />
             </Link>
 
             <Link

@@ -1,7 +1,7 @@
 import React from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { ShieldCheck, Mail, MapPin, Phone } from "lucide-react";
+import { ShieldCheck, Mail, MapPin, Phone, ExternalLink } from "lucide-react";
 
 export default function Footer() {
   return (
@@ -50,6 +50,17 @@ export default function Footer() {
               <li>
                 <Link href="/reportes/nuevo" className="hover:text-white transition-colors">
                   Generar Informe Diario
+                </Link>
+              </li>
+              <li>
+                <Link
+                  href="/actividades"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="hover:text-white transition-colors flex items-center space-x-1"
+                >
+                  <span>Listado de Actividades</span>
+                  <ExternalLink className="w-3 h-3 text-vanilla-400" />
                 </Link>
               </li>
               <li>
