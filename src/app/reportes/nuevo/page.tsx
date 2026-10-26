@@ -163,32 +163,44 @@ export default function NuevoReportePage() {
     };
   };
 
-  // Guardar Informe
+  // Guardar Informe y Enviar automáticamente a WhatsApp
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (saving) return;
     setSaving(true);
 
     const newReport = buildReportObject();
 
     try {
       // 1. Guardar en localStorage para disponibilidad offline inmediata
-      const existing = JSON.parse(localStorage.getItem("vanilla_daily_reports") || "[]");
-      localStorage.setItem("vanilla_daily_reports", JSON.stringify([newReport, ...existing]));
-
-      // 2. Intentar sincronizar con Supabase
       try {
-        await supabase.from("reportes_diarios").insert([
-          {
-            report_id: newReport.id,
-            lote: newReport.lote,
-            responsable: newReport.responsable,
-            fecha_reporte: newReport.fechaReporte,
-            data: newReport,
-          },
-        ]);
-      } catch (dbErr) {
-        console.warn("Sincronización con Supabase en cola o sin tabla creada aún:", dbErr);
+        const existing = JSON.parse(localStorage.getItem("vanilla_daily_reports") || "[]");
+        localStorage.setItem("vanilla_daily_reports", JSON.stringify([newReport, ...existing]));
+      } catch (storageErr) {
+        console.warn("Aviso guardando en localStorage:", storageErr);
       }
+
+      // 2. Sincronizar en segundo plano con Supabase (sin congelar la pantalla)
+      try {
+        Promise.resolve(
+          supabase.from("reportes_diarios").insert([
+            {
+              report_id: newReport.id,
+              lote: newReport.lote,
+              responsable: newReport.responsable,
+              fecha_reporte: newReport.fechaReporte,
+              data: newReport,
+            },
+          ])
+        ).catch((dbErr) => {
+          console.warn("Sincronización con Supabase:", dbErr);
+        });
+      } catch (e) {
+        console.warn("Supabase notice:", e);
+      }
+
+      // 3. Abrir automáticamente WhatsApp avisando de información nueva para revisar
+      shareViaWhatsApp(newReport);
 
       setSuccessReport(newReport);
     } catch (err) {
@@ -200,31 +212,42 @@ export default function NuevoReportePage() {
     }
   };
 
-  // Enviar a WhatsApp del Administrador
-  const shareViaWhatsApp = () => {
-    const r = successReport || buildReportObject();
+  // Enviar a WhatsApp del Administrador avisando de información nueva de revisar
+  const shareViaWhatsApp = (reportOverride?: DailyReport | unknown) => {
+    const r =
+      reportOverride && typeof reportOverride === "object" && "id" in reportOverride
+        ? (reportOverride as DailyReport)
+        : successReport || buildReportObject();
     const actRealizadas = r.actividades
       .filter((a) => a.realizado)
       .map((a) => `• ${a.nombre} (${a.areaLote || "Todo el lote"})`)
-      .join("%0A");
+      .join("\n");
 
-    const text = `🌿 *NUEVO INFORME DIARIO - CULTIVO DE VAINILLA*%0A` +
-      `*ITEC Ecuador & Amazon Vanilla Waorani*%0A%0A` +
-      `📅 *Fecha:* ${r.fechaReporte}%0A` +
-      `📍 *Lote:* ${r.lote}%0A` +
-      `👤 *Responsable:* ${r.responsable}%0A` +
-      `🌡️ *Clima:* ${r.clima} | Temp: ${r.tempMin}°C - ${r.tempMax}°C | Humedad: ${r.humedad}%%0A%0A` +
-      `✅ *Actividades Realizadas:*%0A${actRealizadas || "Ninguna marcada"}%0A%0A` +
-      `🌱 *Estado General:*%0A` +
-      `- Vegetativo: ${r.estadoCultivo.desarrolloVegetativo}%0A` +
-      `- Floración: ${r.estadoCultivo.floracion}%0A` +
-      `- Vainas: ${r.estadoCultivo.formacionVainas}%0A` +
-      `- Fitosanitario: ${r.estadoCultivo.estadoFitosanitario}%0A%0A` +
-      `📝 *Observaciones:* ${r.observaciones || "Sin observaciones."}%0A%0A` +
-      `_Reporte generado automáticamente desde la Landing Page ITEC._`;
+    const text =
+      `🔔 *NUEVA INFORMACIÓN PARA REVISAR - INFORME DIARIO*\n` +
+      `🌿 *Amazon Vanilla By Waorani People & ITEC Ecuador*\n\n` +
+      `Se ha registrado y guardado un nuevo informe técnico de campo listo para supervisión:\n\n` +
+      `📋 *Código:* ${r.id}\n` +
+      `📅 *Fecha:* ${r.fechaReporte}\n` +
+      `📍 *Invernadero / Lote:* ${r.lote}\n` +
+      `👤 *Responsable:* ${r.responsable}\n` +
+      `🌡️ *Clima:* ${r.clima} | Temp: ${r.tempMin}°C - ${r.tempMax}°C | Humedad: ${r.humedad}%\n\n` +
+      `✅ *Actividades Realizadas:* \n${actRealizadas || "Ninguna actividad marcada"}\n\n` +
+      `🌱 *Estado General del Cultivo:* \n` +
+      `• Desarrollo Vegetativo: ${r.estadoCultivo.desarrolloVegetativo}\n` +
+      `• Floración: ${r.estadoCultivo.floracion}\n` +
+      `• Formación de Vainas: ${r.estadoCultivo.formacionVainas}\n` +
+      `• Estado Fitosanitario: ${r.estadoCultivo.estadoFitosanitario}\n\n` +
+      `📝 *Observaciones / Novedades:* ${r.observaciones || "Sin novedades adicionales reportadas."}\n\n` +
+      `🔗 *Revisar informe en el Panel Administrador:*\n` +
+      `https://landing-vanilla.vercel.app/admin\n\n` +
+      `_Aviso automático del Sistema de Trazabilidad Agronómica ITEC Ecuador._`;
 
-    const adminPhone = process.env.NEXT_PUBLIC_WHATSAPP_ADMIN_PHONE || "593980000000";
-    window.open(`https://api.whatsapp.com/send?phone=${adminPhone}&text=${text}`, "_blank");
+    const adminPhone = process.env.NEXT_PUBLIC_WHATSAPP_ADMIN_PHONE || "593962577613";
+    const whatsappUrl = `https://api.whatsapp.com/send?phone=${adminPhone}&text=${encodeURIComponent(text)}`;
+    if (typeof window !== "undefined") {
+      window.open(whatsappUrl, "_blank");
+    }
   };
 
   return (
@@ -270,7 +293,7 @@ export default function NuevoReportePage() {
                   </button>
 
                   <button
-                    onClick={shareViaWhatsApp}
+                    onClick={() => shareViaWhatsApp()}
                     className="inline-flex items-center space-x-2 px-4 py-2.5 rounded-lg bg-[#25D366] hover:bg-[#1EBE5D] text-white font-bold text-xs shadow-md transition-transform active:scale-95"
                   >
                     <MessageCircle className="w-4 h-4" />
@@ -808,7 +831,7 @@ export default function NuevoReportePage() {
             {/* BOTONES DE ACCIÓN */}
             <div className="pt-6 border-t border-vanilla-200 flex flex-col sm:flex-row items-center justify-between gap-4">
               <div className="text-xs text-forest-600">
-                Al guardar, se almacenará en el repositorio central de reportes y podrás descargarlo en PDF.
+                Al guardar, se registrará el informe en el sistema y se abrirá automáticamente WhatsApp para notificar que hay nueva información para revisar.
               </div>
 
               <div className="flex items-center space-x-3 w-full sm:w-auto">
