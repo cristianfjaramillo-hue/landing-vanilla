@@ -49,7 +49,7 @@ export default function Footer() {
               </li>
               <li>
                 <Link href="/reportes/nuevo" className="hover:text-white transition-colors">
-                  Llenar Formulario Diario
+                  Generar Informe Diario
                 </Link>
               </li>
               <li>

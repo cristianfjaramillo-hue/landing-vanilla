@@ -56,7 +56,7 @@ export default function HomePage() {
               className="w-full sm:w-auto px-8 py-4 rounded-xl bg-vanilla-500 hover:bg-vanilla-600 text-forest-950 font-bold text-sm tracking-wider uppercase shadow-lg shadow-vanilla-500/20 transition-all hover:scale-105 active:scale-95 flex items-center justify-center space-x-2"
             >
               <FileText className="w-4 h-4" />
-              <span>+ Llenar Informe Diario</span>
+              <span>Generar Informe Diario</span>
             </Link>
             <Link
               href="/admin"

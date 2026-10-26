@@ -38,7 +38,7 @@ export default function Navbar() {
               className="inline-flex items-center space-x-2 px-3.5 sm:px-4 py-2 rounded-lg bg-forest-900 hover:bg-forest-800 text-white text-xs font-semibold tracking-wide transition-all shadow-sm hover:shadow"
             >
               <FileText className="w-3.5 h-3.5 text-vanilla-400" />
-              <span>+ Nuevo Informe</span>
+              <span>Generar Informe Diario</span>
             </Link>
 
             <Link

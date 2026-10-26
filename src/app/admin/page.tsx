@@ -296,7 +296,7 @@ export default function AdminPage() {
               className="inline-flex items-center space-x-1.5 px-3.5 py-2 rounded-lg bg-vanilla-500 hover:bg-vanilla-600 text-forest-950 text-xs font-bold shadow transition-colors"
             >
               <Plus className="w-3.5 h-3.5" />
-              <span>+ Nuevo Informe</span>
+              <span>Generar Informe Diario</span>
             </Link>
             <button
               onClick={exportAllToCSV}
