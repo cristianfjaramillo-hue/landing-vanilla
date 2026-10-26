@@ -21,13 +21,10 @@ export default function HomePage() {
         </div>
 
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center space-y-8">
-          {/* Logo Principal con Resplandor y Luz Dinámica (40% más grande) */}
+          {/* Logo Principal (40% más grande, sin cuadro, con brillo que recorre las líneas y letras) */}
           <div className="relative w-[340px] sm:w-[540px] md:w-[670px] lg:w-[720px] h-40 sm:h-52 md:h-64 lg:h-72 mx-auto flex items-center justify-center my-2">
-            {/* Halo de luz dorada ambiental de fondo */}
-            <div className="absolute inset-x-8 inset-y-4 bg-gradient-to-r from-amber-500/15 via-vanilla-400/35 to-amber-500/15 rounded-full blur-3xl animate-pulse pointer-events-none -z-10" />
-
-            {/* Contenedor del Logo con brillo pulsante y micro-flotación */}
-            <div className="relative w-full h-full animate-logo-glow overflow-hidden flex items-center justify-center">
+            {/* Logo Base con resplandor en los contornos */}
+            <div className="relative w-full h-full animate-contour-glow flex items-center justify-center">
               <Image
                 src="/assets/logo-amazon-vanilla-hero.png"
                 alt="Amazon Vanilla By Waorani People"
@@ -36,8 +33,22 @@ export default function HomePage() {
                 priority
               />
 
-              {/* Destello de luz que recorre el logo dinámicamente */}
-              <div className="pointer-events-none absolute inset-0 w-1/3 bg-gradient-to-r from-transparent via-white/25 to-transparent animate-light-sweep" />
+              {/* Haz de luz blanca que recorre EXCLUSIVAMENTE las líneas y letras de la marca */}
+              <div
+                className="absolute inset-0 pointer-events-none overflow-hidden"
+                style={{
+                  maskImage: "url('/assets/logo-amazon-vanilla-hero.png')",
+                  WebkitMaskImage: "url('/assets/logo-amazon-vanilla-hero.png')",
+                  maskSize: "contain",
+                  WebkitMaskSize: "contain",
+                  maskRepeat: "no-repeat",
+                  WebkitMaskRepeat: "no-repeat",
+                  maskPosition: "center",
+                  WebkitMaskPosition: "center",
+                }}
+              >
+                <div className="w-full h-full animate-line-shimmer bg-gradient-to-r from-transparent via-white/95 to-transparent" />
+              </div>
             </div>
           </div>
 

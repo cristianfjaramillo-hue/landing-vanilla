@@ -30,40 +30,32 @@ body {
   background: #966232;
 }
 
-/* Efectos de Luz Dinámica para el Logo */
-@keyframes logoGlow {
-  0%, 100% {
-    filter: drop-shadow(0 0 14px rgba(200, 148, 78, 0.4)) drop-shadow(0 0 35px rgba(200, 148, 78, 0.2));
-    transform: translateY(0px) scale(1);
-  }
-  50% {
-    filter: drop-shadow(0 0 28px rgba(200, 148, 78, 0.85)) drop-shadow(0 0 65px rgba(255, 220, 130, 0.5));
-    transform: translateY(-5px) scale(1.02);
-  }
-}
-
-@keyframes lightSweep {
+/* Efectos de Luz que recorre las Líneas y Letras del Logo */
+@keyframes lineShimmer {
   0% {
-    transform: translateX(-180%) skewX(-25deg);
-    opacity: 0;
+    transform: translateX(-160%) skewX(-20deg);
   }
-  20% {
-    opacity: 0.85;
-  }
-  45% {
-    transform: translateX(180%) skewX(-25deg);
-    opacity: 0;
+  40% {
+    transform: translateX(160%) skewX(-20deg);
   }
   100% {
-    transform: translateX(180%) skewX(-25deg);
-    opacity: 0;
+    transform: translateX(160%) skewX(-20deg);
   }
 }
 
-.animate-logo-glow {
-  animation: logoGlow 4.5s ease-in-out infinite;
+@keyframes contourGlow {
+  0%, 100% {
+    filter: drop-shadow(0 0 2px rgba(255, 255, 255, 0.25));
+  }
+  50% {
+    filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.8)) drop-shadow(0 0 16px rgba(200, 148, 78, 0.4));
+  }
 }
 
-.animate-light-sweep {
-  animation: lightSweep 4s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+.animate-line-shimmer {
+  animation: lineShimmer 3.2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+.animate-contour-glow {
+  animation: contourGlow 3.5s ease-in-out infinite;
 }
