@@ -29,3 +29,41 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: #966232;
 }
+
+/* Efectos de Luz Dinámica para el Logo */
+@keyframes logoGlow {
+  0%, 100% {
+    filter: drop-shadow(0 0 14px rgba(200, 148, 78, 0.4)) drop-shadow(0 0 35px rgba(200, 148, 78, 0.2));
+    transform: translateY(0px) scale(1);
+  }
+  50% {
+    filter: drop-shadow(0 0 28px rgba(200, 148, 78, 0.85)) drop-shadow(0 0 65px rgba(255, 220, 130, 0.5));
+    transform: translateY(-5px) scale(1.02);
+  }
+}
+
+@keyframes lightSweep {
+  0% {
+    transform: translateX(-180%) skewX(-25deg);
+    opacity: 0;
+  }
+  20% {
+    opacity: 0.85;
+  }
+  45% {
+    transform: translateX(180%) skewX(-25deg);
+    opacity: 0;
+  }
+  100% {
+    transform: translateX(180%) skewX(-25deg);
+    opacity: 0;
+  }
+}
+
+.animate-logo-glow {
+  animation: logoGlow 4.5s ease-in-out infinite;
+}
+
+.animate-light-sweep {
+  animation: lightSweep 4s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
