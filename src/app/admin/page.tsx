@@ -1001,13 +1001,15 @@ export default function AdminPage() {
             </div>
           </div>
         )}
-        {/* Modal Lightbox de Fotografía (Se renderiza delante de la Vista Previa con z-[70]) */}
+        {/* Modal Lightbox de Fotografía (Se renderiza delante de TODO con zIndex: 99999) */}
         {selectedPhoto && (
           <div
+            style={{ zIndex: 99999 }}
             onClick={() => setSelectedPhoto(null)}
-            className="fixed inset-0 z-[70] bg-black/90 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 animate-in fade-in duration-200"
+            className="fixed inset-0 bg-black/90 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 animate-in fade-in duration-200"
           >
             <div
+              style={{ zIndex: 100000 }}
               onClick={(e) => e.stopPropagation()}
               className="bg-white rounded-2xl max-w-4xl w-full max-h-[92vh] overflow-hidden shadow-2xl flex flex-col border border-vanilla-300"
             >
