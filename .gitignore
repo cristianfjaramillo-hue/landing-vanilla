@@ -1,0 +1,32 @@
+# Dependencias
+node_modules/
+/.pnp
+.pnp.js
+
+# Testing & logs
+coverage/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Next.js / Compilados
+.next/
+out/
+build/
+dist/
+
+# Entornos y Credenciales (CRÍTICO: nunca subir credenciales a Git)
+.env
+.env*.local
+!.env.example
+
+# IDEs y SO
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Vercel
+.vercel/
