@@ -44,6 +44,8 @@ export default function ActividadesPage() {
   const [showOriginalModal, setShowOriginalModal] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [savedSuccessProtocol, setSavedSuccessProtocol] = useState<ActivityProtocol | null>(null);
+  const [lastSentProtocol, setLastSentProtocol] = useState<ActivityProtocol | null>(null);
+  const [showSuccessToast, setShowSuccessToast] = useState(false);
 
   // Cargar estado guardado de localStorage
   useEffect(() => {
@@ -105,9 +107,11 @@ export default function ActividadesPage() {
   const completedItemsCount = Object.values(checkedItems).filter(Boolean).length;
   const progressPercentage = Math.round((completedItemsCount / totalItemsCount) * 100);
 
-  // Guardar Envío / Protocolo
+  // Guardar Envío / Protocolo (Se puede presionar una sola vez; al enviar se reinicia automáticamente)
   const handleSaveProtocol = async () => {
+    if (isSaving || completedItemsCount === 0) return;
     setIsSaving(true);
+
     try {
       const now = new Date();
       const pad = (n: number) => String(n).padStart(2, "0");
@@ -127,35 +131,47 @@ export default function ActividadesPage() {
         tipo: "protocolo_actividades",
       };
 
-      // 1. Guardar en localStorage histórico (apareciendo el más reciente primero)
-      const existing: ActivityProtocol[] = JSON.parse(
-        localStorage.getItem("vanilla_saved_actividades") || "[]"
-      );
-      const updated = [newProtocol, ...existing.filter((p) => p.id !== newProtocol.id)];
-      localStorage.setItem("vanilla_saved_actividades", JSON.stringify(updated));
-
-      // 2. Sincronizar en Supabase
+      // 1. Guardar de inmediato en localStorage histórico (el más reciente primero)
       try {
-        await supabase.from("reportes_diarios").insert([
-          {
-            report_id: newProtocol.id,
-            lote: newProtocol.lote,
-            responsable: newProtocol.responsable,
-            fecha_reporte: newProtocol.fecha,
-            data: newProtocol,
-          },
-        ]);
-      } catch (dbErr) {
-        console.warn("Sincronización con Supabase (disponible en local):", dbErr);
+        const rawSaved = localStorage.getItem("vanilla_saved_actividades");
+        const existing: ActivityProtocol[] = rawSaved ? JSON.parse(rawSaved) : [];
+        const updated = [newProtocol, ...existing.filter((p) => p.id !== newProtocol.id)];
+        localStorage.setItem("vanilla_saved_actividades", JSON.stringify(updated));
+      } catch (storageErr) {
+        console.warn("Aviso guardando en localStorage:", storageErr);
       }
 
-      // 3. Limpiar y reiniciar automáticamente la pantalla y el formulario
+      // 2. Sincronizar en segundo plano en Supabase (sin bloquear ni congelar la pantalla)
+      try {
+        Promise.resolve(
+          supabase.from("reportes_diarios").insert([
+            {
+              report_id: newProtocol.id,
+              lote: newProtocol.lote,
+              responsable: newProtocol.responsable,
+              fecha_reporte: newProtocol.fecha,
+              data: newProtocol,
+            },
+          ])
+        )
+          .then((res) => {
+            if (res && (res as any).error) console.warn("Supabase sync notice:", (res as any).error);
+          })
+          .catch((dbErr) => {
+            console.warn("Sincronización Supabase:", dbErr);
+          });
+      } catch (e) {
+        console.warn("Supabase launch notice:", e);
+      }
+
+      // 3. REINICIAR Y LIMPIAR INMEDIATAMENTE TODO EL FORMULARIO (0 casillas marcadas)
       setCheckedItems({});
       setResponsable("");
       setLote("");
       setObservaciones("");
       setFecha(now.toISOString().split("T")[0]);
 
+      // Purgar claves de cache temporal en localStorage
       try {
         localStorage.removeItem("vanilla_actividades_checked");
         localStorage.removeItem("vanilla_actividades_responsable");
@@ -163,14 +179,17 @@ export default function ActividadesPage() {
         localStorage.removeItem("vanilla_actividades_obs");
         localStorage.removeItem("vanilla_actividades_fecha");
       } catch (e) {
-        // Ignore storage error
+        // Ignore
       }
+
+      // 4. Activar banner informativo y modal de confirmación
+      setLastSentProtocol(newProtocol);
+      setShowSuccessToast(true);
+      setSavedSuccessProtocol(newProtocol);
 
       if (typeof window !== "undefined") {
         window.scrollTo({ top: 0, behavior: "smooth" });
       }
-
-      setSavedSuccessProtocol(newProtocol);
     } catch (err) {
       console.error("Error al guardar protocolo:", err);
       alert("Error al procesar el guardado.");
@@ -242,15 +261,29 @@ export default function ActividadesPage() {
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            {/* Botón Principal Guardar Envío */}
+            {/* Botón Principal Guardar Envío (Solo activo si hay actividades marcadas; se presiona una sola vez) */}
             <button
               onClick={handleSaveProtocol}
-              disabled={isSaving}
-              className="inline-flex items-center space-x-1.5 px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-md transition-all active:scale-95 disabled:opacity-50"
-              title="Guardar este protocolo de actividades"
+              disabled={isSaving || completedItemsCount === 0}
+              className={`inline-flex items-center space-x-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold shadow-md transition-all ${
+                isSaving || completedItemsCount === 0
+                  ? "bg-forest-800 text-forest-400 cursor-not-allowed opacity-60"
+                  : "bg-emerald-600 hover:bg-emerald-500 text-white active:scale-95 cursor-pointer"
+              }`}
+              title={
+                completedItemsCount === 0
+                  ? "Marca al menos una actividad para poder enviar"
+                  : "Guardar este protocolo (se reiniciará el formulario automáticamente)"
+              }
             >
               <Save className="w-3.5 h-3.5" />
-              <span>{isSaving ? "Guardando..." : "Guardar Envío"}</span>
+              <span>
+                {isSaving
+                  ? "Enviando..."
+                  : completedItemsCount === 0
+                  ? "Guardar Envío"
+                  : `Guardar Envío (${completedItemsCount})`}
+              </span>
             </button>
 
             <button
@@ -303,6 +336,46 @@ export default function ActividadesPage() {
       {/* Contenedor Principal (Formato Lámina Técnica) */}
       <main className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 mt-4 sm:mt-6">
         <div className="bg-white rounded-2xl shadow-xl border border-vanilla-300 p-4 sm:p-8 print:shadow-none print:border-none print:p-0">
+          {/* Banner de Éxito y Reinicio Automático */}
+          {showSuccessToast && lastSentProtocol && (
+            <div className="mb-6 p-4 rounded-xl bg-emerald-50 border-2 border-emerald-500 text-forest-950 shadow-md flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 animate-in fade-in slide-in-from-top-2 duration-300">
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 rounded-full bg-emerald-600 text-white flex items-center justify-center flex-shrink-0 shadow">
+                  <Check className="w-6 h-6 stroke-[3]" />
+                </div>
+                <div>
+                  <h4 className="text-sm font-bold text-emerald-950 flex items-center space-x-2">
+                    <span>¡Envío Registrado con Éxito! Formulario Reiniciado</span>
+                    <span className="font-mono text-[11px] font-semibold bg-emerald-200/80 text-emerald-900 px-2 py-0.5 rounded">
+                      {lastSentProtocol.id}
+                    </span>
+                  </h4>
+                  <p className="text-xs text-emerald-800 mt-0.5">
+                    Se guardaron <strong>{lastSentProtocol.completadas}</strong> actividades del lote <em>{lastSentProtocol.lote}</em>. Todas las casillas han quedado desmarcadas para un nuevo envío.
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center space-x-2 flex-shrink-0 self-end sm:self-center">
+                <button
+                  type="button"
+                  onClick={() => handleDownloadPdf(lastSentProtocol)}
+                  className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold transition-colors shadow-sm"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span>Descargar PDF</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowSuccessToast(false)}
+                  className="p-1.5 text-emerald-700 hover:text-emerald-950 rounded-lg hover:bg-emerald-100 transition-colors"
+                  title="Cerrar aviso"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Cabecera Oficial ITEC */}
           <header className="border-b-4 border-forest-900 pb-5 mb-6">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -613,12 +686,32 @@ export default function ActividadesPage() {
                 <button
                   type="button"
                   onClick={handleSaveProtocol}
-                  disabled={isSaving}
-                  className="w-full mt-4 py-2.5 px-4 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold shadow-md transition-all flex items-center justify-center space-x-2 print:hidden disabled:opacity-50"
+                  disabled={isSaving || completedItemsCount === 0}
+                  className={`w-full mt-4 py-3 px-4 rounded-xl text-xs font-bold shadow-md transition-all flex items-center justify-center space-x-2 print:hidden ${
+                    isSaving || completedItemsCount === 0
+                      ? "bg-gray-300 text-gray-500 cursor-not-allowed border border-gray-300"
+                      : "bg-emerald-700 hover:bg-emerald-800 text-white cursor-pointer active:scale-95 shadow-lg hover:shadow-xl"
+                  }`}
+                  title={
+                    completedItemsCount === 0
+                      ? "Debes marcar al menos una actividad para poder enviar"
+                      : "Presiona una sola vez para enviar; el formulario se reiniciará automáticamente"
+                  }
                 >
-                  <Save className="w-4 h-4 text-vanilla-300" />
-                  <span>{isSaving ? "Guardando Protocolo..." : "Guardar Envío de Actividades"}</span>
+                  <Save className={`w-4 h-4 ${completedItemsCount === 0 ? "text-gray-400" : "text-vanilla-300"}`} />
+                  <span>
+                    {isSaving
+                      ? "Enviando y Reiniciando..."
+                      : completedItemsCount === 0
+                      ? "Marca actividades para enviar"
+                      : `Guardar Envío de Actividades (${completedItemsCount})`}
+                  </span>
                 </button>
+                {completedItemsCount > 0 && !isSaving && (
+                  <p className="text-[10px] text-forest-600 mt-1.5 italic">
+                    * Al presionar, se guardará y el formulario se reiniciará automáticamente (un solo envío).
+                  </p>
+                )}
               </div>
             </div>
           </div>
