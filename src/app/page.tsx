@@ -8,7 +8,6 @@ import {
   ClipboardList,
   ExternalLink,
 } from "lucide-react";
-import HeroVideo from "@/components/HeroVideo";
 
 export default function HomePage() {
   return (
@@ -22,8 +21,16 @@ export default function HomePage() {
         </div>
 
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center space-y-8">
-          {/* Video Hero en Loop */}
-          <HeroVideo />
+          {/* Logo Principal en el Centro */}
+          <div className="relative w-72 sm:w-96 md:w-[480px] h-28 sm:h-36 md:h-44 mx-auto drop-shadow-2xl flex items-center justify-center">
+            <Image
+              src="/assets/logo-amazon-vanilla-hero.png"
+              alt="Amazon Vanilla By Waorani People"
+              fill
+              className="object-contain"
+              priority
+            />
+          </div>
 
           {/* Badge */}
           <div className="inline-flex items-center space-x-2 px-4 py-1.5 rounded-full bg-forest-900/80 border border-vanilla-400/40 text-vanilla-300 text-xs sm:text-sm font-semibold tracking-wide">
