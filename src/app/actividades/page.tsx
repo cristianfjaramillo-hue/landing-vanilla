@@ -149,6 +149,27 @@ export default function ActividadesPage() {
         console.warn("Sincronización con Supabase (disponible en local):", dbErr);
       }
 
+      // 3. Limpiar y reiniciar automáticamente la pantalla y el formulario
+      setCheckedItems({});
+      setResponsable("");
+      setLote("");
+      setObservaciones("");
+      setFecha(now.toISOString().split("T")[0]);
+
+      try {
+        localStorage.removeItem("vanilla_actividades_checked");
+        localStorage.removeItem("vanilla_actividades_responsable");
+        localStorage.removeItem("vanilla_actividades_lote");
+        localStorage.removeItem("vanilla_actividades_obs");
+        localStorage.removeItem("vanilla_actividades_fecha");
+      } catch (e) {
+        // Ignore storage error
+      }
+
+      if (typeof window !== "undefined") {
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }
+
       setSavedSuccessProtocol(newProtocol);
     } catch (err) {
       console.error("Error al guardar protocolo:", err);
@@ -681,9 +702,10 @@ export default function ActividadesPage() {
 
               <button
                 onClick={() => setSavedSuccessProtocol(null)}
-                className="w-full sm:w-auto px-4 py-2.5 rounded-xl border border-vanilla-300 hover:bg-vanilla-50 text-forest-800 text-xs font-medium transition-colors"
+                className="w-full sm:w-auto px-4 py-2.5 rounded-xl border border-vanilla-300 hover:bg-vanilla-50 text-forest-800 text-xs font-semibold transition-colors"
+                title="Cerrar y continuar con el formulario limpio"
               >
-                Cerrar
+                Nuevo Envío / Cerrar
               </button>
             </div>
           </div>
