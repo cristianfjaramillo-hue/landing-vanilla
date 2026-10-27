@@ -219,10 +219,10 @@ export default function NuevoReportePage() {
   };
 
   return (
-    <div className="min-h-screen py-8 sm:py-12 px-4 sm:px-6 lg:px-8 bg-[#FBF8F1]">
+    <div className="min-h-screen py-6 sm:py-12 px-2 sm:px-6 lg:px-8 bg-[#FBF8F1]">
       <div className="max-w-4xl mx-auto">
         {/* Navegación de regreso */}
-        <div className="mb-6 flex items-center justify-between">
+        <div className="mb-4 sm:mb-6 flex items-center justify-between">
           <Link
             href="/"
             className="inline-flex items-center text-sm font-semibold text-forest-800 hover:text-vanilla-600 transition-colors"
@@ -321,7 +321,7 @@ export default function NuevoReportePage() {
             </div>
           </div>
 
-          <div className="p-6 sm:p-8 space-y-8">
+          <div className="p-3 sm:p-8 space-y-6 sm:space-y-8">
             {/* SECCIÓN 1: RANGO DE FECHAS & RESPONSABLE */}
             <div className="bg-vanilla-50/70 p-5 rounded-xl border border-vanilla-200">
               <h2 className="text-xs font-bold uppercase tracking-wider text-forest-900 mb-4 flex items-center space-x-2">
@@ -506,11 +506,24 @@ export default function NuevoReportePage() {
                 <table className="w-full text-left text-xs">
                   <thead className="bg-forest-900 text-white">
                     <tr>
-                      <th className="py-2.5 px-3 w-10 text-center font-bold">N°</th>
-                      <th className="py-2.5 px-3 w-48 font-bold">Actividad</th>
-                      <th className="py-2.5 px-3 font-bold">Descripción / Observaciones Breves</th>
-                      <th className="py-2.5 px-3 w-32 font-bold">Área / Lote</th>
-                      <th className="py-2.5 px-3 w-20 text-center font-bold">Realizado</th>
+                      <th className="py-2 sm:py-2.5 px-1 sm:px-3 w-7 sm:w-10 text-center font-bold text-[11px] sm:text-xs">
+                        N°
+                      </th>
+                      <th className="py-2 sm:py-2.5 px-1.5 sm:px-3 w-28 sm:w-48 font-bold text-[11px] sm:text-xs">
+                        Actividad
+                      </th>
+                      <th className="py-2 sm:py-2.5 px-1.5 sm:px-3 font-bold text-[11px] sm:text-xs">
+                        <span className="md:hidden">Descripción</span>
+                        <span className="hidden md:inline">Descripción / Observaciones Breves</span>
+                      </th>
+                      <th className="py-2 sm:py-2.5 px-1.5 sm:px-3 w-16 sm:w-32 font-bold text-[11px] sm:text-xs">
+                        <span className="md:hidden">Área</span>
+                        <span className="hidden md:inline">Área / Lote</span>
+                      </th>
+                      <th className="py-2 sm:py-2.5 px-1 sm:px-3 w-10 sm:w-20 text-center font-bold text-[10px] sm:text-xs">
+                        <span className="sm:hidden">✓</span>
+                        <span className="hidden sm:inline">Realizado</span>
+                      </th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-vanilla-100 bg-white">
@@ -521,35 +534,35 @@ export default function NuevoReportePage() {
                           act.realizado ? "bg-vanilla-50/70" : "hover:bg-vanilla-50/30"
                         }`}
                       >
-                        <td className="py-2 px-3 text-center font-mono text-forest-600 font-bold">
+                        <td className="py-1.5 sm:py-2 px-1 sm:px-3 text-center font-mono text-forest-600 font-bold text-[11px] sm:text-xs">
                           {act.id}
                         </td>
-                        <td className="py-2 px-3 font-semibold text-forest-900">
+                        <td className="py-1.5 sm:py-2 px-1.5 sm:px-3 font-semibold text-forest-900 text-[11px] sm:text-xs leading-snug">
                           {act.nombre}
                         </td>
-                        <td className="py-2 px-3">
+                        <td className="py-1.5 sm:py-2 px-1.5 sm:px-3">
                           <input
                             type="text"
                             value={act.descripcion}
                             onChange={(e) => updateActividadDesc(act.id, e.target.value)}
-                            placeholder="Detalle rápido (opcional)..."
-                            className="w-full px-2 py-1 bg-transparent border-b border-dashed border-vanilla-300 focus:border-forest-600 focus:outline-none text-xs"
+                            placeholder="Detalle..."
+                            className="w-full px-1 sm:px-2 py-1 bg-transparent border-b border-dashed border-vanilla-300 focus:border-forest-600 focus:outline-none text-[11px] sm:text-xs"
                           />
                         </td>
-                        <td className="py-2 px-3">
+                        <td className="py-1.5 sm:py-2 px-1.5 sm:px-3">
                           <input
                             type="text"
                             value={act.areaLote}
                             onChange={(e) => updateActividadArea(act.id, e.target.value)}
-                            placeholder="Lote o surco"
-                            className="w-full px-2 py-1 bg-transparent border-b border-dashed border-vanilla-300 focus:border-forest-600 focus:outline-none text-xs"
+                            placeholder="Área"
+                            className="w-full px-1 sm:px-2 py-1 bg-transparent border-b border-dashed border-vanilla-300 focus:border-forest-600 focus:outline-none text-[11px] sm:text-xs"
                           />
                         </td>
-                        <td className="py-2 px-3 text-center">
+                        <td className="py-1.5 sm:py-2 px-1 sm:px-3 text-center">
                           <button
                             type="button"
                             onClick={() => toggleActividad(act.id)}
-                            className={`p-1.5 rounded-md transition-colors ${
+                            className={`p-1 sm:p-1.5 rounded-md transition-colors ${
                               act.realizado
                                 ? "bg-forest-900 text-vanilla-400"
                                 : "bg-vanilla-100 text-forest-400 hover:text-forest-800"
@@ -557,9 +570,9 @@ export default function NuevoReportePage() {
                             aria-label={`Marcar actividad ${act.nombre}`}
                           >
                             {act.realizado ? (
-                              <CheckSquare className="w-5 h-5" />
+                              <CheckSquare className="w-4 h-4 sm:w-5 sm:h-5" />
                             ) : (
-                              <Square className="w-5 h-5" />
+                              <Square className="w-4 h-4 sm:w-5 sm:h-5" />
                             )}
                           </button>
                         </td>
