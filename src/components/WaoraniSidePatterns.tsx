@@ -9,8 +9,8 @@ interface WaoraniSidePatternsProps {
 /**
  * Patrón Ancestral Waorani Vertical para Laterales
  * Diseñado para áreas verdes (Hero / Fondos forest-950/900).
- * Incluye desplazamiento vertical continuo, desvanecimiento dinámico (pulso y onda de cambio)
- * y una opacidad calibrada al 60%.
+ * Configurado con 80% de transparencia (opacidad sutil 0.20),
+ * desplazamiento vertical ultra lento y elegante, sin destellos ni luces invasivas.
  */
 export default function WaoraniSidePatterns({ className = "" }: WaoraniSidePatternsProps) {
   return (
@@ -21,10 +21,7 @@ export default function WaoraniSidePatterns({ className = "" }: WaoraniSidePatte
         aria-hidden="true"
         title="Patrón Ancestral Waorani - Lateral Izquierdo"
       >
-        <div className="relative w-full h-full waorani-strip">
-          {/* Haz de luz de desvanecimiento dinámico en movimiento continuo (efecto de cambio) */}
-          <div className="absolute inset-x-0 top-0 h-48 bg-gradient-to-b from-transparent via-vanilla-300/40 to-transparent pointer-events-none waorani-wave-beam" />
-        </div>
+        <div className="relative w-full h-full waorani-strip" />
       </div>
 
       {/* Columna Lateral Derecha (Efecto Espejo) */}
@@ -33,10 +30,7 @@ export default function WaoraniSidePatterns({ className = "" }: WaoraniSidePatte
         aria-hidden="true"
         title="Patrón Ancestral Waorani - Lateral Derecho"
       >
-        <div className="relative w-full h-full waorani-strip-delayed">
-          {/* Haz de luz de desvanecimiento dinámico en movimiento continuo (efecto de cambio) */}
-          <div className="absolute inset-x-0 top-0 h-48 bg-gradient-to-b from-transparent via-vanilla-300/40 to-transparent pointer-events-none waorani-wave-beam-delayed" />
-        </div>
+        <div className="relative w-full h-full waorani-strip-delayed" />
       </div>
     </>
   );
