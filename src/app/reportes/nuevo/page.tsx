@@ -23,11 +23,15 @@ import {
   Trash2,
   CheckCircle2,
   ArrowLeft,
+  AlertTriangle,
+  AlertCircle,
+  Activity,
 } from "lucide-react";
 import { DEFAULT_ACTIVITIES, DEFAULT_TOOLS } from "@/lib/constants";
 import { ActivityItem, ToolItem, AppliedInput, CropGeneralStatus, DailyReport } from "@/lib/types";
 import { generateDailyReportPDF } from "@/lib/pdf-generator";
 import { supabase } from "@/lib/supabase";
+import { evaluarEstadoCultivo } from "@/lib/crop-alerts";
 
 export default function NuevoReportePage() {
   const todayStr = new Date().toISOString().split("T")[0];
@@ -687,11 +691,16 @@ export default function NuevoReportePage() {
               </div>
             </div>
 
-            {/* SECCIÓN 6: ESTADO GENERAL DEL CULTIVO (Semáforo Táctil) */}
+            {/* SECCIÓN 6: ESTADO GENERAL DEL CULTIVO (Semáforo Táctil de Alertas) */}
             <div className="bg-forest-900 text-white p-5 rounded-xl">
-              <h2 className="text-xs font-bold uppercase tracking-wider text-vanilla-300 mb-4">
-                6. Estado General del Cultivo
-              </h2>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
+                <h2 className="text-xs font-bold uppercase tracking-wider text-vanilla-300">
+                  6. Estado General del Cultivo & Semáforo de Alertas
+                </h2>
+                <span className="text-[11px] text-forest-300">
+                  Calificación agronómica en tiempo real para supervisión y alertas
+                </span>
+              </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 {[
@@ -737,6 +746,85 @@ export default function NuevoReportePage() {
                   </div>
                 ))}
               </div>
+
+              {/* Semáforo Dinámico de Alertas Agronómicas */}
+              {(() => {
+                const alertaCultivo = evaluarEstadoCultivo(estadoCultivo);
+                return (
+                  <div className="mt-5 p-4 rounded-xl bg-forest-950/80 border border-forest-700/80 transition-all">
+                    <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-3">
+                      {/* Gráfico del Semáforo y Diagnóstico */}
+                      <div className="flex items-start sm:items-center space-x-3.5 flex-1">
+                        {/* Carcasa del Semáforo Físico */}
+                        <div className="flex items-center space-x-1.5 p-1.5 bg-black/60 rounded-full border border-forest-700 shadow-inner flex-shrink-0 mt-0.5 sm:mt-0">
+                          {/* Luz Roja */}
+                          <span
+                            className={`w-4 h-4 rounded-full transition-all ${
+                              alertaCultivo.nivel === "critico"
+                                ? "bg-red-500 shadow-[0_0_12px_rgba(239,68,68,0.95)] ring-2 ring-red-400 scale-110"
+                                : "bg-red-950/50 opacity-25"
+                            }`}
+                            title="Rojo: En mal estado"
+                          />
+                          {/* Luz Amarilla */}
+                          <span
+                            className={`w-4 h-4 rounded-full transition-all ${
+                              alertaCultivo.nivel === "atencion"
+                                ? "bg-amber-400 shadow-[0_0_12px_rgba(251,191,36,0.95)] ring-2 ring-amber-300 scale-110"
+                                : "bg-amber-950/50 opacity-25"
+                            }`}
+                            title="Amarillo: Necesita atención"
+                          />
+                          {/* Luz Verde */}
+                          <span
+                            className={`w-4 h-4 rounded-full transition-all ${
+                              alertaCultivo.nivel === "optimo"
+                                ? "bg-emerald-400 shadow-[0_0_12px_rgba(52,211,153,0.95)] ring-2 ring-emerald-300 scale-110"
+                                : "bg-emerald-950/50 opacity-25"
+                            }`}
+                            title="Verde: El cultivo va bien"
+                          />
+                        </div>
+
+                        <div>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span
+                              className={`text-xs font-black uppercase tracking-wider px-2.5 py-0.5 rounded-md border ${
+                                alertaCultivo.nivel === "critico"
+                                  ? "bg-red-900/90 text-red-200 border-red-500"
+                                  : alertaCultivo.nivel === "atencion"
+                                  ? "bg-amber-900/90 text-amber-200 border-amber-500"
+                                  : "bg-emerald-900/90 text-emerald-200 border-emerald-500"
+                              }`}
+                            >
+                              Semáforo: {alertaCultivo.titulo}
+                            </span>
+                            <span className="text-[11px] text-forest-300">
+                              • {alertaCultivo.subtitulo}
+                            </span>
+                          </div>
+                          <p className="text-xs text-forest-200 mt-1 leading-relaxed">
+                            {alertaCultivo.diagnostico}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Recomendaciones Técnicas Asignadas al Semáforo */}
+                    <div className="mt-3.5 pt-3 border-t border-forest-800/80 flex flex-col sm:flex-row items-start gap-2.5 text-xs">
+                      <span className="font-bold text-vanilla-300 text-[11px] uppercase tracking-wider flex-shrink-0 flex items-center space-x-1">
+                        <Activity className="w-3.5 h-3.5 text-vanilla-400" />
+                        <span>Acción Agronómica Sugerida:</span>
+                      </span>
+                      <ul className="text-forest-200 text-xs space-y-1 list-disc list-inside">
+                        {alertaCultivo.recomendaciones.slice(0, 2).map((rec, rIdx) => (
+                          <li key={rIdx}>{rec}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
 
             {/* SECCIÓN 7: OBSERVACIONES */}

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import nodemailer from "nodemailer";
+import { evaluarEstadoCultivo } from "@/lib/crop-alerts";
 
 export async function POST(request: Request) {
   try {
@@ -14,6 +15,19 @@ export async function POST(request: Request) {
       process.env.NOTIFICATION_EMAIL_TO || process.env.ADMIN_EMAIL || "cristian.f.jaramillo@gmail.com";
     const pdfFilename =
       filename || `Informe_Vainilla_${(report.lote || "Lote").replace(/\s+/g, "_")}_${report.fechaReporte}.pdf`;
+
+    // Evaluar Semáforo de Alertas Agronómicas
+    const alerta = evaluarEstadoCultivo(
+      report.estadoCultivo || {
+        desarrolloVegetativo: "Bueno",
+        floracion: "Bueno",
+        formacionVainas: "Bueno",
+        estadoFitosanitario: "Bueno",
+      }
+    );
+
+    const semaforoEmoji = alerta.nivel === "critico" ? "🔴" : alerta.nivel === "atencion" ? "🟡" : "🟢";
+    const emailSubject = `${semaforoEmoji} [${alerta.titulo}] Informe Diario - ${report.lote} (${report.fechaReporte})`;
 
     const actList = (report.actividades || [])
       .filter((a: any) => a.realizado)
@@ -50,8 +64,40 @@ export async function POST(request: Request) {
       <td style="padding: 28px 24px;">
         <p style="font-size: 14px; line-height: 1.6; color: #2A4430; margin-top: 0;">
           Estimado Administrador,<br><br>
-          Se ha generado y guardado un nuevo <strong>Informe Diario de Campo</strong> en la plataforma. A continuación encontrarás el resumen técnico de las actividades y el documento oficial en <strong>PDF adjunto</strong> listo para su revisión y archivo.
+          Se ha generado y registrado un nuevo <strong>Informe Diario de Campo</strong> en la plataforma. A continuación encontrarás la <strong>evaluación semafórica del cultivo</strong>, el resumen técnico de actividades y el documento oficial en <strong>PDF adjunto</strong> listo para su archivo y control agronómico.
         </p>
+
+        <!-- BLOQUE DESTACADO: SEMÁFORO DE ALERTAS AGRONÓMICAS -->
+        <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: ${alerta.badgeBgHex}; border: 2px solid ${alerta.colorHex}; border-radius: 12px; margin: 20px 0; overflow: hidden;">
+          <tr>
+            <td style="padding: 16px 20px;">
+              <table width="100%" border="0" cellspacing="0" cellpadding="0">
+                <tr>
+                  <td width="36" valign="middle">
+                    <span style="font-size: 28px; line-height: 1;">${semaforoEmoji}</span>
+                  </td>
+                  <td valign="middle">
+                    <span style="display: inline-block; background-color: ${alerta.colorHex}; color: #ffffff; font-size: 11px; font-weight: bold; letter-spacing: 1px; padding: 3px 10px; border-radius: 6px; text-transform: uppercase;">
+                      SEMÁFORO: ${alerta.titulo}
+                    </span>
+                    <span style="font-size: 12px; color: ${alerta.badgeTextHex}; font-weight: bold; margin-left: 8px;">
+                      (${alerta.subtitulo})
+                    </span>
+                  </td>
+                </tr>
+              </table>
+              <p style="font-size: 13px; color: ${alerta.badgeTextHex}; line-height: 1.5; margin: 10px 0 6px 0;">
+                <strong>Diagnóstico de Campo:</strong> ${alerta.diagnostico}
+              </p>
+              <div style="font-size: 12px; color: #2A4430; margin-top: 8px; padding-top: 8px; border-top: 1px dashed ${alerta.badgeBorderHex};">
+                <strong>Acción Agronómica Recomendada:</strong>
+                <ul style="margin: 4px 0 0 0; padding-left: 18px; color: #1C3B24;">
+                  ${alerta.recomendaciones.slice(0, 3).map((r) => `<li style="margin-bottom: 2px;">${r}</li>`).join("")}
+                </ul>
+              </div>
+            </td>
+          </tr>
+        </table>
 
         <!-- Ficha Resumen -->
         <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #FBF8F1; border-radius: 12px; border: 1px solid #E5DFD7; margin: 20px 0;">
@@ -98,9 +144,9 @@ export async function POST(request: Request) {
         <!-- Estado del Cultivo -->
         <div style="margin: 20px 0; background-color: #F5F1EB; padding: 14px 18px; border-radius: 10px;">
           <h4 style="margin: 0 0 8px 0; font-size: 12px; text-transform: uppercase; color: #1C3B24;">
-            Estado General del Cultivo:
+            Parámetros del Estado del Cultivo:
           </h4>
-          <p style="margin: 0; font-size: 12px; line-height: 1.5; color: #334D3A;">
+          <p style="margin: 0; font-size: 12px; line-height: 1.6; color: #334D3A;">
             • Desarrollo Vegetativo: <strong>${report.estadoCultivo?.desarrolloVegetativo || "N/A"}</strong><br>
             • Floración: <strong>${report.estadoCultivo?.floracion || "N/A"}</strong><br>
             • Formación de Vainas: <strong>${report.estadoCultivo?.formacionVainas || "N/A"}</strong><br>
@@ -168,7 +214,7 @@ export async function POST(request: Request) {
         body: JSON.stringify({
           from: process.env.NOTIFICATION_EMAIL_FROM || "Amazon Vanilla <onboarding@resend.dev>",
           to: [targetEmail],
-          subject: `🌿 Nuevo Informe Diario - ${report.lote} (${report.fechaReporte})`,
+          subject: emailSubject,
           html: htmlTemplate,
           attachments: [
             {
@@ -185,6 +231,7 @@ export async function POST(request: Request) {
           success: true,
           provider: "resend",
           recipient: targetEmail,
+          semaforo: alerta.nivel,
           data: resendData,
         });
       }
@@ -210,7 +257,7 @@ export async function POST(request: Request) {
       const info = await transporter.sendMail({
         from: process.env.NOTIFICATION_EMAIL_FROM || `"Amazon Vanilla Waorani" <${smtpUser}>`,
         to: targetEmail,
-        subject: `🌿 Nuevo Informe Diario - ${report.lote} (${report.fechaReporte})`,
+        subject: emailSubject,
         html: htmlTemplate,
         attachments: [
           {
@@ -225,6 +272,7 @@ export async function POST(request: Request) {
         success: true,
         provider: "smtp",
         recipient: targetEmail,
+        semaforo: alerta.nivel,
         messageId: info.messageId,
       });
     }
@@ -234,6 +282,7 @@ export async function POST(request: Request) {
       success: true,
       configured: false,
       recipient: targetEmail,
+      semaforo: alerta.nivel,
       message:
         "El informe se procesó correctamente. Para envío real de correos electrónicos, configura RESEND_API_KEY o credenciales SMTP en Vercel.",
     });

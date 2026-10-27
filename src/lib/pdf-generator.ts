@@ -2,6 +2,7 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { DailyReport, ActivityProtocol } from "./types";
 import { SECTIONS_DATA, RECOMENDACIONES_DATA } from "./actividades-data";
+import { evaluarEstadoCultivo } from "./crop-alerts";
 
 // Helper para convertir URLs de imágenes o blobs a DataURL Base64
 async function getBase64Image(url: string | undefined): Promise<string | null> {
@@ -114,20 +115,24 @@ export async function generateDailyReportPDF(
     .map((t) => `• ${t.nombre}`)
     .join("\n") || "Ninguna reportada";
 
+  const alerta = evaluarEstadoCultivo(report.estadoCultivo);
   const statusText = [
+    `SEMÁFORO: [ ${alerta.titulo} ] (${alerta.subtitulo})`,
+    `Diagnóstico: ${alerta.diagnostico}`,
     `• Desarrollo vegetativo: ${report.estadoCultivo.desarrolloVegetativo}`,
     `• Floración: ${report.estadoCultivo.floracion}`,
     `• Formación de vainas: ${report.estadoCultivo.formacionVainas}`,
     `• Estado fitosanitario: ${report.estadoCultivo.estadoFitosanitario}`,
+    `Recomendación: ${alerta.recomendaciones[0] || "Mantener monitoreo continuo"}`,
   ].join("\n");
 
   autoTable(doc, {
     startY: toolsY,
     theme: "grid",
-    head: [["HERRAMIENTAS UTILIZADAS", "ESTADO GENERAL DEL CULTIVO"]],
+    head: [["HERRAMIENTAS UTILIZADAS", "ESTADO GENERAL & SEMÁFORO DE ALERTAS"]],
     body: [[usedTools, statusText]],
     headStyles: { fillColor: [42, 86, 55], textColor: 255 },
-    styles: { fontSize: 8.5, cellPadding: 2.5 },
+    styles: { fontSize: 8, cellPadding: 2.5 },
   });
 
   // 6. Insumos Aplicados

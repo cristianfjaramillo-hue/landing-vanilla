@@ -34,12 +34,16 @@ import {
   CheckCircle2,
   Printer,
   Warehouse,
+  AlertTriangle,
+  AlertCircle,
+  Activity,
 } from "lucide-react";
 import { INITIAL_MOCK_REPORTS, DEFAULT_ACTIVITIES, DEFAULT_TOOLS } from "@/lib/constants";
 import { DailyReport, ActivityItem, ToolItem, ActivityProtocol } from "@/lib/types";
 import { generateDailyReportPDF, generateActivityProtocolPDF } from "@/lib/pdf-generator";
 import { SECTIONS_DATA, RECOMENDACIONES_DATA } from "@/lib/actividades-data";
 import { supabase } from "@/lib/supabase";
+import { evaluarEstadoCultivo, SemaforoAlertLevel } from "@/lib/crop-alerts";
 
 export default function AdminPage() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -50,6 +54,7 @@ export default function AdminPage() {
   const [reports, setReports] = useState<DailyReport[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterLote, setFilterLote] = useState("todos");
+  const [filterSemaforo, setFilterSemaforo] = useState<"todos" | SemaforoAlertLevel>("todos");
 
   // Listados de Actividades Guardados
   const [protocols, setProtocols] = useState<ActivityProtocol[]>([]);
@@ -271,8 +276,35 @@ export default function AdminPage() {
 
     const matchesLote = filterLote === "todos" || r.lote === filterLote;
 
-    return matchesSearch && matchesLote;
+    const alertInfo = evaluarEstadoCultivo(
+      r.estadoCultivo || {
+        desarrolloVegetativo: "Bueno",
+        floracion: "Bueno",
+        formacionVainas: "Bueno",
+        estadoFitosanitario: "Bueno",
+      }
+    );
+    const matchesSemaforo = filterSemaforo === "todos" || alertInfo.nivel === filterSemaforo;
+
+    return matchesSearch && matchesLote && matchesSemaforo;
   });
+
+  // Conteo de Semáforo de Alertas Agronómicas
+  const semaforoCounts = reports.reduce(
+    (acc, r) => {
+      const evalAlert = evaluarEstadoCultivo(
+        r.estadoCultivo || {
+          desarrolloVegetativo: "Bueno",
+          floracion: "Bueno",
+          formacionVainas: "Bueno",
+          estadoFitosanitario: "Bueno",
+        }
+      );
+      acc[evalAlert.nivel] = (acc[evalAlert.nivel] || 0) + 1;
+      return acc;
+    },
+    { optimo: 0, atencion: 0, critico: 0 } as Record<SemaforoAlertLevel, number>
+  );
 
   // Filtrado de protocolos de actividades (organizados con el más reciente primero)
   const filteredProtocols = protocols.filter((p) => {
@@ -489,6 +521,117 @@ export default function AdminPage() {
               </div>
             </div>
 
+            {/* Monitor Semáforo de Alertas Agronómicas del Cultivo */}
+            <div className="bg-white p-4 sm:p-5 rounded-2xl border border-vanilla-200 shadow-sm">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
+                <div className="flex items-center space-x-2">
+                  <div className="p-1.5 rounded-lg bg-forest-900 text-vanilla-400">
+                    <Activity className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h3 className="text-xs sm:text-sm font-bold text-forest-950 uppercase tracking-wide">
+                      Semáforo de Alertas Agronómicas (Estado General del Cultivo)
+                    </h3>
+                    <p className="text-[11px] text-forest-600">
+                      Evaluación en tiempo real en base a desarrollo vegetativo, floración, vainas y fitosanidad.
+                    </p>
+                  </div>
+                </div>
+
+                {filterSemaforo !== "todos" && (
+                  <button
+                    onClick={() => setFilterSemaforo("todos")}
+                    className="text-xs text-forest-700 hover:text-forest-950 font-bold underline self-start sm:self-auto"
+                  >
+                    Mostrar todos ({reports.length})
+                  </button>
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                {/* 🟢 Óptimo */}
+                <button
+                  type="button"
+                  onClick={() => setFilterSemaforo(filterSemaforo === "optimo" ? "todos" : "optimo")}
+                  className={`text-left p-3.5 rounded-xl border-2 transition-all relative overflow-hidden ${
+                    filterSemaforo === "optimo"
+                      ? "bg-emerald-50 border-emerald-600 ring-2 ring-emerald-500/30 shadow-md"
+                      : "bg-emerald-50/40 border-emerald-200 hover:border-emerald-400 hover:bg-emerald-50/70"
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2">
+                      <span className="text-xl">🟢</span>
+                      <span className="text-xs font-bold text-emerald-950 uppercase">El Cultivo Va Bien</span>
+                    </div>
+                    <span className="text-xl font-bold font-serif text-emerald-900 bg-white px-2.5 py-0.5 rounded-lg border border-emerald-300">
+                      {semaforoCounts.optimo}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-emerald-800 mt-2 font-medium">
+                    Todos los parámetros agronómicos en nivel Bueno. Vigor óptimo.
+                  </p>
+                  <span className="text-[10px] text-emerald-700 font-bold mt-1 inline-block">
+                    {filterSemaforo === "optimo" ? "✓ Filtro activo (click para quitar)" : "Filtrar por este estado →"}
+                  </span>
+                </button>
+
+                {/* 🟡 Atención */}
+                <button
+                  type="button"
+                  onClick={() => setFilterSemaforo(filterSemaforo === "atencion" ? "todos" : "atencion")}
+                  className={`text-left p-3.5 rounded-xl border-2 transition-all relative overflow-hidden ${
+                    filterSemaforo === "atencion"
+                      ? "bg-amber-50 border-amber-600 ring-2 ring-amber-500/30 shadow-md"
+                      : "bg-amber-50/40 border-amber-200 hover:border-amber-400 hover:bg-amber-50/70"
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2">
+                      <span className="text-xl">🟡</span>
+                      <span className="text-xs font-bold text-amber-950 uppercase">Necesita Atención</span>
+                    </div>
+                    <span className="text-xl font-bold font-serif text-amber-900 bg-white px-2.5 py-0.5 rounded-lg border border-amber-300">
+                      {semaforoCounts.atencion}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-amber-800 mt-2 font-medium">
+                    Parámetros en Regular (desarrollo, floración o vainas). Requiere manejo.
+                  </p>
+                  <span className="text-[10px] text-amber-700 font-bold mt-1 inline-block">
+                    {filterSemaforo === "atencion" ? "✓ Filtro activo (click para quitar)" : "Filtrar por este estado →"}
+                  </span>
+                </button>
+
+                {/* 🔴 Crítico */}
+                <button
+                  type="button"
+                  onClick={() => setFilterSemaforo(filterSemaforo === "critico" ? "todos" : "critico")}
+                  className={`text-left p-3.5 rounded-xl border-2 transition-all relative overflow-hidden ${
+                    filterSemaforo === "critico"
+                      ? "bg-red-50 border-red-600 ring-2 ring-red-500/30 shadow-md"
+                      : "bg-red-50/40 border-red-200 hover:border-red-400 hover:bg-red-50/70"
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2">
+                      <span className="text-xl">🔴</span>
+                      <span className="text-xs font-bold text-red-950 uppercase">En Mal Estado</span>
+                    </div>
+                    <span className="text-xl font-bold font-serif text-red-900 bg-white px-2.5 py-0.5 rounded-lg border border-red-300">
+                      {semaforoCounts.critico}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-red-800 mt-2 font-medium">
+                    Alerta Fitosanitaria o variables en Malo. Intervención técnica urgente.
+                  </p>
+                  <span className="text-[10px] text-red-700 font-bold mt-1 inline-block">
+                    {filterSemaforo === "critico" ? "✓ Filtro activo (click para quitar)" : "Filtrar por este estado →"}
+                  </span>
+                </button>
+              </div>
+            </div>
+
             {/* Barra de Filtros y Búsqueda */}
             <div className="bg-white p-4 rounded-xl border border-vanilla-200 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
               <div className="relative w-full sm:w-80">
@@ -502,7 +645,7 @@ export default function AdminPage() {
                 />
               </div>
 
-              <div className="flex items-center space-x-3 w-full sm:w-auto">
+              <div className="flex flex-wrap items-center space-x-3 w-full sm:w-auto">
                 <Filter className="w-4 h-4 text-forest-600" />
                 <select
                   value={filterLote}
@@ -515,6 +658,17 @@ export default function AdminPage() {
                       {l}
                     </option>
                   ))}
+                </select>
+
+                <select
+                  value={filterSemaforo}
+                  onChange={(e) => setFilterSemaforo(e.target.value as any)}
+                  className="text-xs px-3 py-2 bg-white rounded-lg border border-vanilla-200 focus:outline-none font-medium"
+                >
+                  <option value="todos">Semáforo: Todos ({reports.length})</option>
+                  <option value="optimo">🟢 El cultivo va bien ({semaforoCounts.optimo})</option>
+                  <option value="atencion">🟡 Necesita atención ({semaforoCounts.atencion})</option>
+                  <option value="critico">🔴 En mal estado ({semaforoCounts.critico})</option>
                 </select>
 
                 <button
@@ -549,6 +703,14 @@ export default function AdminPage() {
               <div className="grid grid-cols-1 gap-4">
                 {filteredReports.map((report) => {
                   const actRealizadasCount = report.actividades.filter((a) => a.realizado).length;
+                  const alerta = evaluarEstadoCultivo(
+                    report.estadoCultivo || {
+                      desarrolloVegetativo: "Bueno",
+                      floracion: "Bueno",
+                      formacionVainas: "Bueno",
+                      estadoFitosanitario: "Bueno",
+                    }
+                  );
                   return (
                     <div
                       key={report.id}
@@ -556,7 +718,7 @@ export default function AdminPage() {
                     >
                       {/* Información Principal */}
                       <div className="space-y-1.5 flex-1">
-                        <div className="flex items-center space-x-3">
+                        <div className="flex flex-wrap items-center gap-2">
                           <span className="font-mono text-xs font-bold px-2 py-0.5 rounded bg-forest-100 text-forest-900">
                             {report.id}
                           </span>
@@ -566,6 +728,17 @@ export default function AdminPage() {
                           </span>
                           <span className="text-xs px-2 py-0.5 rounded-full bg-vanilla-100 text-vanilla-800 font-medium">
                             {report.clima} ({report.tempMin}°C - {report.tempMax}°C)
+                          </span>
+                          {/* Semáforo de Alertas Badge */}
+                          <span
+                            className={`inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold border shadow-xs ${alerta.tailwindBg} ${alerta.tailwindText} ${alerta.tailwindBorder}`}
+                            title={alerta.subtitulo}
+                          >
+                            <span
+                              className="w-2 h-2 rounded-full inline-block animate-pulse"
+                              style={{ backgroundColor: alerta.colorHex }}
+                            />
+                            <span>{alerta.titulo}</span>
                           </span>
                         </div>
 
@@ -580,13 +753,53 @@ export default function AdminPage() {
                           <span className="px-2 py-0.5 rounded bg-forest-50 text-forest-800 border border-forest-200">
                             Actividades: <strong>{actRealizadasCount}</strong> realizadas
                           </span>
-                          <span className="px-2 py-0.5 rounded bg-green-50 text-green-800 border border-green-200">
+                          <span
+                            className={`px-2 py-0.5 rounded font-medium border ${
+                              report.estadoCultivo?.estadoFitosanitario === "Bueno"
+                                ? "bg-green-50 text-green-800 border-green-200"
+                                : report.estadoCultivo?.estadoFitosanitario === "Regular"
+                                ? "bg-amber-50 text-amber-800 border-amber-200"
+                                : "bg-red-50 text-red-800 border-red-200 font-bold"
+                            }`}
+                          >
                             Fitosanitario: {report.estadoCultivo?.estadoFitosanitario || "Bueno"}
                           </span>
-                          <span className="px-2 py-0.5 rounded bg-amber-50 text-amber-800 border border-amber-200">
+                          <span
+                            className={`px-2 py-0.5 rounded font-medium border ${
+                              report.estadoCultivo?.floracion === "Bueno"
+                                ? "bg-green-50 text-green-800 border-green-200"
+                                : report.estadoCultivo?.floracion === "Regular"
+                                ? "bg-amber-50 text-amber-800 border-amber-200"
+                                : "bg-red-50 text-red-800 border-red-200 font-bold"
+                            }`}
+                          >
                             Floración: {report.estadoCultivo?.floracion || "Bueno"}
                           </span>
+                          <span
+                            className={`px-2 py-0.5 rounded font-medium border ${
+                              report.estadoCultivo?.desarrolloVegetativo === "Bueno"
+                                ? "bg-green-50 text-green-800 border-green-200"
+                                : report.estadoCultivo?.desarrolloVegetativo === "Regular"
+                                ? "bg-amber-50 text-amber-800 border-amber-200"
+                                : "bg-red-50 text-red-800 border-red-200 font-bold"
+                            }`}
+                          >
+                            Vegetativo: {report.estadoCultivo?.desarrolloVegetativo || "Bueno"}
+                          </span>
                         </div>
+
+                        {alerta.nivel !== "optimo" && (
+                          <div
+                            className={`mt-2 p-2 rounded-lg border text-xs flex items-center space-x-2 ${alerta.tailwindBg} ${alerta.tailwindBorder}`}
+                          >
+                            <span className="text-sm">
+                              {alerta.nivel === "critico" ? "🔴" : "🟡"}
+                            </span>
+                            <p className={`text-[11px] font-medium ${alerta.tailwindText}`}>
+                              <strong>Diagnóstico:</strong> {alerta.diagnostico}
+                            </p>
+                          </div>
+                        )}
 
                         {/* Fotografías de Campo Adjuntas */}
                         {Boolean(report.foto1Url || report.foto2Url || report.foto3Url) && (
@@ -1154,6 +1367,94 @@ export default function AdminPage() {
                     </div>
                   </div>
                 </div>
+
+                {/* Semáforo de Alertas Agronómicas en Vista Previa */}
+                {(() => {
+                  const alertaModal = evaluarEstadoCultivo(
+                    previewReport.estadoCultivo || {
+                      desarrolloVegetativo: "Bueno",
+                      floracion: "Bueno",
+                      formacionVainas: "Bueno",
+                      estadoFitosanitario: "Bueno",
+                    }
+                  );
+                  return (
+                    <div className={`p-4 rounded-xl border-2 ${alertaModal.tailwindBg} ${alertaModal.tailwindBorder}`}>
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-forest-900/10">
+                        <div className="flex items-center space-x-3">
+                          <div className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-forest-950 text-white shadow-inner">
+                            <span
+                              className={`w-3.5 h-3.5 rounded-full inline-block ${
+                                alertaModal.nivel === "critico"
+                                  ? "bg-red-500 shadow-[0_0_8px_#ef4444]"
+                                  : "bg-forest-800 opacity-40"
+                              }`}
+                            />
+                            <span
+                              className={`w-3.5 h-3.5 rounded-full inline-block ${
+                                alertaModal.nivel === "atencion"
+                                  ? "bg-amber-400 shadow-[0_0_8px_#f59e0b]"
+                                  : "bg-forest-800 opacity-40"
+                              }`}
+                            />
+                            <span
+                              className={`w-3.5 h-3.5 rounded-full inline-block ${
+                                alertaModal.nivel === "optimo"
+                                  ? "bg-emerald-400 shadow-[0_0_8px_#10b981]"
+                                  : "bg-forest-800 opacity-40"
+                              }`}
+                            />
+                          </div>
+
+                          <div>
+                            <div className="flex items-center space-x-2">
+                              <span className="text-xs font-black uppercase tracking-wider text-forest-950">
+                                Semáforo de Alertas:
+                              </span>
+                              <span
+                                className={`text-xs font-extrabold uppercase px-2 py-0.5 rounded-full border ${alertaModal.tailwindText} ${alertaModal.tailwindBorder} bg-white shadow-xs`}
+                              >
+                                {alertaModal.titulo}
+                              </span>
+                            </div>
+                            <p className="text-[11px] text-forest-700 font-medium">{alertaModal.subtitulo}</p>
+                          </div>
+                        </div>
+
+                        <span className="text-[11px] font-mono text-forest-600 bg-white/70 px-2.5 py-1 rounded-lg border border-forest-200/50 self-start sm:self-center">
+                          Notificación a cristian.f.jaramillo@gmail.com
+                        </span>
+                      </div>
+
+                      <div className="pt-3 space-y-2.5">
+                        <div>
+                          <span className="text-[10px] font-bold text-forest-900 uppercase tracking-wide block mb-0.5">
+                            Diagnóstico Agronómico del Estado General:
+                          </span>
+                          <p className="text-xs text-forest-900 font-medium leading-relaxed">
+                            {alertaModal.diagnostico}
+                          </p>
+                        </div>
+
+                        {alertaModal.recomendaciones.length > 0 && (
+                          <div className="bg-white/80 p-3 rounded-lg border border-forest-200/60">
+                            <span className="text-[10px] font-bold text-forest-900 uppercase tracking-wide block mb-1.5">
+                              Recomendaciones y Medidas Agronómicas:
+                            </span>
+                            <ul className="space-y-1 text-[11px] text-forest-800">
+                              {alertaModal.recomendaciones.map((rec, rIdx) => (
+                                <li key={rIdx} className="flex items-start space-x-2">
+                                  <span className="text-forest-700 font-bold">•</span>
+                                  <span>{rec}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })()}
 
                 {/* 5. Insumos Aplicados */}
                 {previewReport.insumos && previewReport.insumos.length > 0 && (
