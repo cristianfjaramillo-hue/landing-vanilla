@@ -68,13 +68,13 @@ export default function HomePage() {
             Orquídeas de vainilla silvestre cultivadas bajo dosel de bosque por familias Waorani. Rigor científico, polinización manual y trazabilidad agronómica diaria respaldada por <strong>ITEC Ecuador</strong>.
           </p>
 
-          {/* CTAs */}
+          {/* CTAs (Todos con el mismo color beige, cambiando a verde al pasar el mouse) */}
           <div className="pt-4 flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 flex-wrap">
             <Link
               href="/reportes/nuevo"
-              className="w-full sm:w-auto px-7 py-4 rounded-xl bg-vanilla-500 hover:bg-vanilla-600 text-forest-950 font-bold text-sm tracking-wider uppercase shadow-lg shadow-vanilla-500/20 transition-all hover:scale-105 active:scale-95 flex items-center justify-center space-x-2"
+              className="w-full sm:w-auto px-7 py-4 rounded-xl bg-[#F2E9D7] hover:bg-forest-900 text-forest-950 hover:text-white font-bold text-sm tracking-wider uppercase border border-vanilla-300 hover:border-forest-700 shadow-md transition-all hover:scale-105 active:scale-95 flex items-center justify-center space-x-2 group"
             >
-              <FileText className="w-4 h-4" />
+              <FileText className="w-4 h-4 text-forest-800 group-hover:text-vanilla-400 transition-colors" />
               <span>Generar Informe Diario</span>
             </Link>
 
@@ -82,18 +82,18 @@ export default function HomePage() {
               href="/actividades"
               target="_blank"
               rel="noopener noreferrer"
-              className="w-full sm:w-auto px-7 py-4 rounded-xl bg-forest-800/90 hover:bg-forest-700 text-vanilla-200 hover:text-white font-bold text-sm tracking-wider uppercase border border-vanilla-500/40 shadow-lg shadow-forest-950/20 transition-all hover:scale-105 active:scale-95 flex items-center justify-center space-x-2"
+              className="w-full sm:w-auto px-7 py-4 rounded-xl bg-[#F2E9D7] hover:bg-forest-900 text-forest-950 hover:text-white font-bold text-sm tracking-wider uppercase border border-vanilla-300 hover:border-forest-700 shadow-md transition-all hover:scale-105 active:scale-95 flex items-center justify-center space-x-2 group"
             >
-              <ClipboardList className="w-4 h-4 text-vanilla-400" />
+              <ClipboardList className="w-4 h-4 text-forest-800 group-hover:text-vanilla-400 transition-colors" />
               <span>Listado de Actividades</span>
-              <ExternalLink className="w-3.5 h-3.5 text-vanilla-400 ml-0.5" />
+              <ExternalLink className="w-3.5 h-3.5 text-forest-600 group-hover:text-vanilla-400 ml-0.5 transition-colors" />
             </Link>
 
             <Link
               href="/admin"
-              className="w-full sm:w-auto px-6 py-4 rounded-xl bg-forest-900/70 hover:bg-forest-800 text-white font-semibold text-sm border border-forest-700 transition-all flex items-center justify-center space-x-2"
+              className="w-full sm:w-auto px-7 py-4 rounded-xl bg-[#F2E9D7] hover:bg-forest-900 text-forest-950 hover:text-white font-bold text-sm tracking-wider uppercase border border-vanilla-300 hover:border-forest-700 shadow-md transition-all hover:scale-105 active:scale-95 flex items-center justify-center space-x-2 group"
             >
-              <ShieldCheck className="w-4 h-4 text-vanilla-400" />
+              <ShieldCheck className="w-4 h-4 text-forest-800 group-hover:text-vanilla-400 transition-colors" />
               <span>Acceso Administrador</span>
             </Link>
           </div>
