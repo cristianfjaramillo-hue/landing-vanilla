@@ -1,13 +1,46 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { FileText, ShieldCheck, ClipboardList, ExternalLink, ArrowLeft } from "lucide-react";
+import { RECOMENDACIONES_DATA } from "@/lib/actividades-data";
 
 export default function Navbar() {
   const pathname = usePathname();
   const isAdmin = pathname?.startsWith("/admin");
+  const [recsCount, setRecsCount] = useState<number>(RECOMENDACIONES_DATA.length);
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("vanilla_recomendaciones_data");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setRecsCount(parsed.length);
+        }
+      }
+    } catch {}
+
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === "vanilla_recomendaciones_data" && e.newValue) {
+        try {
+          const parsed = JSON.parse(e.newValue);
+          if (Array.isArray(parsed)) setRecsCount(parsed.length);
+        } catch {}
+      }
+    };
+    const handleCustomUpdate = (e: any) => {
+      if (e.detail?.count) setRecsCount(e.detail.count);
+    };
+
+    window.addEventListener("storage", handleStorage);
+    window.addEventListener("vanilla_recomendaciones_updated", handleCustomUpdate);
+    return () => {
+      window.removeEventListener("storage", handleStorage);
+      window.removeEventListener("vanilla_recomendaciones_updated", handleCustomUpdate);
+    };
+  }, []);
 
   const isReportesActive = pathname === "/reportes/nuevo" || pathname?.startsWith("/reportes");
   const isActividadesActive = pathname === "/actividades" || pathname?.startsWith("/actividades");
@@ -65,8 +98,8 @@ export default function Navbar() {
                     isActividadesActive ? "text-vanilla-400" : "text-forest-800 group-hover:text-vanilla-400"
                   }`}
                 />
-                <span className="hidden sm:inline whitespace-nowrap">Listado de Actividades</span>
-                <span className="sm:hidden whitespace-nowrap">Actividades</span>
+                <span className="hidden sm:inline whitespace-nowrap">Listado de Actividades ({recsCount})</span>
+                <span className="sm:hidden whitespace-nowrap">Actividades ({recsCount})</span>
                 <ExternalLink
                   className={`w-2.5 h-2.5 sm:w-3.5 sm:h-3.5 ml-0.5 flex-shrink-0 transition-colors ${
                     isActividadesActive ? "text-vanilla-400" : "text-forest-600 group-hover:text-vanilla-400"

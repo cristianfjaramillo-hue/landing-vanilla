@@ -1,4 +1,6 @@
-import React from "react";
+"use client";
+
+import React, { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import {
@@ -8,8 +10,70 @@ import {
   ExternalLink,
 } from "lucide-react";
 import WaoraniSidePatterns from "@/components/WaoraniSidePatterns";
+import { RECOMENDACIONES_DATA } from "@/lib/actividades-data";
+import { supabase } from "@/lib/supabase";
 
 export default function HomePage() {
+  const [recsCount, setRecsCount] = useState<number>(RECOMENDACIONES_DATA.length);
+
+  useEffect(() => {
+    // 1. Cargar desde localStorage
+    try {
+      const saved = localStorage.getItem("vanilla_recomendaciones_data");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setRecsCount(parsed.length);
+        }
+      }
+    } catch {}
+
+    // 2. Sincronizar desde Supabase
+    try {
+      Promise.resolve(
+        supabase
+          .from("reportes_diarios")
+          .select("data")
+          .eq("report_id", "CONFIG_RECOMENDACIONES")
+          .single()
+      )
+        .then(({ data }) => {
+          if (data?.data && Array.isArray((data.data as any).recomendaciones)) {
+            const dbList = (data.data as any).recomendaciones;
+            if (dbList.length > 0) {
+              setRecsCount(dbList.length);
+              localStorage.setItem("vanilla_recomendaciones_data", JSON.stringify(dbList));
+            }
+          }
+        })
+        .catch(() => {});
+    } catch {}
+
+    // 3. Escuchar evento de actualización en tiempo real desde el Panel Admin
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === "vanilla_recomendaciones_data" && e.newValue) {
+        try {
+          const parsed = JSON.parse(e.newValue);
+          if (Array.isArray(parsed)) {
+            setRecsCount(parsed.length);
+          }
+        } catch {}
+      }
+    };
+    const handleCustomUpdate = (e: any) => {
+      if (e.detail?.count) {
+        setRecsCount(e.detail.count);
+      }
+    };
+
+    window.addEventListener("storage", handleStorage);
+    window.addEventListener("vanilla_recomendaciones_updated", handleCustomUpdate);
+    return () => {
+      window.removeEventListener("storage", handleStorage);
+      window.removeEventListener("vanilla_recomendaciones_updated", handleCustomUpdate);
+    };
+  }, []);
+
   return (
     <div className="pb-8">
       {/* 1. HERO SECTION */}
@@ -85,6 +149,9 @@ export default function HomePage() {
             >
               <ClipboardList className="w-4 h-4 text-forest-800 group-hover:text-vanilla-400 transition-colors" />
               <span>Listado de Actividades</span>
+              <span className="text-[11px] bg-forest-900/10 group-hover:bg-forest-800 px-2.5 py-0.5 rounded-full font-mono text-forest-900 group-hover:text-vanilla-300 font-bold ml-1 transition-colors border border-forest-900/20 group-hover:border-forest-700">
+                {recsCount} Directrices
+              </span>
               <ExternalLink className="w-3.5 h-3.5 text-forest-600 group-hover:text-vanilla-400 ml-0.5 transition-colors" />
             </Link>
           </div>

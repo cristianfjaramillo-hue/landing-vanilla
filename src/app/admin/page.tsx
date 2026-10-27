@@ -88,6 +88,11 @@ export default function AdminPage() {
   const [editingText, setEditingText] = useState("");
   const [isSavingRecs, setIsSavingRecs] = useState(false);
   const [recsSavedSuccess, setRecsSavedSuccess] = useState(false);
+  const [landingUpdatedNotice, setLandingUpdatedNotice] = useState<{
+    show: boolean;
+    count: number;
+    time: string;
+  }>({ show: false, count: 0, time: "" });
 
   // Cargar datos
   const loadReports = async () => {
@@ -224,6 +229,64 @@ export default function AdminPage() {
     } catch (err) {
       console.error("Error guardando recomendaciones:", err);
       alert("Error al guardar recomendaciones en almacenamiento local.");
+    } finally {
+      setIsSavingRecs(false);
+    }
+  };
+
+  // Guardar y notificar cambios directamente a la Landing Page
+  const handlePublishToLandingPage = async () => {
+    setIsSavingRecs(true);
+    try {
+      localStorage.setItem("vanilla_recomendaciones_data", JSON.stringify(recomendaciones));
+      localStorage.setItem("vanilla_recomendaciones_custom_ids", JSON.stringify(customCreated));
+      localStorage.setItem("vanilla_recs_user_configured", "true");
+      localStorage.setItem("vanilla_recs_count", recomendaciones.length.toString());
+      localStorage.setItem("vanilla_recs_last_updated", Date.now().toString());
+
+      try {
+        window.dispatchEvent(
+          new StorageEvent("storage", {
+            key: "vanilla_recomendaciones_data",
+            newValue: JSON.stringify(recomendaciones),
+          })
+        );
+        window.dispatchEvent(
+          new CustomEvent("vanilla_recomendaciones_updated", {
+            detail: { count: recomendaciones.length, list: recomendaciones },
+          })
+        );
+      } catch {}
+
+      try {
+        await supabase.from("reportes_diarios").upsert([
+          {
+            report_id: "CONFIG_RECOMENDACIONES",
+            lote: "Configuración General",
+            responsable: "Administrador ITEC",
+            fecha_reporte: new Date().toISOString().split("T")[0],
+            data: {
+              tipo: "configuracion_recomendaciones",
+              cantidad: recomendaciones.length,
+              recomendaciones: recomendaciones,
+              updated_at: new Date().toISOString(),
+            },
+          },
+        ]);
+      } catch (dbErr) {
+        console.warn("Aviso sincronizando recomendaciones con Supabase:", dbErr);
+      }
+
+      setLandingUpdatedNotice({
+        show: true,
+        count: recomendaciones.length,
+        time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }),
+      });
+      setRecsSavedSuccess(true);
+      setTimeout(() => setRecsSavedSuccess(false), 5000);
+    } catch (err) {
+      console.error("Error al guardar recomendaciones:", err);
+      alert("Error al guardar recomendaciones en el sistema.");
     } finally {
       setIsSavingRecs(false);
     }
@@ -1167,22 +1230,41 @@ export default function AdminPage() {
                 </p>
               </div>
 
-              <div className="flex items-center space-x-2 flex-shrink-0">
+              <div className="flex flex-wrap items-center gap-2 flex-shrink-0">
+                {/* Botón Principal Guardar e Informar a la Landing Page */}
+                <button
+                  type="button"
+                  onClick={handlePublishToLandingPage}
+                  disabled={isSavingRecs}
+                  className="inline-flex items-center space-x-2 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white font-bold text-xs shadow-md transition-all active:scale-95 disabled:opacity-50 border border-emerald-500"
+                  title="Guardar todos los cambios e informar a la Landing Page la nueva cantidad de recomendaciones"
+                >
+                  {isSavingRecs ? (
+                    <Loader2 className="w-4 h-4 animate-spin text-vanilla-300" />
+                  ) : (
+                    <Save className="w-4 h-4 text-vanilla-300 stroke-[2.5]" />
+                  )}
+                  <span>Guardar y Actualizar Landing Page</span>
+                  <span className="text-[10px] bg-emerald-900 px-1.5 py-0.5 rounded text-emerald-100 font-mono">
+                    {recomendaciones.length}
+                  </span>
+                </button>
+
                 <Link
                   href="/actividades"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center space-x-1.5 px-3 py-2 rounded-lg bg-forest-800 hover:bg-forest-700 text-white text-xs font-semibold transition-colors"
+                  className="inline-flex items-center space-x-1.5 px-3 py-2.5 rounded-xl bg-forest-800 hover:bg-forest-700 text-white text-xs font-semibold transition-colors border border-forest-700"
                 >
                   <Eye className="w-3.5 h-3.5 text-vanilla-400" />
-                  <span>Ver en Listado de Actividades</span>
+                  <span className="hidden sm:inline">Ver en Actividades</span>
                   <ExternalLink className="w-3 h-3 text-vanilla-400" />
                 </Link>
 
                 <button
                   type="button"
                   onClick={handleResetRecomendaciones}
-                  className="inline-flex items-center space-x-1 px-3 py-2 rounded-lg border border-vanilla-300 text-forest-700 hover:bg-vanilla-50 text-xs font-medium transition-colors"
+                  className="inline-flex items-center space-x-1 px-3 py-2.5 rounded-xl border border-vanilla-300 text-forest-700 hover:bg-vanilla-50 text-xs font-medium transition-colors"
                   title="Restablecer a las 15 directrices predeterminadas de ITEC"
                 >
                   <RotateCcw className="w-3.5 h-3.5 text-forest-600" />
@@ -1191,8 +1273,63 @@ export default function AdminPage() {
               </div>
             </div>
 
+            {/* Banner Específico de Notificación a la Landing Page */}
+            {landingUpdatedNotice.show && (
+              <div className="p-4 rounded-xl bg-gradient-to-r from-emerald-50 via-teal-50 to-emerald-100 border-2 border-emerald-500 text-emerald-950 shadow-md flex items-start justify-between gap-3 animate-in fade-in slide-in-from-top-2 duration-300">
+                <div className="flex items-start space-x-3">
+                  <div className="w-8 h-8 rounded-full bg-emerald-600 text-white flex items-center justify-center flex-shrink-0 mt-0.5 shadow-sm">
+                    <Check className="w-5 h-5 stroke-[3]" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-bold text-emerald-950 flex items-center space-x-2">
+                      <span>¡Guardado Exitoso! Landing Page Notificada</span>
+                      <span className="text-[11px] bg-emerald-800 text-white px-2 py-0.5 rounded-full font-mono">
+                        {landingUpdatedNotice.count} Directrices Activas
+                      </span>
+                    </h4>
+                    <p className="text-xs text-emerald-900 mt-1">
+                      Se ha informado a la <strong>Landing Page</strong>, a la <strong>Barra de Navegación</strong> y al <strong>Listado de Actividades</strong> que la cantidad total de recomendaciones ahora es de <strong>{landingUpdatedNotice.count} casilleros</strong>. Los cambios ya son visibles en tiempo real para todos los visitantes.
+                    </p>
+                    <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
+                      <Link
+                        href="/"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center space-x-1 text-emerald-900 font-bold hover:underline"
+                      >
+                        <span>Ver Landing Page Principal</span>
+                        <ExternalLink className="w-3 h-3" />
+                      </Link>
+                      <span className="text-emerald-400">•</span>
+                      <Link
+                        href="/actividades"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center space-x-1 text-emerald-900 font-bold hover:underline"
+                      >
+                        <span>Ver Listado de Actividades</span>
+                        <ExternalLink className="w-3 h-3" />
+                      </Link>
+                      <span className="text-emerald-400">•</span>
+                      <span className="text-[10px] text-emerald-700 font-mono">
+                        Actualizado a las {landingUpdatedNotice.time}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setLandingUpdatedNotice((prev) => ({ ...prev, show: false }))}
+                  className="p-1 text-emerald-700 hover:text-emerald-950 hover:bg-emerald-200/60 rounded-lg text-xs"
+                  title="Cerrar notificación"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            )}
+
             {/* Banner de Éxito al Guardar */}
-            {recsSavedSuccess && (
+            {recsSavedSuccess && !landingUpdatedNotice.show && (
               <div className="p-3.5 rounded-xl bg-emerald-50 border border-emerald-400 text-emerald-900 text-xs font-semibold flex items-center space-x-2 animate-in fade-in duration-200">
                 <Check className="w-4 h-4 text-emerald-600 flex-shrink-0 stroke-[3]" />
                 <span>
@@ -1406,24 +1543,45 @@ export default function AdminPage() {
                     )}
                   </div>
 
-                  {/* Botón al final de todo al lado derecho */}
-                  <button
-                    type="button"
-                    onClick={handleStartAddNew}
-                    disabled={customCreated.length >= 5 || isAddingNew}
-                    className="inline-flex items-center space-x-2 px-4 py-2.5 rounded-xl bg-forest-900 hover:bg-forest-800 active:bg-forest-950 text-vanilla-200 hover:text-white font-bold text-xs shadow-md transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-forest-700 border border-vanilla-500/40"
-                    title={
-                      customCreated.length >= 5
-                        ? "Límite máximo de 5 creaciones alcanzado"
-                        : "Agregar una nueva recomendación técnica"
-                    }
-                  >
-                    <Plus className="w-4 h-4 text-vanilla-400 stroke-[2.5]" />
-                    <span>Agregar Recomendación</span>
-                    <span className="text-[10px] bg-forest-950 px-1.5 py-0.5 rounded text-vanilla-300 font-mono">
-                      {customCreated.length}/5
-                    </span>
-                  </button>
+                  <div className="flex flex-wrap items-center gap-2">
+                    {/* Botón de Guardado para la Landing Page */}
+                    <button
+                      type="button"
+                      onClick={handlePublishToLandingPage}
+                      disabled={isSavingRecs}
+                      className="inline-flex items-center space-x-2 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white font-bold text-xs shadow-md transition-all active:scale-95 disabled:opacity-50 border border-emerald-500"
+                      title="Guardar todos los cambios e informar a la Landing Page la nueva cantidad de recomendaciones"
+                    >
+                      {isSavingRecs ? (
+                        <Loader2 className="w-4 h-4 animate-spin text-vanilla-300" />
+                      ) : (
+                        <Save className="w-4 h-4 text-vanilla-300 stroke-[2.5]" />
+                      )}
+                      <span>Guardar y Actualizar Landing Page</span>
+                      <span className="text-[10px] bg-emerald-900 px-1.5 py-0.5 rounded text-emerald-100 font-mono">
+                        {recomendaciones.length} casilleros
+                      </span>
+                    </button>
+
+                    {/* Botón al final de todo al lado derecho */}
+                    <button
+                      type="button"
+                      onClick={handleStartAddNew}
+                      disabled={customCreated.length >= 5 || isAddingNew}
+                      className="inline-flex items-center space-x-2 px-4 py-2.5 rounded-xl bg-forest-900 hover:bg-forest-800 active:bg-forest-950 text-vanilla-200 hover:text-white font-bold text-xs shadow-md transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-forest-700 border border-vanilla-500/40"
+                      title={
+                        customCreated.length >= 5
+                          ? "Límite máximo de 5 creaciones alcanzado"
+                          : "Agregar una nueva recomendación técnica"
+                      }
+                    >
+                      <Plus className="w-4 h-4 text-vanilla-400 stroke-[2.5]" />
+                      <span>Agregar Recomendación</span>
+                      <span className="text-[10px] bg-forest-950 px-1.5 py-0.5 rounded text-vanilla-300 font-mono">
+                        {customCreated.length}/5
+                      </span>
+                    </button>
+                  </div>
                 </div>
 
                 {/* Casilla interactiva para escribir nueva recomendación al dar clic bajo esa opción */}
