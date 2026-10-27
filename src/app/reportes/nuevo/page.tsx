@@ -506,10 +506,10 @@ export default function NuevoReportePage() {
                 <table className="w-full text-left text-xs">
                   <thead className="bg-forest-900 text-white">
                     <tr>
-                      <th className="py-2 sm:py-2.5 px-1 sm:px-3 w-7 sm:w-10 text-center font-bold text-[11px] sm:text-xs">
+                      <th className="hidden sm:table-cell py-2 sm:py-2.5 px-1 sm:px-3 w-7 sm:w-10 text-center font-bold text-[11px] sm:text-xs">
                         N°
                       </th>
-                      <th className="py-2 sm:py-2.5 px-1.5 sm:px-3 w-28 sm:w-48 font-bold text-[11px] sm:text-xs">
+                      <th className="py-2 sm:py-2.5 pl-3 sm:pl-3 pr-2 sm:pr-3 w-28 sm:w-48 font-bold text-[11px] sm:text-xs text-left">
                         Actividad
                       </th>
                       <th className="py-2 sm:py-2.5 px-1.5 sm:px-3 font-bold text-[11px] sm:text-xs">
@@ -520,7 +520,7 @@ export default function NuevoReportePage() {
                         <span className="md:hidden">Área</span>
                         <span className="hidden md:inline">Área / Lote</span>
                       </th>
-                      <th className="py-2 sm:py-2.5 px-1 sm:px-3 w-10 sm:w-20 text-center font-bold text-[10px] sm:text-xs">
+                      <th className="py-2 sm:py-2.5 pr-3 sm:pr-3 pl-1 sm:px-3 w-10 sm:w-20 text-center font-bold text-[10px] sm:text-xs">
                         <span className="sm:hidden">✓</span>
                         <span className="hidden sm:inline">Realizado</span>
                       </th>
@@ -534,10 +534,10 @@ export default function NuevoReportePage() {
                           act.realizado ? "bg-vanilla-50/70" : "hover:bg-vanilla-50/30"
                         }`}
                       >
-                        <td className="py-1.5 sm:py-2 px-1 sm:px-3 text-center font-mono text-forest-600 font-bold text-[11px] sm:text-xs">
+                        <td className="hidden sm:table-cell py-1.5 sm:py-2 px-1 sm:px-3 text-center font-mono text-forest-600 font-bold text-[11px] sm:text-xs">
                           {act.id}
                         </td>
-                        <td className="py-1.5 sm:py-2 px-1.5 sm:px-3 font-semibold text-forest-900 text-[11px] sm:text-xs leading-snug">
+                        <td className="py-1.5 sm:py-2 pl-3 sm:pl-3 pr-2 sm:pr-3 font-semibold text-forest-900 text-[11px] sm:text-xs leading-snug text-left">
                           {act.nombre}
                         </td>
                         <td className="py-1.5 sm:py-2 px-1.5 sm:px-3">
@@ -558,7 +558,7 @@ export default function NuevoReportePage() {
                             className="w-full px-1 sm:px-2 py-1 bg-transparent border-b border-dashed border-vanilla-300 focus:border-forest-600 focus:outline-none text-[11px] sm:text-xs"
                           />
                         </td>
-                        <td className="py-1.5 sm:py-2 px-1 sm:px-3 text-center">
+                        <td className="py-1.5 sm:py-2 pr-3 sm:pr-3 pl-1 sm:px-3 text-center">
                           <button
                             type="button"
                             onClick={() => toggleActividad(act.id)}
