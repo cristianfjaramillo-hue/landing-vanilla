@@ -12,9 +12,9 @@ import WaoraniSidePatterns from "@/components/WaoraniSidePatterns";
 
 export default function HomePage() {
   return (
-    <div className="space-y-16 pb-20">
+    <div className="pb-8">
       {/* 1. HERO SECTION */}
-      <section className="relative overflow-hidden bg-forest-950 text-white pt-24 pb-28 sm:pb-36 border-b-4 border-vanilla-500">
+      <section className="relative overflow-hidden bg-forest-950 text-white pt-20 pb-20 sm:pt-24 sm:pb-24 border-b-4 border-vanilla-500">
         {/* Patrones Ancestrales Waorani en los Laterales Verdes (Verticales con Desvanecimiento y Movimiento al 60% de Opacidad) */}
         <WaoraniSidePatterns />
 
@@ -96,51 +96,6 @@ export default function HomePage() {
               <ShieldCheck className="w-4 h-4 text-forest-800 group-hover:text-vanilla-400 transition-colors" />
               <span>Acceso Administrador</span>
             </Link>
-          </div>
-        </div>
-      </section>
-
-      {/* 2. BARRA DE MÉTRICAS & IMPACTO */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-16 sm:-mt-24 relative z-10">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 bg-white rounded-2xl shadow-xl border border-vanilla-200 p-6 sm:p-8">
-          <div className="text-center p-3">
-            <div className="text-2xl sm:text-3xl font-serif font-bold text-forest-900">
-              100%
-            </div>
-            <div className="text-xs text-forest-600 font-medium mt-1">
-              Selva Amazónica Viva
-            </div>
-            <p className="text-[10px] text-forest-400 mt-0.5">Cero deforestación</p>
-          </div>
-
-          <div className="text-center p-3 border-l border-vanilla-200">
-            <div className="text-2xl sm:text-3xl font-serif font-bold text-vanilla-600">
-              Grado A
-            </div>
-            <div className="text-xs text-forest-600 font-medium mt-1">
-              Calidad Gourmet
-            </div>
-            <p className="text-[10px] text-forest-400 mt-0.5">Vainas carnosas y flexibles</p>
-          </div>
-
-          <div className="text-center p-3 border-l border-vanilla-200">
-            <div className="text-2xl sm:text-3xl font-serif font-bold text-forest-900">
-              Comercio Justo
-            </div>
-            <div className="text-xs text-forest-600 font-medium mt-1">
-              Pueblo Waorani
-            </div>
-            <p className="text-[10px] text-forest-400 mt-0.5">Ingreso digno y soberanía</p>
-          </div>
-
-          <div className="text-center p-3 border-l border-vanilla-200">
-            <div className="text-2xl sm:text-3xl font-serif font-bold text-vanilla-600">
-              Sello ITEC
-            </div>
-            <div className="text-xs text-forest-600 font-medium mt-1">
-              Innovación Sostenible
-            </div>
-            <p className="text-[10px] text-forest-400 mt-0.5">Rigor técnico y científico</p>
           </div>
         </div>
       </section>
