@@ -40,9 +40,9 @@ export default function NuevoReportePage() {
 
   // 2. Condiciones del día
   const [fechaReporte, setFechaReporte] = useState(todayStr);
-  const [tempMin, setTempMin] = useState(22);
-  const [tempMax, setTempMax] = useState(30);
-  const [humedad, setHumedad] = useState(85);
+  const [tempMin, setTempMin] = useState<number | string>(22);
+  const [tempMax, setTempMax] = useState<number | string>(30);
+  const [humedad, setHumedad] = useState<number | string>(85);
   const [clima, setClima] = useState<"Soleado" | "Nublado" | "Lluvia" | "Otro">("Soleado");
   const [climaOtro, setClimaOtro] = useState("");
 
@@ -128,29 +128,6 @@ export default function NuevoReportePage() {
     }
   };
 
-  // Helper para seleccionar automáticamente todo el texto al tocar/cliquear un campo (ideal en celulares)
-  const handleFocusSelect = (e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const target = e.currentTarget;
-    target.select();
-    setTimeout(() => {
-      try {
-        target.select();
-      } catch {}
-    }, 50);
-  };
-
-  // Helper específico para Lote/Área: si tiene el texto predeterminado, se borra automáticamente
-  const handleLoteFocus = (e: React.FocusEvent<HTMLInputElement>) => {
-    if (
-      lote.trim() === "Lote 1 - Chakra Waorani Nemompari" ||
-      lote.trim() === "Lote 1 - Chakra Waorani"
-    ) {
-      setLote("");
-    } else {
-      handleFocusSelect(e);
-    }
-  };
-
   // Reiniciar formulario completo borrando todo dato ingresado
   const resetForm = () => {
     const today = new Date().toISOString().split("T")[0];
@@ -184,9 +161,9 @@ export default function NuevoReportePage() {
       lote: lote.trim() || "Lote 1 - Chakra Waorani Nemompari",
       responsable: responsable.trim() || "Técnico ITEC / Guardián Waorani",
       fechaReporte,
-      tempMin: Number(tempMin),
-      tempMax: Number(tempMax),
-      humedad: Number(humedad),
+      tempMin: tempMin !== "" && !isNaN(Number(tempMin)) ? Number(tempMin) : 22,
+      tempMax: tempMax !== "" && !isNaN(Number(tempMax)) ? Number(tempMax) : 30,
+      humedad: humedad !== "" && !isNaN(Number(humedad)) ? Number(humedad) : 85,
       clima,
       climaOtro: clima === "Otro" ? climaOtro : undefined,
       actividades,
@@ -413,7 +390,7 @@ export default function NuevoReportePage() {
                     type="text"
                     value={lote}
                     onChange={(e) => setLote(e.target.value)}
-                    onFocus={handleLoteFocus}
+                    onFocus={() => setLote("")}
                     placeholder="Lote 1 - Chakra Waorani Nemompari"
                     className="w-full text-sm px-3 py-2 bg-white rounded-lg border border-vanilla-300 focus:outline-none focus:ring-2 focus:ring-forest-600"
                     required
@@ -428,7 +405,7 @@ export default function NuevoReportePage() {
                     type="text"
                     value={responsable}
                     onChange={(e) => setResponsable(e.target.value)}
-                    onFocus={handleFocusSelect}
+                    onFocus={() => setResponsable("")}
                     placeholder="Nombre del técnico o líder"
                     className="w-full text-sm px-3 py-2 bg-white rounded-lg border border-vanilla-300 focus:outline-none focus:ring-2 focus:ring-forest-600"
                     required
@@ -467,18 +444,18 @@ export default function NuevoReportePage() {
                     <input
                       type="number"
                       value={tempMin}
-                      onChange={(e) => setTempMin(Number(e.target.value))}
-                      onFocus={handleFocusSelect}
-                      placeholder="Mín"
+                      onChange={(e) => setTempMin(e.target.value === "" ? "" : Number(e.target.value))}
+                      onFocus={() => setTempMin("")}
+                      placeholder="22"
                       className="w-1/2 text-sm px-2.5 py-2 bg-white rounded-lg border border-vanilla-300 text-center focus:outline-none focus:ring-2 focus:ring-forest-600"
                     />
                     <span className="text-forest-400">-</span>
                     <input
                       type="number"
                       value={tempMax}
-                      onChange={(e) => setTempMax(Number(e.target.value))}
-                      onFocus={handleFocusSelect}
-                      placeholder="Máx"
+                      onChange={(e) => setTempMax(e.target.value === "" ? "" : Number(e.target.value))}
+                      onFocus={() => setTempMax("")}
+                      placeholder="30"
                       className="w-1/2 text-sm px-2.5 py-2 bg-white rounded-lg border border-vanilla-300 text-center focus:outline-none focus:ring-2 focus:ring-forest-600"
                     />
                   </div>
@@ -494,8 +471,9 @@ export default function NuevoReportePage() {
                       min="0"
                       max="100"
                       value={humedad}
-                      onChange={(e) => setHumedad(Number(e.target.value))}
-                      onFocus={handleFocusSelect}
+                      onChange={(e) => setHumedad(e.target.value === "" ? "" : Number(e.target.value))}
+                      onFocus={() => setHumedad("")}
+                      placeholder="85"
                       className="w-full text-sm px-3 py-2 bg-white rounded-lg border border-vanilla-300 focus:outline-none focus:ring-2 focus:ring-forest-600"
                     />
                     <span className="absolute right-3 top-2.5 text-xs text-forest-400 font-semibold">%</span>
@@ -537,7 +515,7 @@ export default function NuevoReportePage() {
                     type="text"
                     value={climaOtro}
                     onChange={(e) => setClimaOtro(e.target.value)}
-                    onFocus={handleFocusSelect}
+                    onFocus={() => setClimaOtro("")}
                     placeholder="Especifique las condiciones climáticas particulares..."
                     className="w-full text-xs px-3 py-2 bg-white rounded-lg border border-vanilla-300"
                   />
@@ -600,7 +578,7 @@ export default function NuevoReportePage() {
                             type="text"
                             value={act.descripcion}
                             onChange={(e) => updateActividadDesc(act.id, e.target.value)}
-                            onFocus={handleFocusSelect}
+                            onFocus={() => updateActividadDesc(act.id, "")}
                             placeholder="Detalle..."
                             className="w-full px-1 sm:px-2 py-1 bg-transparent border-b border-dashed border-vanilla-300 focus:border-forest-600 focus:outline-none text-[11px] sm:text-xs"
                           />
@@ -610,7 +588,7 @@ export default function NuevoReportePage() {
                             type="text"
                             value={act.areaLote}
                             onChange={(e) => updateActividadArea(act.id, e.target.value)}
-                            onFocus={handleFocusSelect}
+                            onFocus={() => updateActividadArea(act.id, "")}
                             placeholder="Área"
                             className="w-full px-1 sm:px-2 py-1 bg-transparent border-b border-dashed border-vanilla-300 focus:border-forest-600 focus:outline-none text-[11px] sm:text-xs"
                           />
@@ -674,7 +652,7 @@ export default function NuevoReportePage() {
                     type="text"
                     value={otraHerramienta}
                     onChange={(e) => setOtraHerramienta(e.target.value)}
-                    onFocus={handleFocusSelect}
+                    onFocus={() => setOtraHerramienta("")}
                     placeholder="Especifique qué otra herramienta fue utilizada..."
                     className="w-full text-xs px-3 py-2 bg-white rounded-lg border border-vanilla-300"
                   />
@@ -709,7 +687,7 @@ export default function NuevoReportePage() {
                       placeholder="Insumo (ej. Biol, Compost)"
                       value={row.insumo}
                       onChange={(e) => updateInsumo(row.id, "insumo", e.target.value)}
-                      onFocus={handleFocusSelect}
+                      onFocus={() => updateInsumo(row.id, "insumo", "")}
                       className="text-xs px-2.5 py-1.5 bg-white rounded border border-vanilla-300 focus:outline-none"
                     />
                     <input
@@ -717,7 +695,7 @@ export default function NuevoReportePage() {
                       placeholder="Dosis (ej. 2L / bomba)"
                       value={row.dosis}
                       onChange={(e) => updateInsumo(row.id, "dosis", e.target.value)}
-                      onFocus={handleFocusSelect}
+                      onFocus={() => updateInsumo(row.id, "dosis", "")}
                       className="text-xs px-2.5 py-1.5 bg-white rounded border border-vanilla-300 focus:outline-none"
                     />
                     <input
@@ -725,7 +703,7 @@ export default function NuevoReportePage() {
                       placeholder="Método (Foliar, radicular)"
                       value={row.metodo}
                       onChange={(e) => updateInsumo(row.id, "metodo", e.target.value)}
-                      onFocus={handleFocusSelect}
+                      onFocus={() => updateInsumo(row.id, "metodo", "")}
                       className="text-xs px-2.5 py-1.5 bg-white rounded border border-vanilla-300 focus:outline-none"
                     />
                     <div className="flex items-center space-x-2">
@@ -734,7 +712,7 @@ export default function NuevoReportePage() {
                         placeholder="Área / Lote"
                         value={row.areaLote}
                         onChange={(e) => updateInsumo(row.id, "areaLote", e.target.value)}
-                        onFocus={handleFocusSelect}
+                        onFocus={() => updateInsumo(row.id, "areaLote", "")}
                         className="text-xs px-2.5 py-1.5 bg-white rounded border border-vanilla-300 focus:outline-none flex-1"
                       />
                       {insumos.length > 1 && (
@@ -762,7 +740,7 @@ export default function NuevoReportePage() {
                 rows={3}
                 value={observaciones}
                 onChange={(e) => setObservaciones(e.target.value)}
-                onFocus={handleFocusSelect}
+                onFocus={() => setObservaciones("")}
                 placeholder="Escriba aquí notas relevantes: presencia de polinizadores, floración, lluvias intensas, acuerdos con la comunidad Waorani..."
                 className="w-full text-xs p-3 bg-white rounded-xl border border-vanilla-300 focus:outline-none focus:ring-2 focus:ring-forest-600"
               />
