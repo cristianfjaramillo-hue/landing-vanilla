@@ -61,9 +61,26 @@ export default function ActividadesPage() {
       const savedRecs = localStorage.getItem("vanilla_recomendaciones_data");
       if (savedRecs) {
         const parsed = JSON.parse(savedRecs);
-        if (Array.isArray(parsed) && parsed.length > 0) {
+        if (Array.isArray(parsed) && parsed.length >= 15) {
           setRecomendaciones(parsed);
+        } else if (Array.isArray(parsed) && parsed.length > 0) {
+          // Si tenía menos de 15, completar con el estándar oficial de 15 directrices
+          const merged = [...parsed];
+          RECOMENDACIONES_DATA.forEach((item) => {
+            if (!merged.includes(item)) {
+              merged.push(item);
+            }
+          });
+          const finalList = merged.slice(0, 15);
+          setRecomendaciones(finalList);
+          localStorage.setItem("vanilla_recomendaciones_data", JSON.stringify(finalList));
+        } else {
+          setRecomendaciones(RECOMENDACIONES_DATA);
+          localStorage.setItem("vanilla_recomendaciones_data", JSON.stringify(RECOMENDACIONES_DATA));
         }
+      } else {
+        setRecomendaciones(RECOMENDACIONES_DATA);
+        localStorage.setItem("vanilla_recomendaciones_data", JSON.stringify(RECOMENDACIONES_DATA));
       }
     } catch {}
 
@@ -78,9 +95,17 @@ export default function ActividadesPage() {
       ).then(({ data }) => {
         if (data && data.data && Array.isArray((data.data as any).recomendaciones)) {
           const dbRecs = (data.data as any).recomendaciones;
-          if (dbRecs.length > 0) {
+          if (dbRecs.length >= 15) {
             setRecomendaciones(dbRecs);
             localStorage.setItem("vanilla_recomendaciones_data", JSON.stringify(dbRecs));
+          } else if (dbRecs.length > 0) {
+            const merged = [...dbRecs];
+            RECOMENDACIONES_DATA.forEach((item) => {
+              if (!merged.includes(item)) merged.push(item);
+            });
+            const finalList = merged.slice(0, 15);
+            setRecomendaciones(finalList);
+            localStorage.setItem("vanilla_recomendaciones_data", JSON.stringify(finalList));
           }
         }
       }).catch(() => {});

@@ -118,9 +118,23 @@ export default function AdminPage() {
       if (savedRecs) {
         try {
           const parsedRecs = JSON.parse(savedRecs);
-          if (Array.isArray(parsedRecs) && parsedRecs.length > 0) {
+          if (Array.isArray(parsedRecs) && parsedRecs.length >= 15) {
             setRecomendaciones(parsedRecs);
             activeRecsList = parsedRecs;
+          } else if (Array.isArray(parsedRecs) && parsedRecs.length > 0) {
+            // Completar con el estándar oficial de 15 directrices
+            const merged = [...parsedRecs];
+            RECOMENDACIONES_DATA.forEach((item) => {
+              if (!merged.includes(item)) merged.push(item);
+            });
+            const finalList = merged.slice(0, 15);
+            setRecomendaciones(finalList);
+            activeRecsList = finalList;
+            localStorage.setItem("vanilla_recomendaciones_data", JSON.stringify(finalList));
+          } else {
+            setRecomendaciones(RECOMENDACIONES_DATA);
+            activeRecsList = RECOMENDACIONES_DATA;
+            localStorage.setItem("vanilla_recomendaciones_data", JSON.stringify(RECOMENDACIONES_DATA));
           }
         } catch {}
       }
@@ -148,9 +162,17 @@ export default function AdminPage() {
           data.forEach((row) => {
             const rowData = row.data as any;
             if (row.report_id === "CONFIG_RECOMENDACIONES" && rowData?.recomendaciones) {
-              if (Array.isArray(rowData.recomendaciones) && rowData.recomendaciones.length > 0) {
+              if (Array.isArray(rowData.recomendaciones) && rowData.recomendaciones.length >= 15) {
                 setRecomendaciones(rowData.recomendaciones);
                 localStorage.setItem("vanilla_recomendaciones_data", JSON.stringify(rowData.recomendaciones));
+              } else if (Array.isArray(rowData.recomendaciones) && rowData.recomendaciones.length > 0) {
+                const merged = [...rowData.recomendaciones];
+                RECOMENDACIONES_DATA.forEach((item) => {
+                  if (!merged.includes(item)) merged.push(item);
+                });
+                const finalList = merged.slice(0, 15);
+                setRecomendaciones(finalList);
+                localStorage.setItem("vanilla_recomendaciones_data", JSON.stringify(finalList));
               }
             } else if (row.report_id?.startsWith("ACT-") || rowData?.tipo === "protocolo_actividades") {
               dbProtocols.push(rowData as ActivityProtocol);
@@ -292,7 +314,7 @@ export default function AdminPage() {
   };
 
   const handleResetRecomendaciones = async () => {
-    if (confirm("¿Restablecer las 9 directrices originales de ITEC Ecuador? Se eliminarán las creaciones adicionales.")) {
+    if (confirm("¿Restablecer las 15 directrices originales de ITEC Ecuador? Se eliminarán las creaciones adicionales.")) {
       setRecomendaciones(RECOMENDACIONES_DATA);
       setCustomCreated([]);
       setIsAddingNew(false);
@@ -1173,7 +1195,7 @@ export default function AdminPage() {
                   type="button"
                   onClick={handleResetRecomendaciones}
                   className="inline-flex items-center space-x-1 px-3 py-2 rounded-lg border border-vanilla-300 text-forest-700 hover:bg-vanilla-50 text-xs font-medium transition-colors"
-                  title="Restablecer a las 9 directrices predeterminadas de ITEC"
+                  title="Restablecer a las 15 directrices predeterminadas de ITEC"
                 >
                   <RotateCcw className="w-3.5 h-3.5 text-forest-600" />
                   <span>Restablecer ITEC</span>

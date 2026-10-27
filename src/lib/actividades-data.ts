@@ -168,5 +168,11 @@ export const RECOMENDACIONES_DATA: string[] = [
   "Poner + Sustrato - (Clorosis).",
   "Limpieza de hierbas",
   "Amarrar con el hilo flojo.",
-  "Alambre fino"
+  "Alambre fino",
+  "Desinfección de herramientas de poda y corte",
+  "Control de humedad relativa y ventilación cruzada",
+  "Regulación de polisombra (50% a 70% de luminosidad)",
+  "Monitoreo fitosanitario de pudrición de raíz (Fusarium)",
+  "Riego en sustrato sin humedecer flores abiertas",
+  "Registro diario de floración y polinización manual"
 ];
