@@ -6,11 +6,8 @@ import Link from "next/link";
 import {
   Printer,
   Download,
-  RotateCcw,
-  CheckCircle2,
   CheckSquare,
   Square,
-  Eye,
   X,
   Warehouse,
   Sprout,
@@ -41,7 +38,6 @@ export default function ActividadesPage() {
   const [fecha, setFecha] = useState("");
   const [lote, setLote] = useState("");
   const [observaciones, setObservaciones] = useState("");
-  const [showOriginalModal, setShowOriginalModal] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [savedSuccessProtocol, setSavedSuccessProtocol] = useState<ActivityProtocol | null>(null);
   const [lastSentProtocol, setLastSentProtocol] = useState<ActivityProtocol | null>(null);
@@ -78,28 +74,6 @@ export default function ActividadesPage() {
       }
       return next;
     });
-  };
-
-  const markAll = () => {
-    const next: Record<string, boolean> = {};
-    SECTIONS_DATA.forEach((sec) => {
-      sec.items.forEach((_, idx) => {
-        next[`${sec.id}-${idx}`] = true;
-      });
-    });
-    setCheckedItems(next);
-    try {
-      localStorage.setItem("vanilla_actividades_checked", JSON.stringify(next));
-    } catch {}
-  };
-
-  const clearAll = () => {
-    if (confirm("¿Estás seguro de restablecer todas las casillas marcadas?")) {
-      setCheckedItems({});
-      try {
-        localStorage.removeItem("vanilla_actividades_checked");
-      } catch {}
-    }
   };
 
   // Cálculos de progreso
@@ -284,33 +258,6 @@ export default function ActividadesPage() {
                   ? "Guardar Envío"
                   : `Guardar Envío (${completedItemsCount})`}
               </span>
-            </button>
-
-            <button
-              onClick={() => setShowOriginalModal(true)}
-              className="inline-flex items-center space-x-1 px-2.5 py-1.5 rounded-lg bg-forest-800 hover:bg-forest-700 text-vanilla-200 text-xs font-medium border border-forest-600 transition-colors"
-              title="Ver diseño original escaneado de ITEC"
-            >
-              <Eye className="w-3.5 h-3.5 text-vanilla-400" />
-              <span className="hidden sm:inline">Lámina HD</span>
-            </button>
-
-            <button
-              onClick={markAll}
-              className="inline-flex items-center space-x-1 px-2.5 py-1.5 rounded-lg bg-forest-800 hover:bg-forest-700 text-white text-xs transition-colors"
-              title="Marcar todas las actividades"
-            >
-              <CheckCircle2 className="w-3.5 h-3.5 text-green-400" />
-              <span className="hidden sm:inline">Marcar Todas</span>
-            </button>
-
-            <button
-              onClick={clearAll}
-              className="inline-flex items-center space-x-1 px-2.5 py-1.5 rounded-lg bg-forest-800 hover:bg-forest-700 text-white text-xs transition-colors"
-              title="Desmarcar todas"
-            >
-              <RotateCcw className="w-3.5 h-3.5 text-red-400" />
-              <span className="hidden sm:inline">Limpiar</span>
             </button>
 
             <button
@@ -800,67 +747,6 @@ export default function ActividadesPage() {
               >
                 Nuevo Envío / Cerrar
               </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Modal para ver la Lámina Original Escaneada de ITEC en Alta Definición */}
-      {showOriginalModal && (
-        <div
-          onClick={() => setShowOriginalModal(false)}
-          className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 animate-in fade-in duration-200"
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            className="bg-white rounded-2xl max-w-4xl w-full max-h-[94vh] overflow-hidden shadow-2xl flex flex-col border border-vanilla-300"
-          >
-            <div className="p-4 bg-forest-900 text-white flex items-center justify-between">
-              <div>
-                <h3 className="text-sm font-bold text-vanilla-200">
-                  Lámina Original Institucional - ITEC Ecuador
-                </h3>
-                <p className="text-[11px] text-forest-200">
-                  Listado Integral de Actividades: Cultivo de Vainilla en Invernadero
-                </p>
-              </div>
-              <button
-                onClick={() => setShowOriginalModal(false)}
-                className="p-1.5 rounded-full hover:bg-forest-800 text-forest-200 hover:text-white transition-colors"
-                title="Cerrar modal"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="p-4 flex-1 flex items-center justify-center bg-forest-950/95 overflow-auto min-h-[350px]">
-              <img
-                src="/assets/listado-actividades-referencia.jpg"
-                alt="Listado Integral de Actividades ITEC"
-                className="max-h-[75vh] w-auto max-w-full object-contain rounded-lg shadow-2xl"
-              />
-            </div>
-
-            <div className="p-3 bg-vanilla-50 flex items-center justify-between border-t border-vanilla-200 text-xs">
-              <span className="text-forest-700">
-                Archivo oficial de referencia de procesos agronómicos
-              </span>
-              <div className="flex items-center space-x-2">
-                <a
-                  href="/assets/listado-actividades-referencia.jpg"
-                  download="Listado_Actividades_Vainilla_ITEC.jpg"
-                  className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-forest-900 hover:bg-forest-800 text-white text-xs font-semibold transition-colors"
-                >
-                  <Download className="w-3.5 h-3.5 text-vanilla-400" />
-                  <span>Descargar Imagen</span>
-                </a>
-                <button
-                  onClick={() => setShowOriginalModal(false)}
-                  className="px-3 py-1.5 rounded-lg border border-vanilla-300 text-forest-800 text-xs font-medium hover:bg-white"
-                >
-                  Cerrar
-                </button>
-              </div>
             </div>
           </div>
         </div>
