@@ -81,7 +81,9 @@ export default function AdminPage() {
 
   // Gestión de Recomendaciones Técnicas de Invernadero
   const [recomendaciones, setRecomendaciones] = useState<string[]>(RECOMENDACIONES_DATA);
-  const [newRecomendacion, setNewRecomendacion] = useState("");
+  const [customCreated, setCustomCreated] = useState<string[]>([]);
+  const [isAddingNew, setIsAddingNew] = useState(false);
+  const [newInputText, setNewInputText] = useState("");
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [editingText, setEditingText] = useState("");
   const [isSavingRecs, setIsSavingRecs] = useState(false);
@@ -112,13 +114,28 @@ export default function AdminPage() {
 
       // 3. Cargar Recomendaciones Técnicas desde localStorage
       const savedRecs = localStorage.getItem("vanilla_recomendaciones_data");
+      let activeRecsList = RECOMENDACIONES_DATA;
       if (savedRecs) {
         try {
           const parsedRecs = JSON.parse(savedRecs);
           if (Array.isArray(parsedRecs) && parsedRecs.length > 0) {
             setRecomendaciones(parsedRecs);
+            activeRecsList = parsedRecs;
           }
         } catch {}
+      }
+
+      const savedCustom = localStorage.getItem("vanilla_recomendaciones_custom_ids");
+      if (savedCustom) {
+        try {
+          const parsedCustom = JSON.parse(savedCustom);
+          if (Array.isArray(parsedCustom)) {
+            setCustomCreated(parsedCustom);
+          }
+        } catch {}
+      } else {
+        const extra = activeRecsList.filter((r) => !RECOMENDACIONES_DATA.includes(r));
+        setCustomCreated(extra.slice(0, 5));
       }
 
       // 4. Intentar cargar desde Supabase si existen
@@ -202,30 +219,65 @@ export default function AdminPage() {
     }
   };
 
-  const handleAddRecomendacion = async () => {
-    const trimmed = newRecomendacion.trim();
+  const handleStartAddNew = () => {
+    if (customCreated.length >= 5) {
+      alert("Se ha alcanzado el límite máximo permitido de 5 creaciones de recomendaciones adicionales.");
+      return;
+    }
+    setIsAddingNew(true);
+    setNewInputText("");
+  };
+
+  const handleConfirmAddNew = async () => {
+    const trimmed = newInputText.trim();
     if (!trimmed) return;
-    const updated = [...recomendaciones, trimmed];
-    setRecomendaciones(updated);
-    setNewRecomendacion("");
-    await handleSaveRecomendaciones(updated);
+    if (customCreated.length >= 5) {
+      alert("Se ha alcanzado el límite máximo permitido de 5 creaciones.");
+      return;
+    }
+
+    const updatedRecs = [...recomendaciones, trimmed];
+    const updatedCustom = [...customCreated, trimmed];
+
+    setRecomendaciones(updatedRecs);
+    setCustomCreated(updatedCustom);
+    setIsAddingNew(false);
+    setNewInputText("");
+
+    localStorage.setItem("vanilla_recomendaciones_custom_ids", JSON.stringify(updatedCustom));
+    await handleSaveRecomendaciones(updatedRecs);
   };
 
   const handleUpdateRecomendacion = async (index: number, newText: string) => {
     const trimmed = newText.trim();
     if (!trimmed) return;
+    const oldText = recomendaciones[index];
     const updated = [...recomendaciones];
     updated[index] = trimmed;
     setRecomendaciones(updated);
     setEditingIndex(null);
+
+    // Si estaba en customCreated, actualizar su texto
+    if (customCreated.includes(oldText)) {
+      const updatedCustom = customCreated.map((item) => (item === oldText ? trimmed : item));
+      setCustomCreated(updatedCustom);
+      localStorage.setItem("vanilla_recomendaciones_custom_ids", JSON.stringify(updatedCustom));
+    }
+
     await handleSaveRecomendaciones(updated);
   };
 
   const handleDeleteRecomendacion = async (index: number) => {
-    if (confirm(`¿Eliminar la directriz: "${recomendaciones[index]}"?`)) {
-      const updated = recomendaciones.filter((_, i) => i !== index);
-      setRecomendaciones(updated);
-      await handleSaveRecomendaciones(updated);
+    const itemToDelete = recomendaciones[index];
+    if (confirm(`¿Eliminar la directriz: "${itemToDelete}"?`)) {
+      const updatedRecs = recomendaciones.filter((_, i) => i !== index);
+      const updatedCustom = customCreated.filter((item) => item !== itemToDelete);
+
+      setRecomendaciones(updatedRecs);
+      setCustomCreated(updatedCustom);
+
+      localStorage.setItem("vanilla_recomendaciones_custom_ids", JSON.stringify(updatedCustom));
+      await handleSaveRecomendaciones(updatedRecs);
     }
   };
 
@@ -240,8 +292,12 @@ export default function AdminPage() {
   };
 
   const handleResetRecomendaciones = async () => {
-    if (confirm("¿Restablecer las 9 directrices originales de ITEC Ecuador?")) {
+    if (confirm("¿Restablecer las 9 directrices originales de ITEC Ecuador? Se eliminarán las creaciones adicionales.")) {
       setRecomendaciones(RECOMENDACIONES_DATA);
+      setCustomCreated([]);
+      setIsAddingNew(false);
+      setNewInputText("");
+      localStorage.removeItem("vanilla_recomendaciones_custom_ids");
       await handleSaveRecomendaciones(RECOMENDACIONES_DATA);
     }
   };
@@ -1135,38 +1191,6 @@ export default function AdminPage() {
               </div>
             )}
 
-            {/* Formulario para Agregar Nueva Directriz */}
-            <div className="p-4 sm:p-5 bg-forest-50/60 rounded-xl border border-forest-100">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-forest-900 mb-2 flex items-center space-x-1.5">
-                <Plus className="w-4 h-4 text-forest-700" />
-                <span>Agregar Nueva Directriz o Recomendación</span>
-              </h3>
-              <div className="flex flex-col sm:flex-row gap-2">
-                <input
-                  type="text"
-                  value={newRecomendacion}
-                  onChange={(e) => setNewRecomendacion(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault();
-                      handleAddRecomendacion();
-                    }
-                  }}
-                  placeholder="Escriba la nueva recomendación (ej. Control diario de trampas de trips...)"
-                  className="flex-1 text-xs px-3.5 py-2.5 bg-white rounded-lg border border-vanilla-300 focus:outline-none focus:ring-2 focus:ring-forest-600"
-                />
-                <button
-                  type="button"
-                  onClick={handleAddRecomendacion}
-                  disabled={!newRecomendacion.trim() || isSavingRecs}
-                  className="px-4 py-2.5 rounded-lg bg-forest-900 hover:bg-forest-800 disabled:opacity-50 text-white font-bold text-xs shadow transition-all flex items-center justify-center space-x-1.5"
-                >
-                  <Plus className="w-4 h-4 text-vanilla-400" />
-                  <span>Agregar Directriz</span>
-                </button>
-              </div>
-            </div>
-
             {/* Vista Previa Interactiva Estilo Lámina de Invernadero */}
             <div>
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
@@ -1256,9 +1280,16 @@ export default function AdminPage() {
                               <div className="w-4 h-4 rounded-full border border-forest-800 bg-vanilla-400 flex items-center justify-center flex-shrink-0 mt-0.5 shadow-xs">
                                 <div className="w-1.5 h-1.5 rounded-full bg-forest-950" />
                               </div>
-                              <span className="text-xs font-semibold text-forest-950 leading-snug break-words flex-1">
-                                {item}
-                              </span>
+                              <div className="flex-1 min-w-0">
+                                <span className="text-xs font-semibold text-forest-950 leading-snug break-words">
+                                  {item}
+                                </span>
+                                {customCreated.includes(item) && (
+                                  <span className="ml-2 inline-block text-[9px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 border border-amber-300">
+                                    Personalizada
+                                  </span>
+                                )}
+                              </div>
                             </div>
 
                             {/* Controles de Acción (Subir, Bajar, Editar, Eliminar) */}
@@ -1310,6 +1341,106 @@ export default function AdminPage() {
                     );
                   })}
                 </div>
+              </div>
+
+              {/* Sección Final: Botón Agregar Recomendación a la Derecha con Límite de 5 y Casilla para Escribir */}
+              <div className="mt-4 flex flex-col items-end">
+                <div className="flex flex-col sm:flex-row items-end sm:items-center justify-between w-full gap-2">
+                  <div className="text-xs text-forest-700 flex items-center space-x-2">
+                    <span className="font-semibold">Creaciones adicionales:</span>
+                    <span
+                      className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
+                        customCreated.length >= 5
+                          ? "bg-red-100 text-red-700 border border-red-300"
+                          : "bg-forest-100 text-forest-800 border border-forest-200"
+                      }`}
+                    >
+                      {customCreated.length} de 5 utilizadas
+                    </span>
+                    {customCreated.length >= 5 && (
+                      <span className="text-red-600 text-[11px] font-medium hidden sm:inline">
+                        (Límite de 5 alcanzado)
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Botón al final de todo al lado derecho */}
+                  <button
+                    type="button"
+                    onClick={handleStartAddNew}
+                    disabled={customCreated.length >= 5 || isAddingNew}
+                    className="inline-flex items-center space-x-2 px-4 py-2.5 rounded-xl bg-forest-900 hover:bg-forest-800 active:bg-forest-950 text-vanilla-200 hover:text-white font-bold text-xs shadow-md transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-forest-700 border border-vanilla-500/40"
+                    title={
+                      customCreated.length >= 5
+                        ? "Límite máximo de 5 creaciones alcanzado"
+                        : "Agregar una nueva recomendación técnica"
+                    }
+                  >
+                    <Plus className="w-4 h-4 text-vanilla-400 stroke-[2.5]" />
+                    <span>Agregar Recomendación</span>
+                    <span className="text-[10px] bg-forest-950 px-1.5 py-0.5 rounded text-vanilla-300 font-mono">
+                      {customCreated.length}/5
+                    </span>
+                  </button>
+                </div>
+
+                {/* Casilla interactiva para escribir nueva recomendación al dar clic bajo esa opción */}
+                {isAddingNew && (
+                  <div className="w-full mt-3 p-4 sm:p-5 rounded-xl border-2 border-forest-800 bg-amber-50/40 shadow-lg animate-in fade-in slide-in-from-top-2 duration-200">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs font-bold text-forest-900 flex items-center space-x-1.5">
+                        <Plus className="w-4 h-4 text-forest-700 stroke-[2.5]" />
+                        <span>Nueva Casilla de Redacción ({customCreated.length + 1} de 5 permitidas)</span>
+                      </span>
+                      <span className="text-[11px] font-semibold text-amber-800 bg-amber-100 px-2 py-0.5 rounded border border-amber-300">
+                        Disponibles: {5 - customCreated.length}
+                      </span>
+                    </div>
+
+                    <textarea
+                      rows={3}
+                      value={newInputText}
+                      onChange={(e) => setNewInputText(e.target.value)}
+                      placeholder="Escribe aquí la recomendación técnica a incorporar en el invernadero..."
+                      className="w-full text-xs p-3 bg-white rounded-lg border border-vanilla-400 focus:outline-none focus:ring-2 focus:ring-forest-600 font-medium text-forest-950 placeholder:text-forest-400 shadow-inner resize-y"
+                      autoFocus
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+                          e.preventDefault();
+                          handleConfirmAddNew();
+                        }
+                      }}
+                    />
+
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mt-3">
+                      <p className="text-[11px] text-forest-600">
+                        Presiona <strong>Guardar Recomendación</strong> para incorporarla al protocolo y sincronizar en tiempo real.
+                      </p>
+
+                      <div className="flex items-center space-x-2 self-end">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsAddingNew(false);
+                            setNewInputText("");
+                          }}
+                          className="px-3.5 py-1.5 rounded-lg border border-vanilla-300 hover:bg-vanilla-100 text-forest-700 text-xs font-semibold transition-colors"
+                        >
+                          Cancelar
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleConfirmAddNew}
+                          disabled={!newInputText.trim() || isSavingRecs}
+                          className="px-4 py-1.5 rounded-lg bg-forest-900 hover:bg-forest-800 disabled:opacity-50 disabled:cursor-not-allowed text-white text-xs font-bold shadow flex items-center space-x-1.5 transition-colors"
+                        >
+                          <Save className="w-3.5 h-3.5 text-vanilla-400" />
+                          <span>{isSavingRecs ? "Guardando..." : "Guardar Recomendación"}</span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 
