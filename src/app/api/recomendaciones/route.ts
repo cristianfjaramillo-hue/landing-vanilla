@@ -20,7 +20,7 @@ export async function GET() {
 
     const rowData = data.data as any;
     const list =
-      Array.isArray(rowData?.recomendaciones) && rowData.recomendaciones.length > 0
+      Array.isArray(rowData?.recomendaciones)
         ? rowData.recomendaciones
         : RECOMENDACIONES_DATA;
 

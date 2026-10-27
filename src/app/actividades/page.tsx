@@ -59,9 +59,10 @@ export default function ActividadesPage() {
     // 2. Cargar recomendaciones personalizadas desde localStorage
     try {
       const savedRecs = localStorage.getItem("vanilla_recomendaciones_data");
+      const isUserConfigured = localStorage.getItem("vanilla_recs_user_configured") === "true";
       if (savedRecs) {
         const parsed = JSON.parse(savedRecs);
-        if (Array.isArray(parsed) && parsed.length > 0) {
+        if (Array.isArray(parsed) && (parsed.length > 0 || isUserConfigured)) {
           // Respetar estrictamente la lista del usuario (incluso si son menos de 15)
           setRecomendaciones(parsed);
         } else {
@@ -79,7 +80,7 @@ export default function ActividadesPage() {
       fetch("/api/recomendaciones")
         .then((res) => res.json())
         .then((data) => {
-          if (data && data.success && Array.isArray(data.recomendaciones) && data.recomendaciones.length > 0) {
+          if (data && data.success && Array.isArray(data.recomendaciones)) {
             const localUpdated = localStorage.getItem("vanilla_recs_last_updated");
             const isDbNewer = !localUpdated || !data.updated_at || new Date(data.updated_at) >= new Date(localUpdated);
             if (isDbNewer) {
@@ -91,12 +92,25 @@ export default function ActividadesPage() {
         .catch(() => {});
     } catch {}
 
-    // 4. Escuchar evento storage y eventos directos por si se actualiza en el Panel Admin
+    // 4. Canal BroadcastChannel para sincronización inmediata inter-pestañas
+    let channel: BroadcastChannel | null = null;
+    try {
+      channel = new BroadcastChannel("vanilla_recomendaciones_channel");
+      channel.onmessage = (event) => {
+        if (event.data?.type === "RECOMENDACIONES_UPDATED") {
+          if (Array.isArray(event.data.list)) {
+            setRecomendaciones(event.data.list);
+          }
+        }
+      };
+    } catch {}
+
+    // 5. Escuchar evento storage y eventos directos por si se actualiza en el Panel Admin
     const handleStorageChange = (e: StorageEvent) => {
       if (e.key === "vanilla_recomendaciones_data" && e.newValue) {
         try {
           const parsed = JSON.parse(e.newValue);
-          if (Array.isArray(parsed) && parsed.length > 0) {
+          if (Array.isArray(parsed)) {
             setRecomendaciones(parsed);
           }
         } catch {}
@@ -131,6 +145,11 @@ export default function ActividadesPage() {
     }
 
     return () => {
+      if (channel) {
+        try {
+          channel.close();
+        } catch {}
+      }
       window.removeEventListener("storage", handleStorageChange);
       window.removeEventListener("vanilla_recomendaciones_updated", handleCustomChange);
     };
@@ -657,20 +676,26 @@ export default function ActividadesPage() {
 
               {/* Lista de Recomendaciones con Punto Distintivo y Reacomodo Automático */}
               <div className="p-4 bg-gradient-to-b from-[#FAF7F2] to-white grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 flex-1 auto-rows-fr">
-                {recomendaciones.map((item, idx) => (
-                  <div
-                    key={idx}
-                    className="flex items-start space-x-2.5 p-2.5 rounded-xl bg-white border border-vanilla-200/90 shadow-[0_1px_2px_rgba(0,0,0,0.03)] hover:border-forest-600 hover:shadow-sm transition-all"
-                  >
-                    {/* Punto distintivo */}
-                    <div className="w-4 h-4 rounded-full border border-forest-800 bg-vanilla-400 flex items-center justify-center flex-shrink-0 mt-0.5 shadow-xs">
-                      <div className="w-1.5 h-1.5 rounded-full bg-forest-950" />
-                    </div>
-                    <span className="text-xs font-semibold text-forest-950 leading-snug break-words flex-1">
-                      {item}
-                    </span>
+                {recomendaciones.length === 0 ? (
+                  <div className="col-span-full py-8 text-center text-xs text-forest-600 font-medium">
+                    No hay directrices técnicas registradas actualmente.
                   </div>
-                ))}
+                ) : (
+                  recomendaciones.map((item, idx) => (
+                    <div
+                      key={idx}
+                      className="flex items-start space-x-2.5 p-2.5 rounded-xl bg-white border border-vanilla-200/90 shadow-[0_1px_2px_rgba(0,0,0,0.03)] hover:border-forest-600 hover:shadow-sm transition-all"
+                    >
+                      {/* Punto distintivo */}
+                      <div className="w-4 h-4 rounded-full border border-forest-800 bg-vanilla-400 flex items-center justify-center flex-shrink-0 mt-0.5 shadow-xs">
+                        <div className="w-1.5 h-1.5 rounded-full bg-forest-950" />
+                      </div>
+                      <span className="text-xs font-semibold text-forest-950 leading-snug break-words flex-1">
+                        {item}
+                      </span>
+                    </div>
+                  ))
+                )}
               </div>
             </div>
           </div>

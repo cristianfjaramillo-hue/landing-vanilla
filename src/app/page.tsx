@@ -20,9 +20,10 @@ export default function HomePage() {
     // 1. Cargar desde localStorage
     try {
       const saved = localStorage.getItem("vanilla_recomendaciones_data");
+      const isUserConfigured = localStorage.getItem("vanilla_recs_user_configured") === "true";
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) {
+        if (Array.isArray(parsed) && (parsed.length > 0 || isUserConfigured)) {
           setRecsCount(parsed.length);
         }
       }
@@ -33,11 +34,11 @@ export default function HomePage() {
       fetch("/api/recomendaciones")
         .then((res) => res.json())
         .then((data) => {
-          if (data && data.success && Array.isArray(data.recomendaciones) && data.recomendaciones.length > 0) {
+          if (data && data.success && Array.isArray(data.recomendaciones)) {
             const localUpdated = localStorage.getItem("vanilla_recs_last_updated");
             const isDbNewer = !localUpdated || !data.updated_at || new Date(data.updated_at) >= new Date(localUpdated);
             if (isDbNewer) {
-              setRecsCount(data.count || data.recomendaciones.length);
+              setRecsCount(typeof data.count === "number" ? data.count : data.recomendaciones.length);
               localStorage.setItem("vanilla_recomendaciones_data", JSON.stringify(data.recomendaciones));
             }
           }
@@ -45,7 +46,21 @@ export default function HomePage() {
         .catch(() => {});
     } catch {}
 
-    // 3. Escuchar evento de actualización en tiempo real desde el Panel Admin
+    // 3. Canal de difusión BroadcastChannel para actualización instantánea en tiempo real sin recargar página
+    let channel: BroadcastChannel | null = null;
+    try {
+      channel = new BroadcastChannel("vanilla_recomendaciones_channel");
+      channel.onmessage = (event) => {
+        if (event.data?.type === "RECOMENDACIONES_UPDATED") {
+          const newCount = typeof event.data.count === "number" ? event.data.count : event.data.list?.length;
+          if (typeof newCount === "number") {
+            setRecsCount(newCount);
+          }
+        }
+      };
+    } catch {}
+
+    // 4. Escuchar evento de almacenamiento y eventos personalizados
     const handleStorage = (e: StorageEvent) => {
       if (e.key === "vanilla_recomendaciones_data" && e.newValue) {
         try {
@@ -57,7 +72,7 @@ export default function HomePage() {
       }
     };
     const handleCustomUpdate = (e: any) => {
-      if (e.detail?.count) {
+      if (typeof e.detail?.count === "number") {
         setRecsCount(e.detail.count);
       }
     };
@@ -65,6 +80,11 @@ export default function HomePage() {
     window.addEventListener("storage", handleStorage);
     window.addEventListener("vanilla_recomendaciones_updated", handleCustomUpdate);
     return () => {
+      if (channel) {
+        try {
+          channel.close();
+        } catch {}
+      }
       window.removeEventListener("storage", handleStorage);
       window.removeEventListener("vanilla_recomendaciones_updated", handleCustomUpdate);
     };

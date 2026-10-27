@@ -119,12 +119,13 @@ export default function AdminPage() {
 
       // 3. Cargar Recomendaciones Técnicas desde localStorage
       const savedRecs = localStorage.getItem("vanilla_recomendaciones_data");
+      const isUserConfigured = localStorage.getItem("vanilla_recs_user_configured") === "true";
       let activeRecsList = RECOMENDACIONES_DATA;
       if (savedRecs) {
         try {
           const parsedRecs = JSON.parse(savedRecs);
-          if (Array.isArray(parsedRecs) && parsedRecs.length > 0) {
-            // Respetar exactamente la cantidad del usuario (incluso si son menos de 15)
+          if (Array.isArray(parsedRecs) && (parsedRecs.length > 0 || isUserConfigured)) {
+            // Respetar exactamente la cantidad del usuario (incluso si son menos de 15 o si fue editada)
             setRecomendaciones(parsedRecs);
             activeRecsList = parsedRecs;
           } else {
@@ -164,9 +165,11 @@ export default function AdminPage() {
             if (row.report_id === "CONFIG_RECOMENDACIONES" && rowData?.recomendaciones) {
               const localUpdated = localStorage.getItem("vanilla_recs_last_updated");
               const isDbNewer = !localUpdated || !rowData.updated_at || new Date(rowData.updated_at) >= new Date(localUpdated);
-              if (isDbNewer && Array.isArray(rowData.recomendaciones) && rowData.recomendaciones.length > 0) {
+              if (isDbNewer && Array.isArray(rowData.recomendaciones)) {
                 setRecomendaciones(rowData.recomendaciones);
                 localStorage.setItem("vanilla_recomendaciones_data", JSON.stringify(rowData.recomendaciones));
+                localStorage.setItem("vanilla_recs_count", rowData.recomendaciones.length.toString());
+                localStorage.setItem("vanilla_recs_user_configured", "true");
                 if (Array.isArray(rowData.custom_created)) {
                   setCustomCreated(rowData.custom_created);
                   localStorage.setItem("vanilla_recomendaciones_custom_ids", JSON.stringify(rowData.custom_created));
@@ -206,29 +209,46 @@ export default function AdminPage() {
     }
   };
 
+  // Difundir inmediatamente a todas las pestañas y ventanas de la aplicación
+  const broadcastRecsUpdate = (list: string[]) => {
+    try {
+      const channel = new BroadcastChannel("vanilla_recomendaciones_channel");
+      channel.postMessage({
+        type: "RECOMENDACIONES_UPDATED",
+        count: list.length,
+        list: list,
+        timestamp: new Date().toISOString(),
+      });
+      channel.close();
+    } catch {}
+
+    try {
+      window.dispatchEvent(
+        new StorageEvent("storage", {
+          key: "vanilla_recomendaciones_data",
+          newValue: JSON.stringify(list),
+        })
+      );
+      window.dispatchEvent(
+        new CustomEvent("vanilla_recomendaciones_updated", {
+          detail: { count: list.length, list: list },
+        })
+      );
+    } catch {}
+  };
+
   // Guardar y sincronizar recomendaciones técnicas
   const handleSaveRecomendaciones = async (updatedList: string[]) => {
     setIsSavingRecs(true);
     try {
       const now = new Date().toISOString();
       localStorage.setItem("vanilla_recomendaciones_data", JSON.stringify(updatedList));
+      localStorage.setItem("vanilla_recomendaciones_custom_ids", JSON.stringify(customCreated));
       localStorage.setItem("vanilla_recs_count", updatedList.length.toString());
       localStorage.setItem("vanilla_recs_last_updated", now);
       localStorage.setItem("vanilla_recs_user_configured", "true");
 
-      try {
-        window.dispatchEvent(
-          new StorageEvent("storage", {
-            key: "vanilla_recomendaciones_data",
-            newValue: JSON.stringify(updatedList),
-          })
-        );
-        window.dispatchEvent(
-          new CustomEvent("vanilla_recomendaciones_updated", {
-            detail: { count: updatedList.length, list: updatedList },
-          })
-        );
-      } catch {}
+      broadcastRecsUpdate(updatedList);
 
       // Sincronizar en Supabase mediante API de servidor (Service Role que evita errores RLS)
       try {
@@ -244,8 +264,13 @@ export default function AdminPage() {
         console.warn("Aviso comunicando con /api/recomendaciones:", apiErr);
       }
 
+      setLandingUpdatedNotice({
+        show: true,
+        count: updatedList.length,
+        time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }),
+      });
       setRecsSavedSuccess(true);
-      setTimeout(() => setRecsSavedSuccess(false), 3500);
+      setTimeout(() => setRecsSavedSuccess(false), 5000);
     } catch (err) {
       console.error("Error guardando recomendaciones:", err);
       alert("Error al guardar recomendaciones en almacenamiento local.");
@@ -256,60 +281,7 @@ export default function AdminPage() {
 
   // Guardar y notificar cambios directamente a la Landing Page
   const handlePublishToLandingPage = async () => {
-    setIsSavingRecs(true);
-    try {
-      const now = new Date().toISOString();
-      localStorage.setItem("vanilla_recomendaciones_data", JSON.stringify(recomendaciones));
-      localStorage.setItem("vanilla_recomendaciones_custom_ids", JSON.stringify(customCreated));
-      localStorage.setItem("vanilla_recs_user_configured", "true");
-      localStorage.setItem("vanilla_recs_count", recomendaciones.length.toString());
-      localStorage.setItem("vanilla_recs_last_updated", now);
-
-      try {
-        window.dispatchEvent(
-          new StorageEvent("storage", {
-            key: "vanilla_recomendaciones_data",
-            newValue: JSON.stringify(recomendaciones),
-          })
-        );
-        window.dispatchEvent(
-          new CustomEvent("vanilla_recomendaciones_updated", {
-            detail: { count: recomendaciones.length, list: recomendaciones },
-          })
-        );
-      } catch {}
-
-      // Sincronizar en Supabase mediante API de servidor (Service Role que evita errores RLS)
-      try {
-        const res = await fetch("/api/recomendaciones", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            recomendaciones,
-            customCreated,
-          }),
-        });
-        const resJson = await res.json();
-        if (!resJson.success) {
-          console.warn("Aviso API /api/recomendaciones:", resJson.error);
-        }
-      } catch (apiErr) {
-        console.warn("Aviso comunicando con /api/recomendaciones:", apiErr);
-      }
-
-      setLandingUpdatedNotice({
-        show: true,
-        count: recomendaciones.length,
-        time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }),
-      });
-      setRecsSavedSuccess(true);
-      setTimeout(() => setRecsSavedSuccess(false), 5000);
-    } catch (err) {
-      console.error("Error al guardar recomendaciones:", err);
-      alert("Error al guardar recomendaciones en el sistema.");
-    } finally {
-      setIsSavingRecs(false);
-    }
+    await handleSaveRecomendaciones(recomendaciones);
   };
 
   const handleStartAddNew = () => {
@@ -362,12 +334,17 @@ export default function AdminPage() {
 
   const handleDeleteRecomendacion = async (index: number) => {
     const itemToDelete = recomendaciones[index];
-    if (confirm(`¿Eliminar la directriz: "${itemToDelete}"?`)) {
+    if (confirm(`¿Estás seguro de eliminar el Casillero #${index + 1} de la lista?\n\n"${itemToDelete}"`)) {
       const updatedRecs = recomendaciones.filter((_, i) => i !== index);
       const updatedCustom = customCreated.filter((item) => item !== itemToDelete);
 
       setRecomendaciones(updatedRecs);
       setCustomCreated(updatedCustom);
+      if (editingIndex === index) {
+        setEditingIndex(null);
+      } else if (editingIndex !== null && editingIndex > index) {
+        setEditingIndex(editingIndex - 1);
+      }
 
       localStorage.setItem("vanilla_recomendaciones_custom_ids", JSON.stringify(updatedCustom));
       await handleSaveRecomendaciones(updatedRecs);
@@ -381,13 +358,17 @@ export default function AdminPage() {
     const [moved] = updated.splice(index, 1);
     updated.splice(targetIndex, 0, moved);
     setRecomendaciones(updated);
+    if (editingIndex === index) {
+      setEditingIndex(targetIndex);
+    }
     await handleSaveRecomendaciones(updated);
   };
 
   const handleResetRecomendaciones = async () => {
-    if (confirm("¿Restablecer las 15 directrices originales de ITEC Ecuador? Se eliminarán las creaciones adicionales.")) {
+    if (confirm("¿Restablecer las 15 directrices originales de ITEC Ecuador? Se restaurará la lista agronómica predeterminada.")) {
       setRecomendaciones(RECOMENDACIONES_DATA);
       setCustomCreated([]);
+      setEditingIndex(null);
       setIsAddingNew(false);
       setNewInputText("");
       localStorage.removeItem("vanilla_recomendaciones_custom_ids");
@@ -1398,147 +1379,193 @@ export default function AdminPage() {
 
                 {/* Lista de Items con edición individual y reacomodo automático */}
                 <div className="p-4 bg-gradient-to-b from-[#FAF7F2] to-white grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5 auto-rows-fr">
-                  {recomendaciones.map((item, idx) => {
-                    const isEditing = editingIndex === idx;
+                  {recomendaciones.length === 0 ? (
+                    <div className="col-span-full py-12 px-6 text-center bg-white rounded-xl border-2 border-dashed border-vanilla-300">
+                      <div className="w-12 h-12 rounded-full bg-vanilla-100 text-forest-700 mx-auto flex items-center justify-center mb-3">
+                        <ClipboardList className="w-6 h-6 text-forest-600" />
+                      </div>
+                      <h4 className="text-sm font-bold text-forest-900 mb-1">
+                        No hay directrices técnicas activas en este momento
+                      </h4>
+                      <p className="text-xs text-forest-600 max-w-md mx-auto mb-4">
+                        Has eliminado todas las directrices. Puedes agregar nuevas directrices una por una con el botón inferior o restablecer las 15 directrices originales de ITEC Ecuador.
+                      </p>
+                      <div className="flex flex-wrap items-center justify-center gap-3">
+                        <button
+                          type="button"
+                          onClick={handleStartAddNew}
+                          className="inline-flex items-center space-x-1.5 px-4 py-2 rounded-xl bg-forest-900 text-white text-xs font-bold hover:bg-forest-800 transition-colors shadow"
+                        >
+                          <Plus className="w-4 h-4 text-vanilla-400" />
+                          <span>Agregar Primera Directriz</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleResetRecomendaciones}
+                          className="inline-flex items-center space-x-1.5 px-4 py-2 rounded-xl border border-forest-700 text-forest-900 text-xs font-semibold hover:bg-vanilla-50 transition-colors"
+                        >
+                          <RotateCcw className="w-4 h-4 text-forest-600" />
+                          <span>Restablecer 15 Directrices ITEC</span>
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    recomendaciones.map((item, idx) => {
+                      const isEditing = editingIndex === idx;
 
-                    return (
-                      <div
-                        key={idx}
-                        className={`p-3.5 rounded-xl border transition-all flex flex-col justify-between ${
-                          isEditing
-                            ? "bg-amber-50/80 border-amber-400 ring-2 ring-amber-300 shadow-md"
-                            : "bg-white border-vanilla-300 hover:border-forest-600 hover:shadow-sm"
-                        }`}
-                      >
-                        {isEditing ? (
-                          <div className="space-y-2.5 flex flex-col justify-between h-full">
-                            <div className="space-y-1.5">
-                              <div className="flex items-center justify-between text-[11px] font-bold text-forest-900">
-                                <span className="flex items-center space-x-1.5">
-                                  <Edit3 className="w-3.5 h-3.5 text-forest-700" />
-                                  <span>Editando Casillero #{idx + 1}:</span>
-                                </span>
-                                <span className="text-[10px] text-forest-500 font-normal">
-                                  Enter para guardar
-                                </span>
+                      return (
+                        <div
+                          key={idx}
+                          className={`p-3.5 rounded-xl border transition-all flex flex-col justify-between ${
+                            isEditing
+                              ? "bg-amber-50/80 border-amber-400 ring-2 ring-amber-300 shadow-md"
+                              : "bg-white border-vanilla-300 hover:border-forest-600 hover:shadow-sm"
+                          }`}
+                        >
+                          {isEditing ? (
+                            <div className="space-y-3 flex flex-col justify-between h-full">
+                              <div className="space-y-1.5">
+                                <div className="flex items-center justify-between text-[11px] font-bold text-forest-900 border-b border-amber-200 pb-1.5">
+                                  <span className="flex items-center space-x-1.5">
+                                    <Edit3 className="w-3.5 h-3.5 text-forest-800" />
+                                    <span>Editando Casillero #{idx + 1}</span>
+                                  </span>
+                                  <span className="text-[10px] text-forest-600 font-normal">
+                                    Enter o botón Guardar
+                                  </span>
+                                </div>
+                                <textarea
+                                  rows={3}
+                                  value={editingText}
+                                  onChange={(e) => setEditingText(e.target.value)}
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter" && !e.shiftKey) {
+                                      e.preventDefault();
+                                      handleUpdateRecomendacion(idx, editingText);
+                                    } else if (e.key === "Escape") {
+                                      setEditingIndex(null);
+                                    }
+                                  }}
+                                  className="w-full text-xs p-2.5 bg-white rounded-lg border-2 border-forest-700 focus:outline-none focus:ring-2 focus:ring-forest-900 font-medium text-forest-950 shadow-inner"
+                                  autoFocus
+                                />
                               </div>
-                              <textarea
-                                rows={3}
-                                value={editingText}
-                                onChange={(e) => setEditingText(e.target.value)}
-                                onKeyDown={(e) => {
-                                  if (e.key === "Enter" && !e.shiftKey) {
-                                    e.preventDefault();
-                                    handleUpdateRecomendacion(idx, editingText);
-                                  } else if (e.key === "Escape") {
-                                    setEditingIndex(null);
-                                  }
-                                }}
-                                className="w-full text-xs p-2.5 bg-white rounded-lg border-2 border-forest-700 focus:outline-none focus:ring-2 focus:ring-forest-900 font-medium text-forest-950 shadow-inner"
-                                autoFocus
-                              />
-                            </div>
-                            <div className="flex items-center justify-end space-x-2 pt-1 border-t border-vanilla-300">
-                              <button
-                                type="button"
-                                onClick={() => setEditingIndex(null)}
-                                className="px-2.5 py-1 rounded-md border border-vanilla-300 hover:bg-white text-forest-700 text-xs font-semibold"
-                              >
-                                Cancelar
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => handleUpdateRecomendacion(idx, editingText)}
-                                disabled={!editingText.trim() || isSavingRecs}
-                                className="px-3 py-1 rounded-md bg-forest-900 hover:bg-forest-800 text-white text-xs font-bold shadow flex items-center space-x-1 disabled:opacity-50"
-                              >
-                                <Check className="w-3.5 h-3.5 text-vanilla-400" />
-                                <span>{isSavingRecs ? "Guardando..." : "Guardar"}</span>
-                              </button>
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="flex flex-col justify-between h-full gap-2.5">
-                            {/* Texto del casillero con acceso directo a edición al hacer clic */}
-                            <div
-                              onClick={() => {
-                                setEditingIndex(idx);
-                                setEditingText(item);
-                              }}
-                              className="flex items-start space-x-2.5 flex-1 min-w-0 cursor-pointer group"
-                              title="Haz clic para editar este casillero directamente"
-                            >
-                              <div className="w-4 h-4 rounded-full border border-forest-800 bg-vanilla-400 flex items-center justify-center flex-shrink-0 mt-0.5 shadow-xs group-hover:scale-110 transition-transform">
-                                <div className="w-1.5 h-1.5 rounded-full bg-forest-950" />
+                              <div className="flex items-center justify-between pt-2 border-t border-amber-200">
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteRecomendacion(idx)}
+                                  className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-md text-red-600 hover:bg-red-50 hover:text-red-800 text-xs font-semibold border border-transparent hover:border-red-200 transition-colors"
+                                  title="Eliminar este casillero de la lista"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                  <span>Eliminar</span>
+                                </button>
+                                <div className="flex items-center space-x-2">
+                                  <button
+                                    type="button"
+                                    onClick={() => setEditingIndex(null)}
+                                    className="px-2.5 py-1 rounded-md border border-vanilla-300 hover:bg-white text-forest-700 text-xs font-semibold transition-colors"
+                                  >
+                                    Cancelar
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleUpdateRecomendacion(idx, editingText)}
+                                    disabled={!editingText.trim() || isSavingRecs}
+                                    className="px-3 py-1 rounded-md bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow flex items-center space-x-1 disabled:opacity-50 transition-colors"
+                                  >
+                                    <Check className="w-3.5 h-3.5 text-white" />
+                                    <span>{isSavingRecs ? "Guardando..." : "Guardar"}</span>
+                                  </button>
+                                </div>
                               </div>
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center space-x-1.5 mb-1">
-                                  <span className="text-[10px] font-bold uppercase tracking-wider text-forest-700 bg-vanilla-100 px-1.5 py-0.2 rounded border border-vanilla-300">
+                            </div>
+                          ) : (
+                            <div className="flex flex-col justify-between h-full gap-2.5">
+                              {/* Barra Superior del Casillero: Etiqueta y Flechas de Orden */}
+                              <div className="flex items-center justify-between pb-1.5 border-b border-vanilla-200/70">
+                                <div className="flex items-center space-x-1.5">
+                                  <span className="text-[10px] font-bold uppercase tracking-wider text-forest-700 bg-vanilla-100 px-2 py-0.5 rounded border border-vanilla-300">
                                     Casillero #{idx + 1}
                                   </span>
                                   {customCreated.includes(item) && (
-                                    <span className="text-[9px] uppercase font-bold tracking-wider px-1.5 py-0.2 rounded bg-amber-100 text-amber-800 border border-amber-300">
+                                    <span className="text-[9px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 border border-amber-300">
                                       Personalizada
                                     </span>
                                   )}
+                                </div>
+
+                                <div className="flex items-center space-x-0.5 bg-vanilla-100/70 p-0.5 rounded border border-vanilla-200">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleMoveRecomendacion(idx, "up")}
+                                    disabled={idx === 0}
+                                    className="p-1 text-forest-600 hover:text-forest-950 hover:bg-white rounded disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                                    title="Mover arriba"
+                                  >
+                                    <MoveUp className="w-3 h-3" />
+                                  </button>
+
+                                  <button
+                                    type="button"
+                                    onClick={() => handleMoveRecomendacion(idx, "down")}
+                                    disabled={idx === recomendaciones.length - 1}
+                                    className="p-1 text-forest-600 hover:text-forest-950 hover:bg-white rounded disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                                    title="Mover abajo"
+                                  >
+                                    <MoveDown className="w-3 h-3" />
+                                  </button>
+                                </div>
+                              </div>
+
+                              {/* Texto del casillero con acceso directo a edición al hacer clic */}
+                              <div
+                                onClick={() => {
+                                  setEditingIndex(idx);
+                                  setEditingText(item);
+                                }}
+                                className="flex items-start space-x-2.5 flex-1 min-w-0 cursor-pointer group py-1"
+                                title="Haz clic para editar este casillero directamente"
+                              >
+                                <div className="w-4 h-4 rounded-full border border-forest-800 bg-vanilla-400 flex items-center justify-center flex-shrink-0 mt-0.5 shadow-xs group-hover:scale-110 transition-transform">
+                                  <div className="w-1.5 h-1.5 rounded-full bg-forest-950" />
                                 </div>
                                 <p className="text-xs font-semibold text-forest-950 leading-snug break-words group-hover:text-forest-700 transition-colors">
                                   {item}
                                 </p>
                               </div>
-                            </div>
 
-                            {/* Barra inferior de acciones del casillero: Botón Editar y Botones Reordenar / Eliminar */}
-                            <div className="flex items-center justify-between pt-2 border-t border-vanilla-200/80">
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setEditingIndex(idx);
-                                  setEditingText(item);
-                                }}
-                                className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-md bg-vanilla-200/90 hover:bg-forest-900 text-forest-900 hover:text-vanilla-200 text-xs font-bold transition-all shadow-xs"
-                                title="Editar texto de este casillero"
-                              >
-                                <Edit3 className="w-3 h-3 text-forest-700 group-hover:text-vanilla-300" />
-                                <span>Editar</span>
-                              </button>
-
-                              <div className="flex items-center space-x-1 bg-vanilla-100/70 p-0.5 rounded-lg border border-vanilla-200">
+                              {/* Barra inferior de acciones destacadas: [ ✏️ Editar ] y [ 🗑️ Eliminar ] */}
+                              <div className="flex items-center justify-between pt-2 border-t border-vanilla-200/80">
                                 <button
                                   type="button"
-                                  onClick={() => handleMoveRecomendacion(idx, "up")}
-                                  disabled={idx === 0}
-                                  className="p-1 text-forest-600 hover:text-forest-950 hover:bg-white rounded disabled:opacity-30 disabled:cursor-not-allowed"
-                                  title="Mover arriba"
+                                  onClick={() => {
+                                    setEditingIndex(idx);
+                                    setEditingText(item);
+                                  }}
+                                  className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-forest-900 hover:bg-forest-800 active:bg-forest-950 text-white text-xs font-bold transition-all shadow-xs"
+                                  title="Editar texto de este casillero"
                                 >
-                                  <MoveUp className="w-3.5 h-3.5" />
-                                </button>
-
-                                <button
-                                  type="button"
-                                  onClick={() => handleMoveRecomendacion(idx, "down")}
-                                  disabled={idx === recomendaciones.length - 1}
-                                  className="p-1 text-forest-600 hover:text-forest-950 hover:bg-white rounded disabled:opacity-30 disabled:cursor-not-allowed"
-                                  title="Mover abajo"
-                                >
-                                  <MoveDown className="w-3.5 h-3.5" />
+                                  <Edit3 className="w-3.5 h-3.5 text-vanilla-400" />
+                                  <span>Editar</span>
                                 </button>
 
                                 <button
                                   type="button"
                                   onClick={() => handleDeleteRecomendacion(idx)}
-                                  className="p-1 text-red-500 hover:text-red-700 hover:bg-red-50 rounded"
-                                  title="Eliminar este casillero"
+                                  className="inline-flex items-center space-x-1.5 px-2.5 py-1.5 rounded-lg bg-red-50 hover:bg-red-600 active:bg-red-700 text-red-700 hover:text-white border border-red-200 hover:border-red-600 text-xs font-semibold transition-all shadow-xs"
+                                  title="Eliminar este casillero de la lista"
                                 >
                                   <Trash2 className="w-3.5 h-3.5" />
+                                  <span>Eliminar</span>
                                 </button>
                               </div>
                             </div>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
+                          )}
+                        </div>
+                      );
+                    })
+                  )}
                 </div>
               </div>
 
