@@ -17,7 +17,8 @@ import {
   Camera,
   Download,
   Send,
-  MessageCircle,
+  Mail,
+  ShieldCheck,
   Plus,
   Trash2,
   CheckCircle2,
@@ -163,7 +164,7 @@ export default function NuevoReportePage() {
     };
   };
 
-  // Guardar Informe y Enviar automáticamente a WhatsApp
+  // Guardar Informe y Enviar Notificación por Correo Electrónico con PDF Adjunto
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (saving) return;
@@ -199,8 +200,22 @@ export default function NuevoReportePage() {
         console.warn("Supabase notice:", e);
       }
 
-      // 3. Abrir automáticamente WhatsApp avisando de información nueva para revisar
-      shareViaWhatsApp(newReport);
+      // 3. Generar el PDF oficial en Base64 y despachar correo electrónico automático
+      try {
+        const { base64, filename } = await generateDailyReportPDF(newReport, false);
+
+        await fetch("/api/enviar-email", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            report: newReport,
+            pdfBase64: base64,
+            filename: filename,
+          }),
+        });
+      } catch (emailErr) {
+        console.warn("Aviso en despacho de correo:", emailErr);
+      }
 
       setSuccessReport(newReport);
     } catch (err) {
@@ -209,66 +224,6 @@ export default function NuevoReportePage() {
       setSuccessReport(newReport);
     } finally {
       setSaving(false);
-    }
-  };
-
-  // Enviar a WhatsApp del Administrador avisando de información nueva de revisar
-  const shareViaWhatsApp = (reportOverride?: DailyReport | unknown) => {
-    const r =
-      reportOverride && typeof reportOverride === "object" && "id" in reportOverride
-        ? (reportOverride as DailyReport)
-        : successReport || buildReportObject();
-    const actRealizadas = r.actividades
-      .filter((a) => a.realizado)
-      .map((a) => `• ${a.nombre} (${a.areaLote || "Todo el lote"})`)
-      .join("\n");
-
-    const text =
-      `🔔 *NUEVA INFORMACIÓN PARA REVISAR - INFORME DIARIO*\n` +
-      `🌿 *Amazon Vanilla By Waorani People & ITEC Ecuador*\n\n` +
-      `Se ha registrado y guardado un nuevo informe técnico de campo listo para supervisión:\n\n` +
-      `📋 *Código:* ${r.id}\n` +
-      `📅 *Fecha:* ${r.fechaReporte}\n` +
-      `📍 *Invernadero / Lote:* ${r.lote}\n` +
-      `👤 *Responsable:* ${r.responsable}\n` +
-      `🌡️ *Clima:* ${r.clima} | Temp: ${r.tempMin}°C - ${r.tempMax}°C | Humedad: ${r.humedad}%\n\n` +
-      `✅ *Actividades Realizadas:* \n${actRealizadas || "Ninguna actividad marcada"}\n\n` +
-      `🌱 *Estado General del Cultivo:* \n` +
-      `• Desarrollo Vegetativo: ${r.estadoCultivo.desarrolloVegetativo}\n` +
-      `• Floración: ${r.estadoCultivo.floracion}\n` +
-      `• Formación de Vainas: ${r.estadoCultivo.formacionVainas}\n` +
-      `• Estado Fitosanitario: ${r.estadoCultivo.estadoFitosanitario}\n\n` +
-      `📝 *Observaciones / Novedades:* ${r.observaciones || "Sin novedades adicionales reportadas."}\n\n` +
-      `🔗 *Revisar informe en el Panel Administrador:*\n` +
-      `https://landing-vanilla.vercel.app/admin\n\n` +
-      `_Aviso automático del Sistema de Trazabilidad Agronómica ITEC Ecuador._`;
-
-    const adminPhone = process.env.NEXT_PUBLIC_WHATSAPP_ADMIN_PHONE || "593962577613";
-    const whatsappUrl = `https://api.whatsapp.com/send?phone=${adminPhone}&text=${encodeURIComponent(text)}`;
-
-    // 1. Intentar envío silencioso 100% automático desde el servidor
-    try {
-      fetch("/api/notificar-whatsapp", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mensaje: text, telefono: adminPhone }),
-      })
-        .then(async (res) => {
-          const json = await res.json().catch(() => ({}));
-          // Si no hay proveedor API de backend configurado, se abre la app como respaldo
-          if (json.configured === false && typeof window !== "undefined") {
-            window.open(whatsappUrl, "_blank");
-          }
-        })
-        .catch(() => {
-          if (typeof window !== "undefined") {
-            window.open(whatsappUrl, "_blank");
-          }
-        });
-    } catch {
-      if (typeof window !== "undefined") {
-        window.open(whatsappUrl, "_blank");
-      }
     }
   };
 
@@ -299,32 +254,38 @@ export default function NuevoReportePage() {
               <CheckCircle2 className="w-8 h-8 text-vanilla-400 flex-shrink-0 mt-0.5" />
               <div className="flex-1">
                 <h3 className="text-xl font-serif font-bold text-vanilla-300">
-                  ¡Informe Diario Registrado Exitosamente!
+                  ¡Informe Diario Registrado y Notificado por Correo!
                 </h3>
                 <p className="text-sm text-forest-200 mt-1">
                   Código: <span className="font-mono font-bold text-white">{successReport.id}</span> para el{" "}
                   <strong>{successReport.lote}</strong> ({successReport.fechaReporte}).
                 </p>
+                <div className="mt-2.5 flex items-center space-x-2 text-xs text-vanilla-300 bg-forest-950/70 py-1.5 px-3 rounded-lg border border-forest-800">
+                  <Mail className="w-4 h-4 text-vanilla-400 flex-shrink-0" />
+                  <span>
+                    Se ha enviado la notificación automática por correo con el <strong>PDF adjunto</strong> y el enlace directo al panel.
+                  </span>
+                </div>
                 <div className="mt-5 flex flex-wrap gap-3">
                   <button
                     onClick={async () => await generateDailyReportPDF(successReport)}
                     className="inline-flex items-center space-x-2 px-4 py-2.5 rounded-lg bg-vanilla-500 hover:bg-vanilla-600 text-forest-950 font-bold text-xs shadow-md transition-transform active:scale-95"
                   >
                     <Download className="w-4 h-4" />
-                    <span>Descargar PDF Oficial ITEC</span>
+                    <span>Descargar PDF Oficial</span>
                   </button>
 
-                  <button
-                    onClick={() => shareViaWhatsApp()}
-                    className="inline-flex items-center space-x-2 px-4 py-2.5 rounded-lg bg-[#25D366] hover:bg-[#1EBE5D] text-white font-bold text-xs shadow-md transition-transform active:scale-95"
+                  <Link
+                    href="/admin"
+                    className="inline-flex items-center space-x-2 px-4 py-2.5 rounded-lg bg-forest-800 hover:bg-forest-700 text-white font-bold text-xs shadow-md transition-transform active:scale-95 border border-forest-600"
                   >
-                    <MessageCircle className="w-4 h-4" />
-                    <span>Enviar a WhatsApp del Administrador</span>
-                  </button>
+                    <ShieldCheck className="w-4 h-4 text-vanilla-400" />
+                    <span>Acceder al Panel Administrador</span>
+                  </Link>
 
                   <button
                     onClick={() => setSuccessReport(null)}
-                    className="px-4 py-2.5 rounded-lg bg-forest-800 hover:bg-forest-700 text-forest-200 text-xs font-medium"
+                    className="px-4 py-2.5 rounded-lg border border-vanilla-300/40 hover:bg-forest-800 text-forest-200 text-xs font-medium transition-colors"
                   >
                     Llenar Otro Informe
                   </button>
@@ -853,7 +814,7 @@ export default function NuevoReportePage() {
             {/* BOTONES DE ACCIÓN */}
             <div className="pt-6 border-t border-vanilla-200 flex flex-col sm:flex-row items-center justify-between gap-4">
               <div className="text-xs text-forest-600">
-                Al guardar, se registrará el informe en el sistema y se abrirá automáticamente WhatsApp para notificar que hay nueva información para revisar.
+                Al guardar, se registrará el informe en el sistema y se enviará automáticamente un correo electrónico con el PDF oficial adjunto y el enlace directo al panel administrador.
               </div>
 
               <div className="flex items-center space-x-3 w-full sm:w-auto">

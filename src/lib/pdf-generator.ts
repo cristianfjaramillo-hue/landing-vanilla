@@ -23,7 +23,10 @@ async function getBase64Image(url: string | undefined): Promise<string | null> {
   }
 }
 
-export async function generateDailyReportPDF(report: DailyReport) {
+export async function generateDailyReportPDF(
+  report: DailyReport,
+  autoDownload: boolean = true
+): Promise<{ base64: string; filename: string }> {
   const doc = new jsPDF({
     orientation: "portrait",
     unit: "mm",
@@ -234,7 +237,15 @@ export async function generateDailyReportPDF(report: DailyReport) {
     );
   }
 
-  doc.save(`Informe_Vainilla_${report.lote.replace(/\s+/g, "_")}_${report.fechaReporte}.pdf`);
+  const filename = `Informe_Vainilla_${report.lote.replace(/\s+/g, "_")}_${report.fechaReporte}.pdf`;
+  if (autoDownload) {
+    doc.save(filename);
+  }
+
+  const dataUri = doc.output("datauristring");
+  const base64 = dataUri.split(",")[1] || dataUri;
+
+  return { base64, filename };
 }
 
 export async function generateActivityProtocolPDF(protocol: ActivityProtocol) {
