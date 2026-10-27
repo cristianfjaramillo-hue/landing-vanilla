@@ -9,12 +9,13 @@ const supabaseAnonKey =
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 // Cliente administrativo con permisos Service Role (para APIs de servidor seguras)
-const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-export const supabaseAdmin = serviceRoleKey
-  ? createClient(supabaseUrl, serviceRoleKey, {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false,
-      },
-    })
-  : supabase;
+const serviceRoleKey =
+  process.env.SUPABASE_SERVICE_ROLE_KEY ||
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtvbXJ6Z2VpeGVkY29mcGVjY3dqIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc5MzAxNDMwMywiZXhwIjoyMTA4NTkwMzAzfQ.i2PfJH0HTE61eLg49S-2lykl9UPiJXUniQZu6dCI7Dc";
+
+export const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey, {
+  auth: {
+    autoRefreshToken: false,
+    persistSession: false,
+  },
+});

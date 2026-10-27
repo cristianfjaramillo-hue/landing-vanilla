@@ -28,21 +28,17 @@ export default function HomePage() {
       }
     } catch {}
 
-    // 2. Sincronizar desde Supabase
+    // 2. Sincronizar desde la API del servidor
     try {
-      Promise.resolve(
-        supabase
-          .from("reportes_diarios")
-          .select("data")
-          .eq("report_id", "CONFIG_RECOMENDACIONES")
-          .single()
-      )
-        .then(({ data }) => {
-          if (data?.data && Array.isArray((data.data as any).recomendaciones)) {
-            const dbList = (data.data as any).recomendaciones;
-            if (dbList.length > 0) {
-              setRecsCount(dbList.length);
-              localStorage.setItem("vanilla_recomendaciones_data", JSON.stringify(dbList));
+      fetch("/api/recomendaciones")
+        .then((res) => res.json())
+        .then((data) => {
+          if (data && data.success && Array.isArray(data.recomendaciones) && data.recomendaciones.length > 0) {
+            const localUpdated = localStorage.getItem("vanilla_recs_last_updated");
+            const isDbNewer = !localUpdated || !data.updated_at || new Date(data.updated_at) >= new Date(localUpdated);
+            if (isDbNewer) {
+              setRecsCount(data.count || data.recomendaciones.length);
+              localStorage.setItem("vanilla_recomendaciones_data", JSON.stringify(data.recomendaciones));
             }
           }
         })

@@ -162,9 +162,15 @@ export default function AdminPage() {
           data.forEach((row) => {
             const rowData = row.data as any;
             if (row.report_id === "CONFIG_RECOMENDACIONES" && rowData?.recomendaciones) {
-              if (Array.isArray(rowData.recomendaciones) && rowData.recomendaciones.length > 0) {
+              const localUpdated = localStorage.getItem("vanilla_recs_last_updated");
+              const isDbNewer = !localUpdated || !rowData.updated_at || new Date(rowData.updated_at) >= new Date(localUpdated);
+              if (isDbNewer && Array.isArray(rowData.recomendaciones) && rowData.recomendaciones.length > 0) {
                 setRecomendaciones(rowData.recomendaciones);
                 localStorage.setItem("vanilla_recomendaciones_data", JSON.stringify(rowData.recomendaciones));
+                if (Array.isArray(rowData.custom_created)) {
+                  setCustomCreated(rowData.custom_created);
+                  localStorage.setItem("vanilla_recomendaciones_custom_ids", JSON.stringify(rowData.custom_created));
+                }
                 activeRecsList = rowData.recomendaciones;
               }
             } else if (row.report_id?.startsWith("ACT-") || rowData?.tipo === "protocolo_actividades") {
@@ -204,24 +210,38 @@ export default function AdminPage() {
   const handleSaveRecomendaciones = async (updatedList: string[]) => {
     setIsSavingRecs(true);
     try {
+      const now = new Date().toISOString();
       localStorage.setItem("vanilla_recomendaciones_data", JSON.stringify(updatedList));
+      localStorage.setItem("vanilla_recs_count", updatedList.length.toString());
+      localStorage.setItem("vanilla_recs_last_updated", now);
+      localStorage.setItem("vanilla_recs_user_configured", "true");
 
       try {
-        await supabase.from("reportes_diarios").upsert([
-          {
-            report_id: "CONFIG_RECOMENDACIONES",
-            lote: "Configuración General",
-            responsable: "Administrador ITEC",
-            fecha_reporte: new Date().toISOString().split("T")[0],
-            data: {
-              tipo: "configuracion_recomendaciones",
-              recomendaciones: updatedList,
-              updated_at: new Date().toISOString(),
-            },
-          },
-        ]);
-      } catch (dbErr) {
-        console.warn("Aviso sincronizando recomendaciones:", dbErr);
+        window.dispatchEvent(
+          new StorageEvent("storage", {
+            key: "vanilla_recomendaciones_data",
+            newValue: JSON.stringify(updatedList),
+          })
+        );
+        window.dispatchEvent(
+          new CustomEvent("vanilla_recomendaciones_updated", {
+            detail: { count: updatedList.length, list: updatedList },
+          })
+        );
+      } catch {}
+
+      // Sincronizar en Supabase mediante API de servidor (Service Role que evita errores RLS)
+      try {
+        await fetch("/api/recomendaciones", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            recomendaciones: updatedList,
+            customCreated: customCreated,
+          }),
+        });
+      } catch (apiErr) {
+        console.warn("Aviso comunicando con /api/recomendaciones:", apiErr);
       }
 
       setRecsSavedSuccess(true);
@@ -238,11 +258,12 @@ export default function AdminPage() {
   const handlePublishToLandingPage = async () => {
     setIsSavingRecs(true);
     try {
+      const now = new Date().toISOString();
       localStorage.setItem("vanilla_recomendaciones_data", JSON.stringify(recomendaciones));
       localStorage.setItem("vanilla_recomendaciones_custom_ids", JSON.stringify(customCreated));
       localStorage.setItem("vanilla_recs_user_configured", "true");
       localStorage.setItem("vanilla_recs_count", recomendaciones.length.toString());
-      localStorage.setItem("vanilla_recs_last_updated", Date.now().toString());
+      localStorage.setItem("vanilla_recs_last_updated", now);
 
       try {
         window.dispatchEvent(
@@ -258,23 +279,22 @@ export default function AdminPage() {
         );
       } catch {}
 
+      // Sincronizar en Supabase mediante API de servidor (Service Role que evita errores RLS)
       try {
-        await supabase.from("reportes_diarios").upsert([
-          {
-            report_id: "CONFIG_RECOMENDACIONES",
-            lote: "Configuración General",
-            responsable: "Administrador ITEC",
-            fecha_reporte: new Date().toISOString().split("T")[0],
-            data: {
-              tipo: "configuracion_recomendaciones",
-              cantidad: recomendaciones.length,
-              recomendaciones: recomendaciones,
-              updated_at: new Date().toISOString(),
-            },
-          },
-        ]);
-      } catch (dbErr) {
-        console.warn("Aviso sincronizando recomendaciones con Supabase:", dbErr);
+        const res = await fetch("/api/recomendaciones", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            recomendaciones,
+            customCreated,
+          }),
+        });
+        const resJson = await res.json();
+        if (!resJson.success) {
+          console.warn("Aviso API /api/recomendaciones:", resJson.error);
+        }
+      } catch (apiErr) {
+        console.warn("Aviso comunicando con /api/recomendaciones:", apiErr);
       }
 
       setLandingUpdatedNotice({

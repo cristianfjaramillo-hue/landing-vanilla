@@ -74,26 +74,24 @@ export default function ActividadesPage() {
       }
     } catch {}
 
-    // 3. Sincronizar recomendaciones más recientes desde Supabase
+    // 3. Sincronizar recomendaciones más recientes desde la API del servidor
     try {
-      Promise.resolve(
-        supabase
-          .from("reportes_diarios")
-          .select("data")
-          .eq("report_id", "CONFIG_RECOMENDACIONES")
-          .single()
-      ).then(({ data }) => {
-        if (data && data.data && Array.isArray((data.data as any).recomendaciones)) {
-          const dbRecs = (data.data as any).recomendaciones;
-          if (dbRecs.length > 0) {
-            setRecomendaciones(dbRecs);
-            localStorage.setItem("vanilla_recomendaciones_data", JSON.stringify(dbRecs));
+      fetch("/api/recomendaciones")
+        .then((res) => res.json())
+        .then((data) => {
+          if (data && data.success && Array.isArray(data.recomendaciones) && data.recomendaciones.length > 0) {
+            const localUpdated = localStorage.getItem("vanilla_recs_last_updated");
+            const isDbNewer = !localUpdated || !data.updated_at || new Date(data.updated_at) >= new Date(localUpdated);
+            if (isDbNewer) {
+              setRecomendaciones(data.recomendaciones);
+              localStorage.setItem("vanilla_recomendaciones_data", JSON.stringify(data.recomendaciones));
+            }
           }
-        }
-      }).catch(() => {});
+        })
+        .catch(() => {});
     } catch {}
 
-    // 4. Escuchar evento storage por si se actualiza en otra pestaña
+    // 4. Escuchar evento storage y eventos directos por si se actualiza en el Panel Admin
     const handleStorageChange = (e: StorageEvent) => {
       if (e.key === "vanilla_recomendaciones_data" && e.newValue) {
         try {
@@ -104,7 +102,14 @@ export default function ActividadesPage() {
         } catch {}
       }
     };
+    const handleCustomChange = (e: any) => {
+      if (e.detail?.list && Array.isArray(e.detail.list)) {
+        setRecomendaciones(e.detail.list);
+      }
+    };
+
     window.addEventListener("storage", handleStorageChange);
+    window.addEventListener("vanilla_recomendaciones_updated", handleCustomChange);
 
     // Cargar datos del protocolo
     try {
@@ -127,6 +132,7 @@ export default function ActividadesPage() {
 
     return () => {
       window.removeEventListener("storage", handleStorageChange);
+      window.removeEventListener("vanilla_recomendaciones_updated", handleCustomChange);
     };
   }, []);
 

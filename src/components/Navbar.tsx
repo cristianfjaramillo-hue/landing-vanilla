@@ -22,6 +22,21 @@ export default function Navbar() {
       }
     } catch {}
 
+    try {
+      fetch("/api/recomendaciones")
+        .then((res) => res.json())
+        .then((data) => {
+          if (data && data.success && Array.isArray(data.recomendaciones) && data.recomendaciones.length > 0) {
+            const localUpdated = localStorage.getItem("vanilla_recs_last_updated");
+            const isDbNewer = !localUpdated || !data.updated_at || new Date(data.updated_at) >= new Date(localUpdated);
+            if (isDbNewer) {
+              setRecsCount(data.count || data.recomendaciones.length);
+            }
+          }
+        })
+        .catch(() => {});
+    } catch {}
+
     const handleStorage = (e: StorageEvent) => {
       if (e.key === "vanilla_recomendaciones_data" && e.newValue) {
         try {
