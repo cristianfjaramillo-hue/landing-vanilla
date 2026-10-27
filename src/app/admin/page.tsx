@@ -44,7 +44,7 @@ import {
 import { INITIAL_MOCK_REPORTS, DEFAULT_ACTIVITIES, DEFAULT_TOOLS } from "@/lib/constants";
 import { DailyReport, ActivityItem, ToolItem, ActivityProtocol } from "@/lib/types";
 import { generateDailyReportPDF, generateActivityProtocolPDF } from "@/lib/pdf-generator";
-import { SECTIONS_DATA, RECOMENDACIONES_DATA } from "@/lib/actividades-data";
+import { SECTIONS_DATA, RECOMENDACIONES_DATA, ActivitySection } from "@/lib/actividades-data";
 import { supabase } from "@/lib/supabase";
 
 export default function AdminPage() {
@@ -71,13 +71,28 @@ export default function AdminPage() {
   const [previewReport, setPreviewReport] = useState<DailyReport | null>(null);
 
   // Pestañas (Repositorio vs Actividades vs Configuración vs Recomendaciones)
-  const [activeTab, setActiveTab] = useState<"repositorio" | "actividades" | "configuracion" | "recomendaciones">("repositorio");
+  const [activeTab, setActiveTab] = useState<"repositorio" | "actividades" | "editor-actividades" | "configuracion" | "recomendaciones">("repositorio");
 
   // Configuración dinámica de actividades y herramientas
   const [customActivities, setCustomActivities] = useState<ActivityItem[]>(DEFAULT_ACTIVITIES);
   const [customTools, setCustomTools] = useState<ToolItem[]>(DEFAULT_TOOLS);
   const [newActivityName, setNewActivityName] = useState("");
   const [newToolName, setNewToolName] = useState("");
+
+  // Gestión y Edición Maestra de la Lista de Actividades (9 Fases del Cultivo)
+  const [activitySections, setActivitySections] = useState<ActivitySection[]>(SECTIONS_DATA);
+  const [editingActivity, setEditingActivity] = useState<{ sectionId: number; itemIndex: number } | null>(null);
+  const [editingActivityText, setEditingActivityText] = useState("");
+  const [editingSectionTitleId, setEditingSectionTitleId] = useState<number | null>(null);
+  const [editingSectionTitleText, setEditingSectionTitleText] = useState("");
+  const [newActivityInputs, setNewActivityInputs] = useState<{ [sectionId: number]: string }>({});
+  const [selectedPhaseFilter, setSelectedPhaseFilter] = useState<number | "all">("all");
+  const [isSavingActivities, setIsSavingActivities] = useState(false);
+  const [activitiesSavedNotice, setActivitiesSavedNotice] = useState<{
+    show: boolean;
+    count: number;
+    time: string;
+  }>({ show: false, count: 0, time: "" });
 
   // Gestión de Recomendaciones Técnicas de Invernadero
   const [recomendaciones, setRecomendaciones] = useState<string[]>(RECOMENDACIONES_DATA);
@@ -176,6 +191,14 @@ export default function AdminPage() {
                 }
                 activeRecsList = rowData.recomendaciones;
               }
+            } else if (row.report_id === "CONFIG_ACTIVIDADES_SECTIONS" && rowData?.sections) {
+              const localUpdated = localStorage.getItem("vanilla_actividades_last_updated");
+              const isDbNewer = !localUpdated || !rowData.updated_at || new Date(rowData.updated_at) >= new Date(localUpdated);
+              if (isDbNewer && Array.isArray(rowData.sections)) {
+                setActivitySections(rowData.sections);
+                localStorage.setItem("vanilla_actividades_sections_data", JSON.stringify(rowData.sections));
+                localStorage.setItem("vanilla_actividades_user_configured", "true");
+              }
             } else if (row.report_id?.startsWith("ACT-") || rowData?.tipo === "protocolo_actividades") {
               dbProtocols.push(rowData as ActivityProtocol);
             } else {
@@ -210,6 +233,176 @@ export default function AdminPage() {
   };
 
   // Difundir inmediatamente a todas las pestañas y ventanas de la aplicación
+  const totalMasterActivitiesCount = activitySections.reduce((acc, s) => acc + (s.items?.length || 0), 0);
+
+  // Difundir actualización de actividades en tiempo real a otras ventanas
+  const broadcastActivitiesUpdate = (sections: ActivitySection[]) => {
+    try {
+      const channel = new BroadcastChannel("vanilla_actividades_channel");
+      channel.postMessage({
+        type: "ACTIVIDADES_UPDATED",
+        sections,
+        totalCount: sections.reduce((acc, s) => acc + s.items.length, 0),
+        timestamp: new Date().toISOString(),
+      });
+      channel.close();
+    } catch {}
+
+    try {
+      window.dispatchEvent(
+        new StorageEvent("storage", {
+          key: "vanilla_actividades_sections_data",
+          newValue: JSON.stringify(sections),
+        })
+      );
+      window.dispatchEvent(
+        new CustomEvent("vanilla_actividades_updated", {
+          detail: { sections },
+        })
+      );
+    } catch {}
+  };
+
+  // Guardar y sincronizar catálogo maestro de actividades
+  const handleSaveActivitySections = async (updatedSections: ActivitySection[]) => {
+    setIsSavingActivities(true);
+    try {
+      const now = new Date().toISOString();
+      const totalCount = updatedSections.reduce((acc, s) => acc + s.items.length, 0);
+
+      localStorage.setItem("vanilla_actividades_sections_data", JSON.stringify(updatedSections));
+      localStorage.setItem("vanilla_actividades_user_configured", "true");
+      localStorage.setItem("vanilla_actividades_last_updated", now);
+      localStorage.setItem("vanilla_actividades_total_count", totalCount.toString());
+
+      broadcastActivitiesUpdate(updatedSections);
+
+      // Guardar en Supabase mediante API de servidor
+      try {
+        await fetch("/api/actividades-catalogo", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ sections: updatedSections }),
+        });
+      } catch (err) {
+        console.warn("Aviso comunicando con /api/actividades-catalogo:", err);
+      }
+
+      setActivitiesSavedNotice({
+        show: true,
+        count: totalCount,
+        time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }),
+      });
+      setTimeout(() => {
+        setActivitiesSavedNotice((prev) => ({ ...prev, show: false }));
+      }, 5000);
+    } catch (err) {
+      console.error("Error guardando actividades:", err);
+      alert("Error al guardar la lista de actividades en el sistema.");
+    } finally {
+      setIsSavingActivities(false);
+    }
+  };
+
+  const handleUpdateActivity = async (sectionId: number, itemIndex: number, newText: string) => {
+    const trimmed = newText.trim();
+    if (!trimmed) return;
+    const updated = activitySections.map((sec) => {
+      if (sec.id === sectionId) {
+        const items = [...sec.items];
+        items[itemIndex] = trimmed;
+        return { ...sec, items };
+      }
+      return sec;
+    });
+    setActivitySections(updated);
+    setEditingActivity(null);
+    await handleSaveActivitySections(updated);
+  };
+
+  const handleDeleteSectionActivity = async (sectionId: number, itemIndex: number) => {
+    const targetSection = activitySections.find((s) => s.id === sectionId);
+    if (!targetSection) return;
+    const itemToDelete = targetSection.items[itemIndex];
+
+    if (confirm(`¿Estás seguro de eliminar la actividad de la Fase ${sectionId}?\n\n"${itemToDelete}"`)) {
+      const updated = activitySections.map((sec) => {
+        if (sec.id === sectionId) {
+          const items = sec.items.filter((_, idx) => idx !== itemIndex);
+          return { ...sec, items };
+        }
+        return sec;
+      });
+      setActivitySections(updated);
+      if (editingActivity?.sectionId === sectionId && editingActivity?.itemIndex === itemIndex) {
+        setEditingActivity(null);
+      }
+      await handleSaveActivitySections(updated);
+    }
+  };
+
+  const handleMoveActivity = async (sectionId: number, itemIndex: number, direction: "up" | "down") => {
+    const targetIndex = direction === "up" ? itemIndex - 1 : itemIndex + 1;
+    const targetSection = activitySections.find((s) => s.id === sectionId);
+    if (!targetSection) return;
+    if (targetIndex < 0 || targetIndex >= targetSection.items.length) return;
+
+    const updated = activitySections.map((sec) => {
+      if (sec.id === sectionId) {
+        const items = [...sec.items];
+        const [moved] = items.splice(itemIndex, 1);
+        items.splice(targetIndex, 0, moved);
+        return { ...sec, items };
+      }
+      return sec;
+    });
+    setActivitySections(updated);
+    if (editingActivity?.sectionId === sectionId && editingActivity?.itemIndex === itemIndex) {
+      setEditingActivity({ sectionId, itemIndex: targetIndex });
+    }
+    await handleSaveActivitySections(updated);
+  };
+
+  const handleAddActivityToSection = async (sectionId: number) => {
+    const text = (newActivityInputs[sectionId] || "").trim();
+    if (!text) return;
+
+    const updated = activitySections.map((sec) => {
+      if (sec.id === sectionId) {
+        return { ...sec, items: [...sec.items, text] };
+      }
+      return sec;
+    });
+
+    setActivitySections(updated);
+    setNewActivityInputs((prev) => ({ ...prev, [sectionId]: "" }));
+    await handleSaveActivitySections(updated);
+  };
+
+  const handleUpdateSectionTitle = async (sectionId: number, newTitle: string) => {
+    const trimmed = newTitle.trim();
+    if (!trimmed) return;
+    const updated = activitySections.map((sec) => {
+      if (sec.id === sectionId) {
+        return { ...sec, title: trimmed };
+      }
+      return sec;
+    });
+    setActivitySections(updated);
+    setEditingSectionTitleId(null);
+    await handleSaveActivitySections(updated);
+  };
+
+  const handleResetActivitySections = async () => {
+    if (confirm("¿Restablecer el Listado Integral de Actividades a las 9 fases originales y 96 actividades predeterminadas de ITEC Ecuador?")) {
+      setActivitySections(SECTIONS_DATA);
+      setEditingActivity(null);
+      setEditingSectionTitleId(null);
+      setNewActivityInputs({});
+      await handleSaveActivitySections(SECTIONS_DATA);
+    }
+  };
+
   const broadcastRecsUpdate = (list: string[]) => {
     try {
       const channel = new BroadcastChannel("vanilla_recomendaciones_channel");
@@ -1147,6 +1340,414 @@ export default function AdminPage() {
                 })}
               </div>
             )}
+          </div>
+        )}
+
+        {/* PESTAÑA: EDITOR DEL LISTADO INTEGRAL DE ACTIVIDADES (9 FASES) */}
+        {activeTab === "editor-actividades" && (
+          <div className="bg-white rounded-2xl p-6 sm:p-8 border border-vanilla-200 shadow-sm space-y-8 animate-in fade-in duration-200">
+            {/* Header del Editor de Actividades */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-vanilla-200 pb-5">
+              <div>
+                <div className="flex items-center space-x-2">
+                  <div className="w-8 h-8 rounded-lg bg-forest-900 text-vanilla-400 flex items-center justify-center font-bold">
+                    <ClipboardList className="w-4 h-4 text-vanilla-400" />
+                  </div>
+                  <h2 className="text-xl font-serif font-bold text-forest-900">
+                    Editor del Listado Integral de Actividades
+                  </h2>
+                </div>
+                <p className="text-xs text-forest-600 mt-1 max-w-3xl">
+                  Edita, agrega, elimina o reordena las actividades agronómicas de las <strong>9 fases del cultivo de vainilla</strong>. Cualquier modificación se sincroniza automáticamente en tiempo real con la lámina de actividades para los técnicos en campo.
+                </p>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2 flex-shrink-0">
+                {/* Botón Principal Guardar y Sincronizar */}
+                <button
+                  type="button"
+                  onClick={() => handleSaveActivitySections(activitySections)}
+                  disabled={isSavingActivities}
+                  className="inline-flex items-center space-x-2 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white font-bold text-xs shadow-md transition-all active:scale-95 disabled:opacity-50 border border-emerald-500"
+                  title="Guardar todos los cambios y sincronizar el catálogo de actividades en el sistema"
+                >
+                  {isSavingActivities ? (
+                    <Loader2 className="w-4 h-4 animate-spin text-vanilla-300" />
+                  ) : (
+                    <Save className="w-4 h-4 text-vanilla-300 stroke-[2.5]" />
+                  )}
+                  <span>Guardar y Sincronizar Actividades</span>
+                  <span className="text-[10px] bg-emerald-900 px-1.5 py-0.5 rounded text-emerald-100 font-mono">
+                    {totalMasterActivitiesCount}
+                  </span>
+                </button>
+
+                <Link
+                  href="/actividades"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center space-x-1.5 px-3 py-2.5 rounded-xl bg-forest-800 hover:bg-forest-700 text-white text-xs font-semibold transition-colors border border-forest-700"
+                >
+                  <Eye className="w-3.5 h-3.5 text-vanilla-400" />
+                  <span className="hidden sm:inline">Ver en Actividades</span>
+                  <ExternalLink className="w-3 h-3 text-vanilla-400" />
+                </Link>
+
+                <button
+                  type="button"
+                  onClick={handleResetActivitySections}
+                  className="inline-flex items-center space-x-1 px-3 py-2.5 rounded-xl border border-vanilla-300 text-forest-700 hover:bg-vanilla-50 text-xs font-medium transition-colors"
+                  title="Restablecer las 9 fases originales y 96 actividades predeterminadas de ITEC Ecuador"
+                >
+                  <RotateCcw className="w-3.5 h-3.5 text-forest-600" />
+                  <span>Restablecer Fases ITEC</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Banner de Notificación de Guardado */}
+            {activitiesSavedNotice.show && (
+              <div className="p-4 rounded-xl bg-gradient-to-r from-emerald-50 via-teal-50 to-emerald-100 border-2 border-emerald-500 text-emerald-950 shadow-md flex items-start justify-between gap-3 animate-in fade-in slide-in-from-top-2 duration-300">
+                <div className="flex items-start space-x-3">
+                  <div className="w-8 h-8 rounded-full bg-emerald-600 text-white flex items-center justify-center flex-shrink-0 mt-0.5 shadow-sm">
+                    <Check className="w-5 h-5 stroke-[3]" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-bold text-emerald-950 flex items-center space-x-2">
+                      <span>¡Catálogo de Actividades Guardado con Éxito!</span>
+                      <span className="text-[11px] bg-emerald-800 text-white px-2 py-0.5 rounded-full font-mono">
+                        {activitiesSavedNotice.count} Actividades Activas
+                      </span>
+                    </h4>
+                    <p className="text-xs text-emerald-900 mt-1">
+                      Las 9 fases del cultivo han sido sincronizadas permanentemente en la base de datos y en tiempo real con la página de Actividades de Invernadero.
+                    </p>
+                    <div className="mt-2 flex items-center space-x-2 text-xs">
+                      <Link
+                        href="/actividades"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center space-x-1 text-emerald-900 font-bold hover:underline"
+                      >
+                        <span>Abrir Listado Integral de Actividades</span>
+                        <ExternalLink className="w-3 h-3" />
+                      </Link>
+                      <span className="text-emerald-400">•</span>
+                      <span className="text-[10px] text-emerald-700 font-mono">
+                        Actualizado a las {activitiesSavedNotice.time}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setActivitiesSavedNotice((prev) => ({ ...prev, show: false }))}
+                  className="p-1 text-emerald-700 hover:text-emerald-950 hover:bg-emerald-200/60 rounded-lg text-xs"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            )}
+
+            {/* Barra de Filtro Rápido por Fases */}
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-2 scrollbar-thin">
+              <button
+                type="button"
+                onClick={() => setSelectedPhaseFilter("all")}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap flex-shrink-0 ${
+                  selectedPhaseFilter === "all"
+                    ? "bg-forest-900 text-white shadow-xs"
+                    : "bg-vanilla-100 text-forest-800 hover:bg-vanilla-200"
+                }`}
+              >
+                Todas las Fases ({totalMasterActivitiesCount})
+              </button>
+              {activitySections.map((sec) => (
+                <button
+                  key={sec.id}
+                  type="button"
+                  onClick={() => setSelectedPhaseFilter(sec.id)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap flex-shrink-0 flex items-center space-x-1.5 ${
+                    selectedPhaseFilter === sec.id
+                      ? "bg-forest-900 text-white shadow-xs"
+                      : "bg-vanilla-100 text-forest-800 hover:bg-vanilla-200"
+                  }`}
+                >
+                  <span className="w-4 h-4 rounded-full bg-vanilla-400 text-forest-950 text-[10px] flex items-center justify-center font-bold">
+                    {sec.id}
+                  </span>
+                  <span>{sec.title}</span>
+                  <span className="text-[10px] opacity-75 font-mono">({sec.items.length})</span>
+                </button>
+              ))}
+            </div>
+
+            {/* Lista de Fases con sus actividades */}
+            <div className="space-y-6">
+              {activitySections
+                .filter((sec) => selectedPhaseFilter === "all" || selectedPhaseFilter === sec.id)
+                .map((sec) => {
+                  const isEditingTitle = editingSectionTitleId === sec.id;
+
+                  return (
+                    <div
+                      key={sec.id}
+                      className="rounded-2xl border-2 border-forest-900 overflow-hidden shadow-sm bg-white"
+                    >
+                      {/* Cabecera de la Fase */}
+                      <div className="bg-forest-900 text-white p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b-2 border-vanilla-500">
+                        <div className="flex items-center space-x-3 flex-1 min-w-0">
+                          <span className="w-8 h-8 rounded-full bg-vanilla-500 text-forest-950 font-black text-sm flex items-center justify-center flex-shrink-0 shadow">
+                            {sec.id}
+                          </span>
+                          {isEditingTitle ? (
+                            <div className="flex items-center space-x-2 flex-1">
+                              <input
+                                type="text"
+                                value={editingSectionTitleText}
+                                onChange={(e) => setEditingSectionTitleText(e.target.value)}
+                                className="flex-1 text-xs px-2.5 py-1.5 bg-white text-forest-950 rounded-lg font-bold border-2 border-vanilla-400 focus:outline-none"
+                                autoFocus
+                              />
+                              <button
+                                type="button"
+                                onClick={() => handleUpdateSectionTitle(sec.id, editingSectionTitleText)}
+                                className="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-bold"
+                              >
+                                Guardar
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setEditingSectionTitleId(null)}
+                                className="px-2 py-1.5 bg-forest-800 text-forest-200 rounded-lg text-xs"
+                              >
+                                Cancelar
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="flex items-center space-x-2 flex-1 min-w-0">
+                              <h3 className="text-sm sm:text-base font-bold text-vanilla-200 uppercase tracking-tight truncate">
+                                FASE {sec.id}: {sec.title}
+                              </h3>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setEditingSectionTitleId(sec.id);
+                                  setEditingSectionTitleText(sec.title);
+                                }}
+                                className="p-1 text-vanilla-400 hover:text-white rounded hover:bg-forest-800 transition-colors"
+                                title="Editar título de esta fase"
+                              >
+                                <Edit3 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="flex items-center space-x-2 self-end sm:self-center">
+                          <span className="px-3 py-1 rounded-full bg-forest-800 text-vanilla-300 text-xs font-semibold border border-forest-700">
+                            {sec.items.length} {sec.items.length === 1 ? "actividad" : "actividades"}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Lista de Actividades de la Fase */}
+                      <div className="p-4 sm:p-5 bg-gradient-to-b from-[#FAF7F2] to-white space-y-2.5">
+                        {sec.items.length === 0 ? (
+                          <div className="p-6 text-center text-xs text-forest-500 italic bg-white rounded-xl border border-dashed border-vanilla-300">
+                            No hay actividades registradas en esta fase. Escribe una a continuación para agregarla.
+                          </div>
+                        ) : (
+                          sec.items.map((item, itemIdx) => {
+                            const isEditing =
+                              editingActivity?.sectionId === sec.id && editingActivity?.itemIndex === itemIdx;
+
+                            return (
+                              <div
+                                key={itemIdx}
+                                className={`p-3 rounded-xl border transition-all ${
+                                  isEditing
+                                    ? "bg-amber-50/90 border-amber-400 ring-2 ring-amber-300 shadow-md"
+                                    : "bg-white border-vanilla-200 hover:border-forest-600 hover:shadow-xs"
+                                }`}
+                              >
+                                {isEditing ? (
+                                  <div className="space-y-2">
+                                    <div className="flex items-center justify-between text-[11px] font-bold text-forest-900 border-b border-amber-200 pb-1">
+                                      <span>Editando Actividad {sec.id}.{itemIdx + 1}:</span>
+                                      <span className="text-[10px] text-forest-500 font-normal">
+                                        Enter para guardar
+                                      </span>
+                                    </div>
+                                    <textarea
+                                      rows={2}
+                                      value={editingActivityText}
+                                      onChange={(e) => setEditingActivityText(e.target.value)}
+                                      onKeyDown={(e) => {
+                                        if (e.key === "Enter" && !e.shiftKey) {
+                                          e.preventDefault();
+                                          handleUpdateActivity(sec.id, itemIdx, editingActivityText);
+                                        } else if (e.key === "Escape") {
+                                          setEditingActivity(null);
+                                        }
+                                      }}
+                                      className="w-full text-xs p-2.5 bg-white rounded-lg border-2 border-forest-700 focus:outline-none focus:ring-2 focus:ring-forest-900 font-medium text-forest-950 shadow-inner"
+                                      autoFocus
+                                    />
+                                    <div className="flex items-center justify-between pt-1 border-t border-amber-200">
+                                      <button
+                                        type="button"
+                                        onClick={() => handleDeleteSectionActivity(sec.id, itemIdx)}
+                                        className="px-2.5 py-1 rounded-md text-red-600 hover:bg-red-50 text-xs font-semibold flex items-center space-x-1"
+                                      >
+                                        <Trash2 className="w-3.5 h-3.5" />
+                                        <span>Eliminar</span>
+                                      </button>
+                                      <div className="flex items-center space-x-2">
+                                        <button
+                                          type="button"
+                                          onClick={() => setEditingActivity(null)}
+                                          className="px-2.5 py-1 rounded-md border border-vanilla-300 hover:bg-white text-forest-700 text-xs font-semibold"
+                                        >
+                                          Cancelar
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={() => handleUpdateActivity(sec.id, itemIdx, editingActivityText)}
+                                          disabled={!editingActivityText.trim() || isSavingActivities}
+                                          className="px-3 py-1 rounded-md bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow flex items-center space-x-1 disabled:opacity-50"
+                                        >
+                                          <Check className="w-3.5 h-3.5" />
+                                          <span>Guardar</span>
+                                        </button>
+                                      </div>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                                    <div
+                                      onClick={() => {
+                                        setEditingActivity({ sectionId: sec.id, itemIndex: itemIdx });
+                                        setEditingActivityText(item);
+                                      }}
+                                      className="flex items-start space-x-2.5 flex-1 min-w-0 cursor-pointer group py-0.5"
+                                      title="Haz clic para editar esta actividad"
+                                    >
+                                      <span className="text-[10px] font-bold uppercase tracking-wider text-forest-700 bg-vanilla-100 px-1.5 py-0.5 rounded border border-vanilla-300 font-mono mt-0.5">
+                                        {sec.id}.{itemIdx + 1}
+                                      </span>
+                                      <p className="text-xs font-semibold text-forest-950 leading-relaxed group-hover:text-forest-700 transition-colors flex-1">
+                                        {item}
+                                      </p>
+                                    </div>
+
+                                    {/* Botones de acción: Reordenar, Editar, Eliminar */}
+                                    <div className="flex items-center space-x-1.5 self-end sm:self-center flex-shrink-0">
+                                      <div className="flex items-center space-x-0.5 bg-vanilla-100/70 p-0.5 rounded border border-vanilla-200">
+                                        <button
+                                          type="button"
+                                          onClick={() => handleMoveActivity(sec.id, itemIdx, "up")}
+                                          disabled={itemIdx === 0}
+                                          className="p-1 text-forest-600 hover:text-forest-950 hover:bg-white rounded disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                                          title="Mover arriba"
+                                        >
+                                          <MoveUp className="w-3 h-3" />
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={() => handleMoveActivity(sec.id, itemIdx, "down")}
+                                          disabled={itemIdx === sec.items.length - 1}
+                                          className="p-1 text-forest-600 hover:text-forest-950 hover:bg-white rounded disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                                          title="Mover abajo"
+                                        >
+                                          <MoveDown className="w-3 h-3" />
+                                        </button>
+                                      </div>
+
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setEditingActivity({ sectionId: sec.id, itemIndex: itemIdx });
+                                          setEditingActivityText(item);
+                                        }}
+                                        className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-md bg-forest-900 hover:bg-forest-800 text-white text-xs font-bold transition-all shadow-xs"
+                                        title="Editar esta actividad"
+                                      >
+                                        <Edit3 className="w-3 h-3 text-vanilla-400" />
+                                        <span>Editar</span>
+                                      </button>
+
+                                      <button
+                                        type="button"
+                                        onClick={() => handleDeleteSectionActivity(sec.id, itemIdx)}
+                                        className="inline-flex items-center space-x-1 px-2 py-1 rounded-md bg-red-50 hover:bg-red-600 text-red-700 hover:text-white border border-red-200 hover:border-red-600 text-xs font-semibold transition-all shadow-xs"
+                                        title="Eliminar esta actividad de la fase"
+                                      >
+                                        <Trash2 className="w-3 h-3" />
+                                        <span>Eliminar</span>
+                                      </button>
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })
+                        )}
+
+                        {/* Fila para agregar nueva actividad a esta fase */}
+                        <div className="pt-3 border-t border-vanilla-200">
+                          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                            <input
+                              type="text"
+                              value={newActivityInputs[sec.id] || ""}
+                              onChange={(e) =>
+                                setNewActivityInputs((prev) => ({ ...prev, [sec.id]: e.target.value }))
+                              }
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") {
+                                  e.preventDefault();
+                                  handleAddActivityToSection(sec.id);
+                                }
+                              }}
+                              placeholder={`Escribe una nueva actividad para la Fase ${sec.id}: ${sec.title}...`}
+                              className="flex-1 text-xs px-3 py-2 bg-white rounded-xl border border-vanilla-300 focus:outline-none focus:ring-2 focus:ring-forest-800 text-forest-950 placeholder:text-forest-400"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => handleAddActivityToSection(sec.id)}
+                              disabled={!newActivityInputs[sec.id]?.trim() || isSavingActivities}
+                              className="inline-flex items-center justify-center space-x-1.5 px-4 py-2 rounded-xl bg-forest-900 hover:bg-forest-800 active:bg-forest-950 text-white text-xs font-bold transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-sm flex-shrink-0"
+                            >
+                              <Plus className="w-3.5 h-3.5 text-vanilla-400" />
+                              <span>Agregar Actividad</span>
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+            </div>
+
+            {/* Barra Inferior de Guardado */}
+            <div className="pt-4 border-t border-vanilla-200 flex flex-col sm:flex-row items-center justify-between gap-3">
+              <span className="text-xs text-forest-600">
+                Total de actividades activas en el sistema: <strong>{totalMasterActivitiesCount}</strong>
+              </span>
+              <button
+                type="button"
+                onClick={() => handleSaveActivitySections(activitySections)}
+                disabled={isSavingActivities}
+                className="w-full sm:w-auto inline-flex items-center justify-center space-x-2 px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white font-bold text-xs shadow-md transition-all active:scale-95 disabled:opacity-50 border border-emerald-500"
+              >
+                {isSavingActivities ? (
+                  <Loader2 className="w-4 h-4 animate-spin text-vanilla-300" />
+                ) : (
+                  <Save className="w-4 h-4 text-vanilla-300 stroke-[2.5]" />
+                )}
+                <span>Guardar y Sincronizar Actividades</span>
+              </button>
+            </div>
           </div>
         )}
 

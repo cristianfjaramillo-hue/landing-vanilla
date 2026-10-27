@@ -25,9 +25,10 @@ import {
   Save,
   Check,
   Edit3,
+  ClipboardList,
   ArrowRight
 } from "lucide-react";
-import { SECTIONS_DATA, TOTAL_ACTIVIDADES_COUNT, RECOMENDACIONES_DATA } from "@/lib/actividades-data";
+import { SECTIONS_DATA, TOTAL_ACTIVIDADES_COUNT, RECOMENDACIONES_DATA, ActivitySection } from "@/lib/actividades-data";
 import { ActivityProtocol } from "@/lib/types";
 import { generateActivityProtocolPDF } from "@/lib/pdf-generator";
 import { supabase } from "@/lib/supabase";
@@ -42,6 +43,9 @@ export default function ActividadesPage() {
   const [savedSuccessProtocol, setSavedSuccessProtocol] = useState<ActivityProtocol | null>(null);
   const [lastSentProtocol, setLastSentProtocol] = useState<ActivityProtocol | null>(null);
   const [showSuccessToast, setShowSuccessToast] = useState(false);
+
+  // Lista de Fases y Actividades dinámica editable desde el Administrador
+  const [sections, setSections] = useState<ActivitySection[]>(SECTIONS_DATA);
 
   // Recomendaciones dinámicas editables desde el Administrador
   const [recomendaciones, setRecomendaciones] = useState<string[]>(RECOMENDACIONES_DATA);
@@ -125,6 +129,65 @@ export default function ActividadesPage() {
     window.addEventListener("storage", handleStorageChange);
     window.addEventListener("vanilla_recomendaciones_updated", handleCustomChange);
 
+    // 6. Cargar y sincronizar la Lista Maestra de Actividades (9 Fases)
+    try {
+      const savedSections = localStorage.getItem("vanilla_actividades_sections_data");
+      const isActConfigured = localStorage.getItem("vanilla_actividades_user_configured") === "true";
+      if (savedSections) {
+        const parsed = JSON.parse(savedSections);
+        if (Array.isArray(parsed) && (parsed.length > 0 || isActConfigured)) {
+          setSections(parsed);
+        }
+      }
+    } catch {}
+
+    try {
+      fetch("/api/actividades-catalogo")
+        .then((res) => res.json())
+        .then((data) => {
+          if (data && data.success && Array.isArray(data.sections) && data.sections.length > 0) {
+            const localUpdated = localStorage.getItem("vanilla_actividades_last_updated");
+            const isDbNewer = !localUpdated || !data.updated_at || new Date(data.updated_at) >= new Date(localUpdated);
+            if (isDbNewer) {
+              setSections(data.sections);
+              localStorage.setItem("vanilla_actividades_sections_data", JSON.stringify(data.sections));
+            }
+          }
+        })
+        .catch(() => {});
+    } catch {}
+
+    let actChannel: BroadcastChannel | null = null;
+    try {
+      actChannel = new BroadcastChannel("vanilla_actividades_channel");
+      actChannel.onmessage = (event) => {
+        if (event.data?.type === "ACTIVIDADES_UPDATED") {
+          if (Array.isArray(event.data.sections)) {
+            setSections(event.data.sections);
+          }
+        }
+      };
+    } catch {}
+
+    const handleActStorageChange = (e: StorageEvent) => {
+      if (e.key === "vanilla_actividades_sections_data" && e.newValue) {
+        try {
+          const parsed = JSON.parse(e.newValue);
+          if (Array.isArray(parsed)) {
+            setSections(parsed);
+          }
+        } catch {}
+      }
+    };
+    const handleActCustomChange = (e: any) => {
+      if (e.detail?.sections && Array.isArray(e.detail.sections)) {
+        setSections(e.detail.sections);
+      }
+    };
+
+    window.addEventListener("storage", handleActStorageChange);
+    window.addEventListener("vanilla_actividades_updated", handleActCustomChange);
+
     // Cargar datos del protocolo
     try {
       const saved = localStorage.getItem("vanilla_actividades_checked");
@@ -150,8 +213,15 @@ export default function ActividadesPage() {
           channel.close();
         } catch {}
       }
+      if (actChannel) {
+        try {
+          actChannel.close();
+        } catch {}
+      }
       window.removeEventListener("storage", handleStorageChange);
       window.removeEventListener("vanilla_recomendaciones_updated", handleCustomChange);
+      window.removeEventListener("storage", handleActStorageChange);
+      window.removeEventListener("vanilla_actividades_updated", handleActCustomChange);
     };
   }, []);
 
@@ -167,10 +237,10 @@ export default function ActividadesPage() {
     });
   };
 
-  // Cálculos de progreso
-  const totalItemsCount = TOTAL_ACTIVIDADES_COUNT;
+  // Cálculos de progreso dinámicos basados en la lista de actividades
+  const totalItemsCount = sections.reduce((acc, s) => acc + s.items.length, 0);
   const completedItemsCount = Object.values(checkedItems).filter(Boolean).length;
-  const progressPercentage = Math.round((completedItemsCount / totalItemsCount) * 100);
+  const progressPercentage = totalItemsCount > 0 ? Math.round((completedItemsCount / totalItemsCount) * 100) : 0;
 
   // Guardar Envío / Protocolo (Se puede presionar una sola vez; al enviar se reinicia automáticamente)
   const handleSaveProtocol = async () => {
@@ -265,7 +335,7 @@ export default function ActividadesPage() {
 
   const handleDownloadPdf = async (protocol: ActivityProtocol) => {
     try {
-      await generateActivityProtocolPDF(protocol);
+      await generateActivityProtocolPDF(protocol, sections);
     } catch (err) {
       console.error("Error generando PDF:", err);
       alert("Error al generar el PDF del protocolo.");
@@ -360,16 +430,29 @@ export default function ActividadesPage() {
             </button>
 
             {isAdminLoggedIn && (
-              <Link
-                href="/admin?tab=recomendaciones"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center space-x-1 px-2.5 py-1.5 rounded-lg bg-forest-800 hover:bg-forest-700 text-vanilla-300 text-xs font-medium border border-forest-600 transition-colors"
-                title="Editar Recomendaciones en el Panel Administrador"
-              >
-                <Edit3 className="w-3.5 h-3.5 text-vanilla-400" />
-                <span className="hidden md:inline">Editar Recomendaciones</span>
-              </Link>
+              <div className="flex items-center space-x-1.5">
+                <Link
+                  href="/admin?tab=editor-actividades"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center space-x-1 px-2.5 py-1.5 rounded-lg bg-vanilla-500 hover:bg-vanilla-600 text-forest-950 text-xs font-bold shadow-xs transition-colors"
+                  title="Editar Lista de Actividades en el Panel Administrador"
+                >
+                  <ClipboardList className="w-3.5 h-3.5 text-forest-950" />
+                  <span className="hidden md:inline">Editar Actividades</span>
+                </Link>
+
+                <Link
+                  href="/admin?tab=recomendaciones"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center space-x-1 px-2.5 py-1.5 rounded-lg bg-forest-800 hover:bg-forest-700 text-vanilla-300 text-xs font-medium border border-forest-600 transition-colors"
+                  title="Editar Recomendaciones en el Panel Administrador"
+                >
+                  <Edit3 className="w-3.5 h-3.5 text-vanilla-400" />
+                  <span className="hidden md:inline">Editar Recomendaciones</span>
+                </Link>
+              </div>
             )}
           </div>
         </div>
@@ -533,7 +616,7 @@ export default function ActividadesPage() {
 
           {/* Cuadrícula de las 9 Fases del Cultivo */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-            {SECTIONS_DATA.map((section) => {
+            {sections.map((section) => {
               const secCompleted = section.items.filter(
                 (_, idx) => checkedItems[`${section.id}-${idx}`]
               ).length;

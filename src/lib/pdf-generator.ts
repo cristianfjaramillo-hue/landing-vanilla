@@ -1,7 +1,7 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { DailyReport, ActivityProtocol } from "./types";
-import { SECTIONS_DATA, RECOMENDACIONES_DATA } from "./actividades-data";
+import { SECTIONS_DATA, RECOMENDACIONES_DATA, ActivitySection } from "./actividades-data";
 
 // Helper para convertir URLs de imágenes o blobs a DataURL Base64
 async function getBase64Image(url: string | undefined): Promise<string | null> {
@@ -241,7 +241,10 @@ export async function generateDailyReportPDF(
   return { base64, filename };
 }
 
-export async function generateActivityProtocolPDF(protocol: ActivityProtocol) {
+export async function generateActivityProtocolPDF(
+  protocol: ActivityProtocol,
+  customSections?: ActivitySection[]
+) {
   const doc = new jsPDF({
     orientation: "portrait",
     unit: "mm",
@@ -292,7 +295,10 @@ export async function generateActivityProtocolPDF(protocol: ActivityProtocol) {
   let lastY = (doc as any).lastAutoTable.finalY + 3;
 
   const tableBody: any[] = [];
-  SECTIONS_DATA.forEach((sec) => {
+  const sectionsToUse =
+    customSections && customSections.length > 0 ? customSections : SECTIONS_DATA;
+
+  sectionsToUse.forEach((sec) => {
     const secDone = sec.items.filter((_, idx) => protocol.checkedItems[`${sec.id}-${idx}`]).length;
     tableBody.push([
       {
