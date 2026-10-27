@@ -1,7 +1,7 @@
 import React from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { ShieldCheck, Mail, MapPin, Phone, ExternalLink } from "lucide-react";
+import { Mail, MapPin, Phone, ExternalLink } from "lucide-react";
 
 export default function Footer() {
   return (
@@ -61,12 +61,6 @@ export default function Footer() {
                 >
                   <span>Listado de Actividades</span>
                   <ExternalLink className="w-3 h-3 text-vanilla-400" />
-                </Link>
-              </li>
-              <li>
-                <Link href="/admin" className="hover:text-white transition-colors flex items-center space-x-1">
-                  <ShieldCheck className="w-3.5 h-3.5 text-vanilla-400" />
-                  <span>Acceso Administrador</span>
                 </Link>
               </li>
             </ul>

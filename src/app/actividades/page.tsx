@@ -24,7 +24,6 @@ import {
   ExternalLink,
   Save,
   Check,
-  ShieldCheck,
   ArrowRight
 } from "lucide-react";
 import { SECTIONS_DATA, TOTAL_ACTIVIDADES_COUNT, RECOMENDACIONES_DATA } from "@/lib/actividades-data";
@@ -267,15 +266,6 @@ export default function ActividadesPage() {
               <Printer className="w-3.5 h-3.5" />
               <span className="hidden sm:inline">Imprimir</span>
             </button>
-
-            <Link
-              href="/admin"
-              className="inline-flex items-center space-x-1 px-2.5 py-1.5 rounded-lg bg-forest-800/80 hover:bg-forest-700 text-forest-200 hover:text-white text-xs border border-forest-700"
-              title="Ir al Panel de Administración"
-            >
-              <ShieldCheck className="w-3.5 h-3.5 text-vanilla-400" />
-              <span className="hidden md:inline">Admin</span>
-            </Link>
           </div>
         </div>
       </div>
@@ -731,14 +721,6 @@ export default function ActividadesPage() {
                 <Download className="w-4 h-4 text-vanilla-400" />
                 <span>Descargar PDF</span>
               </button>
-
-              <Link
-                href="/admin"
-                className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-vanilla-500 hover:bg-vanilla-600 text-forest-950 text-xs font-bold shadow flex items-center justify-center space-x-1.5 transition-colors"
-              >
-                <ShieldCheck className="w-4 h-4" />
-                <span>Ver en Administrador</span>
-              </Link>
 
               <button
                 onClick={() => setSavedSuccessProtocol(null)}

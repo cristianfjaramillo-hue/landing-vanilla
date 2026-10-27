@@ -18,7 +18,6 @@ import {
   Download,
   Send,
   Mail,
-  ShieldCheck,
   Plus,
   Trash2,
   CheckCircle2,
@@ -256,12 +255,6 @@ export default function NuevoReportePage() {
             <ArrowLeft className="w-4 h-4 mr-1.5" />
             Volver a la Landing
           </Link>
-          <Link
-            href="/admin"
-            className="text-xs font-semibold px-3 py-1.5 rounded-md border border-vanilla-300 text-forest-800 hover:bg-white transition-colors"
-          >
-            Ver Repositorio de Informes
-          </Link>
         </div>
 
         {/* Modal de Éxito al Guardar */}
@@ -291,14 +284,6 @@ export default function NuevoReportePage() {
                     <Download className="w-4 h-4" />
                     <span>Descargar PDF Oficial</span>
                   </button>
-
-                  <Link
-                    href="/admin"
-                    className="inline-flex items-center space-x-2 px-4 py-2.5 rounded-lg bg-forest-800 hover:bg-forest-700 text-white font-bold text-xs shadow-md transition-transform active:scale-95 border border-forest-600"
-                  >
-                    <ShieldCheck className="w-4 h-4 text-vanilla-400" />
-                    <span>Acceder al Panel Administrador</span>
-                  </Link>
 
                   <button
                     onClick={() => setSuccessReport(null)}
@@ -807,7 +792,7 @@ export default function NuevoReportePage() {
             {/* BOTONES DE ACCIÓN */}
             <div className="pt-6 border-t border-vanilla-200 flex flex-col sm:flex-row items-center justify-between gap-4">
               <div className="text-xs text-forest-600">
-                Al guardar, se registrará el informe en el sistema y se enviará automáticamente un correo electrónico con el PDF oficial adjunto y el enlace directo al panel administrador.
+                Al guardar, se registrará el informe en el sistema y se enviará automáticamente un correo electrónico con el PDF oficial adjunto.
               </div>
 
               <div className="flex items-center space-x-3 w-full sm:w-auto">

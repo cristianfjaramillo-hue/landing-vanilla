@@ -4,7 +4,6 @@ import Link from "next/link";
 import {
   FileText,
   Sparkles,
-  ShieldCheck,
   ClipboardList,
   ExternalLink,
 } from "lucide-react";
@@ -87,14 +86,6 @@ export default function HomePage() {
               <ClipboardList className="w-4 h-4 text-forest-800 group-hover:text-vanilla-400 transition-colors" />
               <span>Listado de Actividades</span>
               <ExternalLink className="w-3.5 h-3.5 text-forest-600 group-hover:text-vanilla-400 ml-0.5 transition-colors" />
-            </Link>
-
-            <Link
-              href="/admin"
-              className="w-full sm:w-auto px-7 py-4 rounded-xl bg-[#F2E9D7] hover:bg-forest-900 text-forest-950 hover:text-white font-bold text-sm tracking-wider uppercase border border-vanilla-300 hover:border-forest-700 shadow-md transition-all hover:scale-105 active:scale-95 flex items-center justify-center space-x-2 group"
-            >
-              <ShieldCheck className="w-4 h-4 text-forest-800 group-hover:text-vanilla-400 transition-colors" />
-              <span>Acceso Administrador</span>
             </Link>
           </div>
         </div>
