@@ -61,19 +61,9 @@ export default function ActividadesPage() {
       const savedRecs = localStorage.getItem("vanilla_recomendaciones_data");
       if (savedRecs) {
         const parsed = JSON.parse(savedRecs);
-        if (Array.isArray(parsed) && parsed.length >= 15) {
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          // Respetar estrictamente la lista del usuario (incluso si son menos de 15)
           setRecomendaciones(parsed);
-        } else if (Array.isArray(parsed) && parsed.length > 0) {
-          // Si tenía menos de 15, completar con el estándar oficial de 15 directrices
-          const merged = [...parsed];
-          RECOMENDACIONES_DATA.forEach((item) => {
-            if (!merged.includes(item)) {
-              merged.push(item);
-            }
-          });
-          const finalList = merged.slice(0, 15);
-          setRecomendaciones(finalList);
-          localStorage.setItem("vanilla_recomendaciones_data", JSON.stringify(finalList));
         } else {
           setRecomendaciones(RECOMENDACIONES_DATA);
           localStorage.setItem("vanilla_recomendaciones_data", JSON.stringify(RECOMENDACIONES_DATA));
@@ -95,17 +85,9 @@ export default function ActividadesPage() {
       ).then(({ data }) => {
         if (data && data.data && Array.isArray((data.data as any).recomendaciones)) {
           const dbRecs = (data.data as any).recomendaciones;
-          if (dbRecs.length >= 15) {
+          if (dbRecs.length > 0) {
             setRecomendaciones(dbRecs);
             localStorage.setItem("vanilla_recomendaciones_data", JSON.stringify(dbRecs));
-          } else if (dbRecs.length > 0) {
-            const merged = [...dbRecs];
-            RECOMENDACIONES_DATA.forEach((item) => {
-              if (!merged.includes(item)) merged.push(item);
-            });
-            const finalList = merged.slice(0, 15);
-            setRecomendaciones(finalList);
-            localStorage.setItem("vanilla_recomendaciones_data", JSON.stringify(finalList));
           }
         }
       }).catch(() => {});
@@ -667,18 +649,18 @@ export default function ActividadesPage() {
                 </span>
               </div>
 
-              {/* Lista de Recomendaciones con Punto Distintivo */}
-              <div className="p-4 bg-gradient-to-b from-[#FAF7F2] to-white grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 flex-1">
+              {/* Lista de Recomendaciones con Punto Distintivo y Reacomodo Automático */}
+              <div className="p-4 bg-gradient-to-b from-[#FAF7F2] to-white grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 flex-1 auto-rows-fr">
                 {recomendaciones.map((item, idx) => (
                   <div
                     key={idx}
-                    className="flex items-start space-x-2.5 p-2 rounded-lg bg-white border border-vanilla-200/90 shadow-[0_1px_2px_rgba(0,0,0,0.03)] hover:border-forest-600 transition-all"
+                    className="flex items-start space-x-2.5 p-2.5 rounded-xl bg-white border border-vanilla-200/90 shadow-[0_1px_2px_rgba(0,0,0,0.03)] hover:border-forest-600 hover:shadow-sm transition-all"
                   >
                     {/* Punto distintivo */}
                     <div className="w-4 h-4 rounded-full border border-forest-800 bg-vanilla-400 flex items-center justify-center flex-shrink-0 mt-0.5 shadow-xs">
                       <div className="w-1.5 h-1.5 rounded-full bg-forest-950" />
                     </div>
-                    <span className="text-xs font-semibold text-forest-950 leading-snug">
+                    <span className="text-xs font-semibold text-forest-950 leading-snug break-words flex-1">
                       {item}
                     </span>
                   </div>

@@ -118,25 +118,20 @@ export default function AdminPage() {
       if (savedRecs) {
         try {
           const parsedRecs = JSON.parse(savedRecs);
-          if (Array.isArray(parsedRecs) && parsedRecs.length >= 15) {
+          if (Array.isArray(parsedRecs) && parsedRecs.length > 0) {
+            // Respetar exactamente la cantidad del usuario (incluso si son menos de 15)
             setRecomendaciones(parsedRecs);
             activeRecsList = parsedRecs;
-          } else if (Array.isArray(parsedRecs) && parsedRecs.length > 0) {
-            // Completar con el estándar oficial de 15 directrices
-            const merged = [...parsedRecs];
-            RECOMENDACIONES_DATA.forEach((item) => {
-              if (!merged.includes(item)) merged.push(item);
-            });
-            const finalList = merged.slice(0, 15);
-            setRecomendaciones(finalList);
-            activeRecsList = finalList;
-            localStorage.setItem("vanilla_recomendaciones_data", JSON.stringify(finalList));
           } else {
             setRecomendaciones(RECOMENDACIONES_DATA);
             activeRecsList = RECOMENDACIONES_DATA;
             localStorage.setItem("vanilla_recomendaciones_data", JSON.stringify(RECOMENDACIONES_DATA));
           }
         } catch {}
+      } else {
+        setRecomendaciones(RECOMENDACIONES_DATA);
+        activeRecsList = RECOMENDACIONES_DATA;
+        localStorage.setItem("vanilla_recomendaciones_data", JSON.stringify(RECOMENDACIONES_DATA));
       }
 
       const savedCustom = localStorage.getItem("vanilla_recomendaciones_custom_ids");
@@ -162,17 +157,10 @@ export default function AdminPage() {
           data.forEach((row) => {
             const rowData = row.data as any;
             if (row.report_id === "CONFIG_RECOMENDACIONES" && rowData?.recomendaciones) {
-              if (Array.isArray(rowData.recomendaciones) && rowData.recomendaciones.length >= 15) {
+              if (Array.isArray(rowData.recomendaciones) && rowData.recomendaciones.length > 0) {
                 setRecomendaciones(rowData.recomendaciones);
                 localStorage.setItem("vanilla_recomendaciones_data", JSON.stringify(rowData.recomendaciones));
-              } else if (Array.isArray(rowData.recomendaciones) && rowData.recomendaciones.length > 0) {
-                const merged = [...rowData.recomendaciones];
-                RECOMENDACIONES_DATA.forEach((item) => {
-                  if (!merged.includes(item)) merged.push(item);
-                });
-                const finalList = merged.slice(0, 15);
-                setRecomendaciones(finalList);
-                localStorage.setItem("vanilla_recomendaciones_data", JSON.stringify(finalList));
+                activeRecsList = rowData.recomendaciones;
               }
             } else if (row.report_id?.startsWith("ACT-") || rowData?.tipo === "protocolo_actividades") {
               dbProtocols.push(rowData as ActivityProtocol);
@@ -1251,33 +1239,49 @@ export default function AdminPage() {
                   </span>
                 </div>
 
-                {/* Lista de Items con edición individual */}
-                <div className="p-4 bg-gradient-to-b from-[#FAF7F2] to-white grid grid-cols-1 md:grid-cols-2 gap-3">
+                {/* Lista de Items con edición individual y reacomodo automático */}
+                <div className="p-4 bg-gradient-to-b from-[#FAF7F2] to-white grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5 auto-rows-fr">
                   {recomendaciones.map((item, idx) => {
                     const isEditing = editingIndex === idx;
 
                     return (
                       <div
                         key={idx}
-                        className={`p-3 rounded-xl border transition-all ${
+                        className={`p-3.5 rounded-xl border transition-all flex flex-col justify-between ${
                           isEditing
-                            ? "bg-amber-50/70 border-amber-400 ring-2 ring-amber-300 shadow-md"
+                            ? "bg-amber-50/80 border-amber-400 ring-2 ring-amber-300 shadow-md"
                             : "bg-white border-vanilla-300 hover:border-forest-600 hover:shadow-sm"
                         }`}
                       >
                         {isEditing ? (
-                          <div className="space-y-2">
-                            <div className="flex items-center justify-between text-[11px] font-bold text-forest-900">
-                              <span>Editando Directriz #{idx + 1}:</span>
+                          <div className="space-y-2.5 flex flex-col justify-between h-full">
+                            <div className="space-y-1.5">
+                              <div className="flex items-center justify-between text-[11px] font-bold text-forest-900">
+                                <span className="flex items-center space-x-1.5">
+                                  <Edit3 className="w-3.5 h-3.5 text-forest-700" />
+                                  <span>Editando Casillero #{idx + 1}:</span>
+                                </span>
+                                <span className="text-[10px] text-forest-500 font-normal">
+                                  Enter para guardar
+                                </span>
+                              </div>
+                              <textarea
+                                rows={3}
+                                value={editingText}
+                                onChange={(e) => setEditingText(e.target.value)}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter" && !e.shiftKey) {
+                                    e.preventDefault();
+                                    handleUpdateRecomendacion(idx, editingText);
+                                  } else if (e.key === "Escape") {
+                                    setEditingIndex(null);
+                                  }
+                                }}
+                                className="w-full text-xs p-2.5 bg-white rounded-lg border-2 border-forest-700 focus:outline-none focus:ring-2 focus:ring-forest-900 font-medium text-forest-950 shadow-inner"
+                                autoFocus
+                              />
                             </div>
-                            <textarea
-                              rows={2}
-                              value={editingText}
-                              onChange={(e) => setEditingText(e.target.value)}
-                              className="w-full text-xs p-2.5 bg-white rounded-lg border border-vanilla-400 focus:outline-none focus:ring-2 focus:ring-forest-600 font-medium"
-                              autoFocus
-                            />
-                            <div className="flex items-center justify-end space-x-2">
+                            <div className="flex items-center justify-end space-x-2 pt-1 border-t border-vanilla-300">
                               <button
                                 type="button"
                                 onClick={() => setEditingIndex(null)}
@@ -1288,74 +1292,90 @@ export default function AdminPage() {
                               <button
                                 type="button"
                                 onClick={() => handleUpdateRecomendacion(idx, editingText)}
-                                className="px-3 py-1 rounded-md bg-forest-900 hover:bg-forest-800 text-white text-xs font-bold shadow flex items-center space-x-1"
+                                disabled={!editingText.trim() || isSavingRecs}
+                                className="px-3 py-1 rounded-md bg-forest-900 hover:bg-forest-800 text-white text-xs font-bold shadow flex items-center space-x-1 disabled:opacity-50"
                               >
                                 <Check className="w-3.5 h-3.5 text-vanilla-400" />
-                                <span>Guardar</span>
+                                <span>{isSavingRecs ? "Guardando..." : "Guardar"}</span>
                               </button>
                             </div>
                           </div>
                         ) : (
-                          <div className="flex items-start justify-between gap-2.5">
-                            <div className="flex items-start space-x-2.5 flex-1 min-w-0">
-                              {/* Punto distintivo */}
-                              <div className="w-4 h-4 rounded-full border border-forest-800 bg-vanilla-400 flex items-center justify-center flex-shrink-0 mt-0.5 shadow-xs">
+                          <div className="flex flex-col justify-between h-full gap-2.5">
+                            {/* Texto del casillero con acceso directo a edición al hacer clic */}
+                            <div
+                              onClick={() => {
+                                setEditingIndex(idx);
+                                setEditingText(item);
+                              }}
+                              className="flex items-start space-x-2.5 flex-1 min-w-0 cursor-pointer group"
+                              title="Haz clic para editar este casillero directamente"
+                            >
+                              <div className="w-4 h-4 rounded-full border border-forest-800 bg-vanilla-400 flex items-center justify-center flex-shrink-0 mt-0.5 shadow-xs group-hover:scale-110 transition-transform">
                                 <div className="w-1.5 h-1.5 rounded-full bg-forest-950" />
                               </div>
                               <div className="flex-1 min-w-0">
-                                <span className="text-xs font-semibold text-forest-950 leading-snug break-words">
-                                  {item}
-                                </span>
-                                {customCreated.includes(item) && (
-                                  <span className="ml-2 inline-block text-[9px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 border border-amber-300">
-                                    Personalizada
+                                <div className="flex items-center space-x-1.5 mb-1">
+                                  <span className="text-[10px] font-bold uppercase tracking-wider text-forest-700 bg-vanilla-100 px-1.5 py-0.2 rounded border border-vanilla-300">
+                                    Casillero #{idx + 1}
                                   </span>
-                                )}
+                                  {customCreated.includes(item) && (
+                                    <span className="text-[9px] uppercase font-bold tracking-wider px-1.5 py-0.2 rounded bg-amber-100 text-amber-800 border border-amber-300">
+                                      Personalizada
+                                    </span>
+                                  )}
+                                </div>
+                                <p className="text-xs font-semibold text-forest-950 leading-snug break-words group-hover:text-forest-700 transition-colors">
+                                  {item}
+                                </p>
                               </div>
                             </div>
 
-                            {/* Controles de Acción (Subir, Bajar, Editar, Eliminar) */}
-                            <div className="flex items-center space-x-1 flex-shrink-0 bg-vanilla-100/70 p-1 rounded-lg border border-vanilla-200">
-                              <button
-                                type="button"
-                                onClick={() => handleMoveRecomendacion(idx, "up")}
-                                disabled={idx === 0}
-                                className="p-1 text-forest-600 hover:text-forest-950 hover:bg-white rounded disabled:opacity-30 disabled:cursor-not-allowed"
-                                title="Mover arriba"
-                              >
-                                <MoveUp className="w-3.5 h-3.5" />
-                              </button>
-
-                              <button
-                                type="button"
-                                onClick={() => handleMoveRecomendacion(idx, "down")}
-                                disabled={idx === recomendaciones.length - 1}
-                                className="p-1 text-forest-600 hover:text-forest-950 hover:bg-white rounded disabled:opacity-30 disabled:cursor-not-allowed"
-                                title="Mover abajo"
-                              >
-                                <MoveDown className="w-3.5 h-3.5" />
-                              </button>
-
+                            {/* Barra inferior de acciones del casillero: Botón Editar y Botones Reordenar / Eliminar */}
+                            <div className="flex items-center justify-between pt-2 border-t border-vanilla-200/80">
                               <button
                                 type="button"
                                 onClick={() => {
                                   setEditingIndex(idx);
                                   setEditingText(item);
                                 }}
-                                className="p-1 text-forest-800 hover:text-vanilla-800 hover:bg-vanilla-200 rounded font-semibold"
-                                title="Editar texto de esta recomendación"
+                                className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-md bg-vanilla-200/90 hover:bg-forest-900 text-forest-900 hover:text-vanilla-200 text-xs font-bold transition-all shadow-xs"
+                                title="Editar texto de este casillero"
                               >
-                                <Edit3 className="w-3.5 h-3.5 text-forest-700" />
+                                <Edit3 className="w-3 h-3 text-forest-700 group-hover:text-vanilla-300" />
+                                <span>Editar</span>
                               </button>
 
-                              <button
-                                type="button"
-                                onClick={() => handleDeleteRecomendacion(idx)}
-                                className="p-1 text-red-500 hover:text-red-700 hover:bg-red-50 rounded"
-                                title="Eliminar recomendación"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
+                              <div className="flex items-center space-x-1 bg-vanilla-100/70 p-0.5 rounded-lg border border-vanilla-200">
+                                <button
+                                  type="button"
+                                  onClick={() => handleMoveRecomendacion(idx, "up")}
+                                  disabled={idx === 0}
+                                  className="p-1 text-forest-600 hover:text-forest-950 hover:bg-white rounded disabled:opacity-30 disabled:cursor-not-allowed"
+                                  title="Mover arriba"
+                                >
+                                  <MoveUp className="w-3.5 h-3.5" />
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={() => handleMoveRecomendacion(idx, "down")}
+                                  disabled={idx === recomendaciones.length - 1}
+                                  className="p-1 text-forest-600 hover:text-forest-950 hover:bg-white rounded disabled:opacity-30 disabled:cursor-not-allowed"
+                                  title="Mover abajo"
+                                >
+                                  <MoveDown className="w-3.5 h-3.5" />
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteRecomendacion(idx)}
+                                  className="p-1 text-red-500 hover:text-red-700 hover:bg-red-50 rounded"
+                                  title="Eliminar este casillero"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
                             </div>
                           </div>
                         )}
