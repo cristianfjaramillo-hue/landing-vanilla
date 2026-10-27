@@ -128,6 +128,52 @@ export default function NuevoReportePage() {
     }
   };
 
+  // Helper para seleccionar automáticamente todo el texto al tocar/cliquear un campo (ideal en celulares)
+  const handleFocusSelect = (e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const target = e.currentTarget;
+    target.select();
+    setTimeout(() => {
+      try {
+        target.select();
+      } catch {}
+    }, 50);
+  };
+
+  // Helper específico para Lote/Área: si tiene el texto predeterminado, se borra automáticamente
+  const handleLoteFocus = (e: React.FocusEvent<HTMLInputElement>) => {
+    if (
+      lote.trim() === "Lote 1 - Chakra Waorani Nemompari" ||
+      lote.trim() === "Lote 1 - Chakra Waorani"
+    ) {
+      setLote("");
+    } else {
+      handleFocusSelect(e);
+    }
+  };
+
+  // Reiniciar formulario completo borrando todo dato ingresado
+  const resetForm = () => {
+    const today = new Date().toISOString().split("T")[0];
+    setFechaDesde(today);
+    setFechaHasta(today);
+    setLote("Lote 1 - Chakra Waorani Nemompari");
+    setResponsable("");
+    setFechaReporte(today);
+    setTempMin(22);
+    setTempMax(30);
+    setHumedad(85);
+    setClima("Soleado");
+    setClimaOtro("");
+    setActividades(DEFAULT_ACTIVITIES);
+    setHerramientas(DEFAULT_TOOLS);
+    setOtraHerramienta("");
+    setInsumos([{ id: "1", insumo: "", dosis: "", metodo: "", areaLote: "" }]);
+    setObservaciones("");
+    setFoto1(null);
+    setFoto2(null);
+    setFoto3(null);
+  };
+
   // Compilar el objeto de reporte
   const buildReportObject = (): DailyReport => {
     return {
@@ -135,8 +181,8 @@ export default function NuevoReportePage() {
       created_at: new Date().toISOString(),
       fechaDesde,
       fechaHasta,
-      lote,
-      responsable: responsable || "Técnico ITEC / Guardián Waorani",
+      lote: lote.trim() || "Lote 1 - Chakra Waorani Nemompari",
+      responsable: responsable.trim() || "Técnico ITEC / Guardián Waorani",
       fechaReporte,
       tempMin: Number(tempMin),
       tempMax: Number(tempMax),
@@ -155,7 +201,7 @@ export default function NuevoReportePage() {
     };
   };
 
-  // Guardar Informe y Enviar Notificación por Correo Electrónico con PDF Adjunto
+  // Guardar Informe, Descargar Archivo Oficial y Enviar Notificación por Correo
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (saving) return;
@@ -191,9 +237,9 @@ export default function NuevoReportePage() {
         console.warn("Supabase notice:", e);
       }
 
-      // 3. Generar el PDF oficial en Base64 y despachar correo electrónico automático
+      // 3. Generar y guardar/descargar el archivo PDF automáticamente en el dispositivo y despachar correo electrónico
       try {
-        const { base64, filename } = await generateDailyReportPDF(newReport, false);
+        const { base64, filename } = await generateDailyReportPDF(newReport, true);
 
         await fetch("/api/enviar-email", {
           method: "POST",
@@ -208,10 +254,13 @@ export default function NuevoReportePage() {
         console.warn("Aviso en despacho de correo:", emailErr);
       }
 
+      // 4. Reiniciar automáticamente el formulario borrando los datos ingresados para dejarlo listo para el próximo informe
+      resetForm();
       setSuccessReport(newReport);
     } catch (err) {
       console.error("Error al guardar reporte:", err);
       alert("Se guardó en memoria local del dispositivo.");
+      resetForm();
       setSuccessReport(newReport);
     } finally {
       setSaving(false);
@@ -245,7 +294,7 @@ export default function NuevoReportePage() {
               <CheckCircle2 className="w-8 h-8 text-vanilla-400 flex-shrink-0 mt-0.5" />
               <div className="flex-1">
                 <h3 className="text-xl font-serif font-bold text-vanilla-300">
-                  ¡Informe Diario Registrado y Notificado por Correo!
+                  ¡Informe Diario Guardado, Descargado y Enviado!
                 </h3>
                 <p className="text-sm text-forest-200 mt-1">
                   Código: <span className="font-mono font-bold text-white">{successReport.id}</span> para el{" "}
@@ -254,7 +303,7 @@ export default function NuevoReportePage() {
                 <div className="mt-2.5 flex items-center space-x-2 text-xs text-vanilla-300 bg-forest-950/70 py-1.5 px-3 rounded-lg border border-forest-800">
                   <Mail className="w-4 h-4 text-vanilla-400 flex-shrink-0" />
                   <span>
-                    Se ha enviado la notificación automática por correo con el <strong>PDF adjunto</strong> y el enlace directo al panel.
+                    El documento PDF se descargó a tu dispositivo y fue notificado por correo. El formulario se ha reiniciado y está listo para ingresar un nuevo informe.
                   </span>
                 </div>
                 <div className="mt-5 flex flex-wrap gap-3">
@@ -364,7 +413,8 @@ export default function NuevoReportePage() {
                     type="text"
                     value={lote}
                     onChange={(e) => setLote(e.target.value)}
-                    placeholder="Ej. Lote 1 - Chakra Waorani"
+                    onFocus={handleLoteFocus}
+                    placeholder="Lote 1 - Chakra Waorani Nemompari"
                     className="w-full text-sm px-3 py-2 bg-white rounded-lg border border-vanilla-300 focus:outline-none focus:ring-2 focus:ring-forest-600"
                     required
                   />
@@ -378,6 +428,7 @@ export default function NuevoReportePage() {
                     type="text"
                     value={responsable}
                     onChange={(e) => setResponsable(e.target.value)}
+                    onFocus={handleFocusSelect}
                     placeholder="Nombre del técnico o líder"
                     className="w-full text-sm px-3 py-2 bg-white rounded-lg border border-vanilla-300 focus:outline-none focus:ring-2 focus:ring-forest-600"
                     required
@@ -417,6 +468,7 @@ export default function NuevoReportePage() {
                       type="number"
                       value={tempMin}
                       onChange={(e) => setTempMin(Number(e.target.value))}
+                      onFocus={handleFocusSelect}
                       placeholder="Mín"
                       className="w-1/2 text-sm px-2.5 py-2 bg-white rounded-lg border border-vanilla-300 text-center focus:outline-none focus:ring-2 focus:ring-forest-600"
                     />
@@ -425,6 +477,7 @@ export default function NuevoReportePage() {
                       type="number"
                       value={tempMax}
                       onChange={(e) => setTempMax(Number(e.target.value))}
+                      onFocus={handleFocusSelect}
                       placeholder="Máx"
                       className="w-1/2 text-sm px-2.5 py-2 bg-white rounded-lg border border-vanilla-300 text-center focus:outline-none focus:ring-2 focus:ring-forest-600"
                     />
@@ -442,6 +495,7 @@ export default function NuevoReportePage() {
                       max="100"
                       value={humedad}
                       onChange={(e) => setHumedad(Number(e.target.value))}
+                      onFocus={handleFocusSelect}
                       className="w-full text-sm px-3 py-2 bg-white rounded-lg border border-vanilla-300 focus:outline-none focus:ring-2 focus:ring-forest-600"
                     />
                     <span className="absolute right-3 top-2.5 text-xs text-forest-400 font-semibold">%</span>
@@ -483,6 +537,7 @@ export default function NuevoReportePage() {
                     type="text"
                     value={climaOtro}
                     onChange={(e) => setClimaOtro(e.target.value)}
+                    onFocus={handleFocusSelect}
                     placeholder="Especifique las condiciones climáticas particulares..."
                     className="w-full text-xs px-3 py-2 bg-white rounded-lg border border-vanilla-300"
                   />
@@ -545,6 +600,7 @@ export default function NuevoReportePage() {
                             type="text"
                             value={act.descripcion}
                             onChange={(e) => updateActividadDesc(act.id, e.target.value)}
+                            onFocus={handleFocusSelect}
                             placeholder="Detalle..."
                             className="w-full px-1 sm:px-2 py-1 bg-transparent border-b border-dashed border-vanilla-300 focus:border-forest-600 focus:outline-none text-[11px] sm:text-xs"
                           />
@@ -554,6 +610,7 @@ export default function NuevoReportePage() {
                             type="text"
                             value={act.areaLote}
                             onChange={(e) => updateActividadArea(act.id, e.target.value)}
+                            onFocus={handleFocusSelect}
                             placeholder="Área"
                             className="w-full px-1 sm:px-2 py-1 bg-transparent border-b border-dashed border-vanilla-300 focus:border-forest-600 focus:outline-none text-[11px] sm:text-xs"
                           />
@@ -617,6 +674,7 @@ export default function NuevoReportePage() {
                     type="text"
                     value={otraHerramienta}
                     onChange={(e) => setOtraHerramienta(e.target.value)}
+                    onFocus={handleFocusSelect}
                     placeholder="Especifique qué otra herramienta fue utilizada..."
                     className="w-full text-xs px-3 py-2 bg-white rounded-lg border border-vanilla-300"
                   />
@@ -651,6 +709,7 @@ export default function NuevoReportePage() {
                       placeholder="Insumo (ej. Biol, Compost)"
                       value={row.insumo}
                       onChange={(e) => updateInsumo(row.id, "insumo", e.target.value)}
+                      onFocus={handleFocusSelect}
                       className="text-xs px-2.5 py-1.5 bg-white rounded border border-vanilla-300 focus:outline-none"
                     />
                     <input
@@ -658,6 +717,7 @@ export default function NuevoReportePage() {
                       placeholder="Dosis (ej. 2L / bomba)"
                       value={row.dosis}
                       onChange={(e) => updateInsumo(row.id, "dosis", e.target.value)}
+                      onFocus={handleFocusSelect}
                       className="text-xs px-2.5 py-1.5 bg-white rounded border border-vanilla-300 focus:outline-none"
                     />
                     <input
@@ -665,6 +725,7 @@ export default function NuevoReportePage() {
                       placeholder="Método (Foliar, radicular)"
                       value={row.metodo}
                       onChange={(e) => updateInsumo(row.id, "metodo", e.target.value)}
+                      onFocus={handleFocusSelect}
                       className="text-xs px-2.5 py-1.5 bg-white rounded border border-vanilla-300 focus:outline-none"
                     />
                     <div className="flex items-center space-x-2">
@@ -673,6 +734,7 @@ export default function NuevoReportePage() {
                         placeholder="Área / Lote"
                         value={row.areaLote}
                         onChange={(e) => updateInsumo(row.id, "areaLote", e.target.value)}
+                        onFocus={handleFocusSelect}
                         className="text-xs px-2.5 py-1.5 bg-white rounded border border-vanilla-300 focus:outline-none flex-1"
                       />
                       {insumos.length > 1 && (
@@ -700,6 +762,7 @@ export default function NuevoReportePage() {
                 rows={3}
                 value={observaciones}
                 onChange={(e) => setObservaciones(e.target.value)}
+                onFocus={handleFocusSelect}
                 placeholder="Escriba aquí notas relevantes: presencia de polinizadores, floración, lluvias intensas, acuerdos con la comunidad Waorani..."
                 className="w-full text-xs p-3 bg-white rounded-xl border border-vanilla-300 focus:outline-none focus:ring-2 focus:ring-forest-600"
               />
