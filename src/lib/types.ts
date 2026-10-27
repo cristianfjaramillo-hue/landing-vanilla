@@ -60,7 +60,7 @@ export interface DailyReport {
   herramientas: ToolItem[];
   insumos: AppliedInput[];
   // Estado
-  estadoCultivo: CropGeneralStatus;
+  estadoCultivo?: CropGeneralStatus;
   // Observaciones & Fotos
   observaciones: string;
   foto1Url?: string;
