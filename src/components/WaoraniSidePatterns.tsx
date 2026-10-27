@@ -15,18 +15,18 @@ interface WaoraniSidePatternsProps {
 export default function WaoraniSidePatterns({ className = "" }: WaoraniSidePatternsProps) {
   return (
     <>
-      {/* Columna Lateral Izquierda (50px más hacia adentro del filo) */}
+      {/* Columna Lateral Izquierda (Oculto en celular, visible desde tablet/escritorio) */}
       <div
-        className={`absolute left-3 sm:left-[65px] md:left-[75px] lg:left-[85px] xl:left-[100px] top-0 bottom-0 w-6 sm:w-8 md:w-10 lg:w-11 pointer-events-none select-none z-0 overflow-hidden flex flex-col justify-center items-center ${className}`}
+        className={`hidden md:flex absolute md:left-[75px] lg:left-[85px] xl:left-[100px] top-0 bottom-0 w-8 md:w-10 lg:w-11 pointer-events-none select-none z-0 overflow-hidden flex-col justify-center items-center ${className}`}
         aria-hidden="true"
         title="Patrón Ancestral Waorani - Lateral Izquierdo"
       >
         <div className="relative w-full h-full waorani-strip" />
       </div>
 
-      {/* Columna Lateral Derecha (Efecto Espejo, 50px más hacia adentro del filo) */}
+      {/* Columna Lateral Derecha (Efecto Espejo, oculto en celular, visible desde tablet/escritorio) */}
       <div
-        className={`absolute right-3 sm:right-[65px] md:right-[75px] lg:right-[85px] xl:right-[100px] top-0 bottom-0 w-6 sm:w-8 md:w-10 lg:w-11 pointer-events-none select-none z-0 overflow-hidden flex flex-col justify-center items-center scale-x-[-1] ${className}`}
+        className={`hidden md:flex absolute md:right-[75px] lg:right-[85px] xl:right-[100px] top-0 bottom-0 w-8 md:w-10 lg:w-11 pointer-events-none select-none z-0 overflow-hidden flex-col justify-center items-center scale-x-[-1] ${className}`}
         aria-hidden="true"
         title="Patrón Ancestral Waorani - Lateral Derecho"
       >
