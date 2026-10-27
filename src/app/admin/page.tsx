@@ -34,6 +34,12 @@ import {
   CheckCircle2,
   Printer,
   Warehouse,
+  Edit3,
+  Save,
+  MoveUp,
+  MoveDown,
+  RotateCcw,
+  Check,
 } from "lucide-react";
 import { INITIAL_MOCK_REPORTS, DEFAULT_ACTIVITIES, DEFAULT_TOOLS } from "@/lib/constants";
 import { DailyReport, ActivityItem, ToolItem, ActivityProtocol } from "@/lib/types";
@@ -64,14 +70,22 @@ export default function AdminPage() {
   // Modal de Vista Previa Completa del Informe
   const [previewReport, setPreviewReport] = useState<DailyReport | null>(null);
 
-  // Pestañas (Repositorio vs Actividades vs Configuración de Formulario)
-  const [activeTab, setActiveTab] = useState<"repositorio" | "actividades" | "configuracion">("repositorio");
+  // Pestañas (Repositorio vs Actividades vs Configuración vs Recomendaciones)
+  const [activeTab, setActiveTab] = useState<"repositorio" | "actividades" | "configuracion" | "recomendaciones">("repositorio");
 
   // Configuración dinámica de actividades y herramientas
   const [customActivities, setCustomActivities] = useState<ActivityItem[]>(DEFAULT_ACTIVITIES);
   const [customTools, setCustomTools] = useState<ToolItem[]>(DEFAULT_TOOLS);
   const [newActivityName, setNewActivityName] = useState("");
   const [newToolName, setNewToolName] = useState("");
+
+  // Gestión de Recomendaciones Técnicas de Invernadero
+  const [recomendaciones, setRecomendaciones] = useState<string[]>(RECOMENDACIONES_DATA);
+  const [newRecomendacion, setNewRecomendacion] = useState("");
+  const [editingIndex, setEditingIndex] = useState<number | null>(null);
+  const [editingText, setEditingText] = useState("");
+  const [isSavingRecs, setIsSavingRecs] = useState(false);
+  const [recsSavedSuccess, setRecsSavedSuccess] = useState(false);
 
   // Cargar datos
   const loadReports = async () => {
@@ -96,7 +110,18 @@ export default function AdminPage() {
       );
       setProtocols(localProtocols);
 
-      // 3. Intentar cargar desde Supabase si existen
+      // 3. Cargar Recomendaciones Técnicas desde localStorage
+      const savedRecs = localStorage.getItem("vanilla_recomendaciones_data");
+      if (savedRecs) {
+        try {
+          const parsedRecs = JSON.parse(savedRecs);
+          if (Array.isArray(parsedRecs) && parsedRecs.length > 0) {
+            setRecomendaciones(parsedRecs);
+          }
+        } catch {}
+      }
+
+      // 4. Intentar cargar desde Supabase si existen
       try {
         const { data, error } = await supabase.from("reportes_diarios").select("*").order("created_at", { ascending: false });
         if (data && data.length > 0) {
@@ -105,7 +130,12 @@ export default function AdminPage() {
 
           data.forEach((row) => {
             const rowData = row.data as any;
-            if (row.report_id?.startsWith("ACT-") || rowData?.tipo === "protocolo_actividades") {
+            if (row.report_id === "CONFIG_RECOMENDACIONES" && rowData?.recomendaciones) {
+              if (Array.isArray(rowData.recomendaciones) && rowData.recomendaciones.length > 0) {
+                setRecomendaciones(rowData.recomendaciones);
+                localStorage.setItem("vanilla_recomendaciones_data", JSON.stringify(rowData.recomendaciones));
+              }
+            } else if (row.report_id?.startsWith("ACT-") || rowData?.tipo === "protocolo_actividades") {
               dbProtocols.push(rowData as ActivityProtocol);
             } else {
               dbReports.push(rowData as DailyReport);
@@ -138,12 +168,103 @@ export default function AdminPage() {
     }
   };
 
+  // Guardar y sincronizar recomendaciones técnicas
+  const handleSaveRecomendaciones = async (updatedList: string[]) => {
+    setIsSavingRecs(true);
+    try {
+      localStorage.setItem("vanilla_recomendaciones_data", JSON.stringify(updatedList));
+
+      try {
+        await supabase.from("reportes_diarios").upsert([
+          {
+            report_id: "CONFIG_RECOMENDACIONES",
+            lote: "Configuración General",
+            responsable: "Administrador ITEC",
+            fecha_reporte: new Date().toISOString().split("T")[0],
+            data: {
+              tipo: "configuracion_recomendaciones",
+              recomendaciones: updatedList,
+              updated_at: new Date().toISOString(),
+            },
+          },
+        ]);
+      } catch (dbErr) {
+        console.warn("Aviso sincronizando recomendaciones:", dbErr);
+      }
+
+      setRecsSavedSuccess(true);
+      setTimeout(() => setRecsSavedSuccess(false), 3500);
+    } catch (err) {
+      console.error("Error guardando recomendaciones:", err);
+      alert("Error al guardar recomendaciones en almacenamiento local.");
+    } finally {
+      setIsSavingRecs(false);
+    }
+  };
+
+  const handleAddRecomendacion = async () => {
+    const trimmed = newRecomendacion.trim();
+    if (!trimmed) return;
+    const updated = [...recomendaciones, trimmed];
+    setRecomendaciones(updated);
+    setNewRecomendacion("");
+    await handleSaveRecomendaciones(updated);
+  };
+
+  const handleUpdateRecomendacion = async (index: number, newText: string) => {
+    const trimmed = newText.trim();
+    if (!trimmed) return;
+    const updated = [...recomendaciones];
+    updated[index] = trimmed;
+    setRecomendaciones(updated);
+    setEditingIndex(null);
+    await handleSaveRecomendaciones(updated);
+  };
+
+  const handleDeleteRecomendacion = async (index: number) => {
+    if (confirm(`¿Eliminar la directriz: "${recomendaciones[index]}"?`)) {
+      const updated = recomendaciones.filter((_, i) => i !== index);
+      setRecomendaciones(updated);
+      await handleSaveRecomendaciones(updated);
+    }
+  };
+
+  const handleMoveRecomendacion = async (index: number, direction: "up" | "down") => {
+    const targetIndex = direction === "up" ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= recomendaciones.length) return;
+    const updated = [...recomendaciones];
+    const [moved] = updated.splice(index, 1);
+    updated.splice(targetIndex, 0, moved);
+    setRecomendaciones(updated);
+    await handleSaveRecomendaciones(updated);
+  };
+
+  const handleResetRecomendaciones = async () => {
+    if (confirm("¿Restablecer las 9 directrices originales de ITEC Ecuador?")) {
+      setRecomendaciones(RECOMENDACIONES_DATA);
+      await handleSaveRecomendaciones(RECOMENDACIONES_DATA);
+    }
+  };
+
   useEffect(() => {
     // Verificar si ya inició sesión en esta sesión
     const savedAuth = sessionStorage.getItem("vanilla_admin_auth");
     if (savedAuth === "true") {
       setIsAuthenticated(true);
       loadReports();
+
+      // Abrir pestaña directamente si viene por URL (ej. ?tab=recomendaciones)
+      if (typeof window !== "undefined") {
+        const params = new URLSearchParams(window.location.search);
+        const tab = params.get("tab");
+        if (tab === "recomendaciones") {
+          setActiveTab("recomendaciones");
+        } else if (tab === "actividades") {
+          setActiveTab("actividades");
+        } else if (tab === "configuracion") {
+          setActiveTab("configuracion");
+        }
+      }
     }
   }, []);
 
@@ -376,9 +497,21 @@ export default function AdminPage() {
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
+            <button
+              onClick={() => setActiveTab("recomendaciones")}
+              className={`inline-flex items-center space-x-1.5 px-3.5 py-2 rounded-lg text-xs font-bold transition-all shadow ${
+                activeTab === "recomendaciones"
+                  ? "bg-vanilla-400 text-forest-950 ring-2 ring-vanilla-200"
+                  : "bg-vanilla-500 hover:bg-vanilla-600 text-forest-950"
+              }`}
+              title="Editar directrices y recomendaciones técnicas del listado de actividades"
+            >
+              <Edit3 className="w-3.5 h-3.5 text-forest-950" />
+              <span>Editar Recomendaciones</span>
+            </button>
             <Link
               href="/reportes/nuevo"
-              className="inline-flex items-center space-x-1.5 px-3.5 py-2 rounded-lg bg-vanilla-500 hover:bg-vanilla-600 text-forest-950 text-xs font-bold shadow transition-colors"
+              className="inline-flex items-center space-x-1.5 px-3.5 py-2 rounded-lg bg-forest-800 hover:bg-forest-700 text-vanilla-200 text-xs font-semibold border border-forest-600 transition-colors"
             >
               <Plus className="w-3.5 h-3.5" />
               <span>Generar Informe Diario</span>
@@ -414,7 +547,7 @@ export default function AdminPage() {
         </div>
 
         {/* Pestañas de Navegación */}
-        <div className="flex space-x-2 border-b border-vanilla-300 pb-2">
+        <div className="flex flex-wrap gap-2 border-b border-vanilla-300 pb-2">
           <button
             onClick={() => setActiveTab("repositorio")}
             className={`px-4 py-2 rounded-lg text-xs font-bold flex items-center space-x-2 transition-all ${
@@ -437,6 +570,18 @@ export default function AdminPage() {
           >
             <ClipboardList className="w-4 h-4 text-vanilla-400" />
             <span>Listados de Actividades ({protocols.length})</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab("recomendaciones")}
+            className={`px-4 py-2 rounded-lg text-xs font-bold flex items-center space-x-2 transition-all ${
+              activeTab === "recomendaciones"
+                ? "bg-forest-900 text-white shadow-sm"
+                : "bg-white text-forest-800 border border-vanilla-200 hover:bg-vanilla-100"
+            }`}
+          >
+            <Edit3 className="w-4 h-4 text-vanilla-400" />
+            <span>Recomendaciones ({recomendaciones.length})</span>
           </button>
 
           <button
@@ -933,6 +1078,247 @@ export default function AdminPage() {
             {/* Mensaje de Persistencia */}
             <div className="p-4 bg-forest-50 rounded-xl border border-forest-200 text-xs text-forest-800">
               💡 <strong>Nota del Sistema:</strong> Cualquier cambio en los catálogos se refleja de inmediato en la interfaz del formulario de campo en territorio.
+            </div>
+          </div>
+        )}
+
+        {/* PESTAÑA: GESTIÓN Y EDICIÓN DE RECOMENDACIONES TÉCNICAS */}
+        {activeTab === "recomendaciones" && (
+          <div className="bg-white rounded-2xl p-6 sm:p-8 border border-vanilla-200 shadow-sm space-y-8 animate-in fade-in duration-200">
+            {/* Header del Editor */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-vanilla-200 pb-5">
+              <div>
+                <div className="flex items-center space-x-2">
+                  <div className="w-8 h-8 rounded-lg bg-forest-900 text-vanilla-400 flex items-center justify-center font-bold">
+                    ★
+                  </div>
+                  <h2 className="text-xl font-serif font-bold text-forest-900">
+                    Editor de Recomendaciones Técnicas
+                  </h2>
+                </div>
+                <p className="text-xs text-forest-600 mt-1">
+                  Administra las directrices agronómicas que se muestran en el cuadro <strong>"RECOMENDACIONES"</strong> del Listado de Actividades de Invernadero. Cualquier cambio se actualiza inmediatamente en el sistema.
+                </p>
+              </div>
+
+              <div className="flex items-center space-x-2 flex-shrink-0">
+                <Link
+                  href="/actividades"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center space-x-1.5 px-3 py-2 rounded-lg bg-forest-800 hover:bg-forest-700 text-white text-xs font-semibold transition-colors"
+                >
+                  <Eye className="w-3.5 h-3.5 text-vanilla-400" />
+                  <span>Ver en Listado de Actividades</span>
+                  <ExternalLink className="w-3 h-3 text-vanilla-400" />
+                </Link>
+
+                <button
+                  type="button"
+                  onClick={handleResetRecomendaciones}
+                  className="inline-flex items-center space-x-1 px-3 py-2 rounded-lg border border-vanilla-300 text-forest-700 hover:bg-vanilla-50 text-xs font-medium transition-colors"
+                  title="Restablecer a las 9 directrices predeterminadas de ITEC"
+                >
+                  <RotateCcw className="w-3.5 h-3.5 text-forest-600" />
+                  <span>Restablecer ITEC</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Banner de Éxito al Guardar */}
+            {recsSavedSuccess && (
+              <div className="p-3.5 rounded-xl bg-emerald-50 border border-emerald-400 text-emerald-900 text-xs font-semibold flex items-center space-x-2 animate-in fade-in duration-200">
+                <Check className="w-4 h-4 text-emerald-600 flex-shrink-0 stroke-[3]" />
+                <span>
+                  ¡Recomendaciones guardadas y sincronizadas con éxito! Los técnicos ya pueden visualizarlas actualizadas en el Listado de Actividades.
+                </span>
+              </div>
+            )}
+
+            {/* Formulario para Agregar Nueva Directriz */}
+            <div className="p-4 sm:p-5 bg-forest-50/60 rounded-xl border border-forest-100">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-forest-900 mb-2 flex items-center space-x-1.5">
+                <Plus className="w-4 h-4 text-forest-700" />
+                <span>Agregar Nueva Directriz o Recomendación</span>
+              </h3>
+              <div className="flex flex-col sm:flex-row gap-2">
+                <input
+                  type="text"
+                  value={newRecomendacion}
+                  onChange={(e) => setNewRecomendacion(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      handleAddRecomendacion();
+                    }
+                  }}
+                  placeholder="Escriba la nueva recomendación (ej. Control diario de trampas de trips...)"
+                  className="flex-1 text-xs px-3.5 py-2.5 bg-white rounded-lg border border-vanilla-300 focus:outline-none focus:ring-2 focus:ring-forest-600"
+                />
+                <button
+                  type="button"
+                  onClick={handleAddRecomendacion}
+                  disabled={!newRecomendacion.trim() || isSavingRecs}
+                  className="px-4 py-2.5 rounded-lg bg-forest-900 hover:bg-forest-800 disabled:opacity-50 text-white font-bold text-xs shadow transition-all flex items-center justify-center space-x-1.5"
+                >
+                  <Plus className="w-4 h-4 text-vanilla-400" />
+                  <span>Agregar Directriz</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Vista Previa Interactiva Estilo Lámina de Invernadero */}
+            <div>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
+                <h3 className="text-xs font-bold uppercase tracking-wider text-forest-900">
+                  Directrices Activas ({recomendaciones.length}) — Haz clic en el lápiz para editar cualquier texto
+                </h3>
+                <span className="text-[11px] text-forest-500">
+                  Usa las flechas ↑ ↓ para ordenar la posición
+                </span>
+              </div>
+
+              {/* Contenedor del Cuadro tal como se ve en Actividades */}
+              <div className="rounded-xl overflow-hidden border-2 border-forest-900 shadow-md">
+                {/* Encabezado del Cuadro */}
+                <div className="bg-forest-900 text-white p-3.5 flex items-center justify-between border-b-2 border-vanilla-500">
+                  <div className="flex items-center space-x-2.5 flex-1 min-w-0">
+                    <span className="w-6 h-6 rounded-full bg-vanilla-500 text-forest-950 font-bold text-xs flex items-center justify-center flex-shrink-0 shadow">
+                      ★
+                    </span>
+                    <h3 className="text-xs sm:text-sm font-bold text-vanilla-200 uppercase tracking-tight truncate">
+                      RECOMENDACIONES
+                    </h3>
+                  </div>
+                  <div className="px-2.5 py-0.5 rounded bg-forest-800 text-vanilla-300 text-[10px] font-semibold border border-forest-700 uppercase tracking-wider">
+                    Directrices Técnicas • Sin Checklist
+                  </div>
+                </div>
+
+                {/* Sub-barra informativa */}
+                <div className="bg-forest-950/90 px-3 py-1.5 flex items-center justify-between text-[11px] text-forest-200">
+                  <span>
+                    Total: <strong>{recomendaciones.length}</strong> directrices esenciales de manejo agronómico y bioseguridad
+                  </span>
+                  <span className="text-vanilla-300 text-[10px] font-medium hidden sm:inline">
+                    Supervisión ITEC Ecuador
+                  </span>
+                </div>
+
+                {/* Lista de Items con edición individual */}
+                <div className="p-4 bg-gradient-to-b from-[#FAF7F2] to-white grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {recomendaciones.map((item, idx) => {
+                    const isEditing = editingIndex === idx;
+
+                    return (
+                      <div
+                        key={idx}
+                        className={`p-3 rounded-xl border transition-all ${
+                          isEditing
+                            ? "bg-amber-50/70 border-amber-400 ring-2 ring-amber-300 shadow-md"
+                            : "bg-white border-vanilla-300 hover:border-forest-600 hover:shadow-sm"
+                        }`}
+                      >
+                        {isEditing ? (
+                          <div className="space-y-2">
+                            <div className="flex items-center justify-between text-[11px] font-bold text-forest-900">
+                              <span>Editando Directriz #{idx + 1}:</span>
+                            </div>
+                            <textarea
+                              rows={2}
+                              value={editingText}
+                              onChange={(e) => setEditingText(e.target.value)}
+                              className="w-full text-xs p-2.5 bg-white rounded-lg border border-vanilla-400 focus:outline-none focus:ring-2 focus:ring-forest-600 font-medium"
+                              autoFocus
+                            />
+                            <div className="flex items-center justify-end space-x-2">
+                              <button
+                                type="button"
+                                onClick={() => setEditingIndex(null)}
+                                className="px-2.5 py-1 rounded-md border border-vanilla-300 hover:bg-white text-forest-700 text-xs font-semibold"
+                              >
+                                Cancelar
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleUpdateRecomendacion(idx, editingText)}
+                                className="px-3 py-1 rounded-md bg-forest-900 hover:bg-forest-800 text-white text-xs font-bold shadow flex items-center space-x-1"
+                              >
+                                <Check className="w-3.5 h-3.5 text-vanilla-400" />
+                                <span>Guardar</span>
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="flex items-start justify-between gap-2.5">
+                            <div className="flex items-start space-x-2.5 flex-1 min-w-0">
+                              {/* Punto distintivo */}
+                              <div className="w-4 h-4 rounded-full border border-forest-800 bg-vanilla-400 flex items-center justify-center flex-shrink-0 mt-0.5 shadow-xs">
+                                <div className="w-1.5 h-1.5 rounded-full bg-forest-950" />
+                              </div>
+                              <span className="text-xs font-semibold text-forest-950 leading-snug break-words flex-1">
+                                {item}
+                              </span>
+                            </div>
+
+                            {/* Controles de Acción (Subir, Bajar, Editar, Eliminar) */}
+                            <div className="flex items-center space-x-1 flex-shrink-0 bg-vanilla-100/70 p-1 rounded-lg border border-vanilla-200">
+                              <button
+                                type="button"
+                                onClick={() => handleMoveRecomendacion(idx, "up")}
+                                disabled={idx === 0}
+                                className="p-1 text-forest-600 hover:text-forest-950 hover:bg-white rounded disabled:opacity-30 disabled:cursor-not-allowed"
+                                title="Mover arriba"
+                              >
+                                <MoveUp className="w-3.5 h-3.5" />
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => handleMoveRecomendacion(idx, "down")}
+                                disabled={idx === recomendaciones.length - 1}
+                                className="p-1 text-forest-600 hover:text-forest-950 hover:bg-white rounded disabled:opacity-30 disabled:cursor-not-allowed"
+                                title="Mover abajo"
+                              >
+                                <MoveDown className="w-3.5 h-3.5" />
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setEditingIndex(idx);
+                                  setEditingText(item);
+                                }}
+                                className="p-1 text-forest-800 hover:text-vanilla-800 hover:bg-vanilla-200 rounded font-semibold"
+                                title="Editar texto de esta recomendación"
+                              >
+                                <Edit3 className="w-3.5 h-3.5 text-forest-700" />
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteRecomendacion(idx)}
+                                className="p-1 text-red-500 hover:text-red-700 hover:bg-red-50 rounded"
+                                title="Eliminar recomendación"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+
+            {/* Nota de sincronización */}
+            <div className="p-4 bg-vanilla-50 rounded-xl border border-vanilla-200 text-xs text-forest-800 flex items-start space-x-2">
+              <span className="text-base">💡</span>
+              <p>
+                <strong>Sincronización en tiempo real:</strong> Cada vez que agregues, edites, reordenes o elimines una recomendación, el cambio se guardará automáticamente en el sistema y se actualizará tanto en la lámina técnica de invernadero como en los protocolos impresos y descargados.
+              </p>
             </div>
           </div>
         )}

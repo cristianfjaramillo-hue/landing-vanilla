@@ -24,6 +24,7 @@ import {
   ExternalLink,
   Save,
   Check,
+  Edit3,
   ArrowRight
 } from "lucide-react";
 import { SECTIONS_DATA, TOTAL_ACTIVIDADES_COUNT, RECOMENDACIONES_DATA } from "@/lib/actividades-data";
@@ -42,8 +43,63 @@ export default function ActividadesPage() {
   const [lastSentProtocol, setLastSentProtocol] = useState<ActivityProtocol | null>(null);
   const [showSuccessToast, setShowSuccessToast] = useState(false);
 
-  // Cargar estado guardado de localStorage
+  // Recomendaciones dinámicas editables desde el Administrador
+  const [recomendaciones, setRecomendaciones] = useState<string[]>(RECOMENDACIONES_DATA);
+  const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(false);
+
+  // Cargar estado guardado de localStorage y sincronizar recomendaciones
   useEffect(() => {
+    // 1. Verificar si el Administrador tiene sesión activa
+    try {
+      if (typeof window !== "undefined" && sessionStorage.getItem("vanilla_admin_auth") === "true") {
+        setIsAdminLoggedIn(true);
+      }
+    } catch {}
+
+    // 2. Cargar recomendaciones personalizadas desde localStorage
+    try {
+      const savedRecs = localStorage.getItem("vanilla_recomendaciones_data");
+      if (savedRecs) {
+        const parsed = JSON.parse(savedRecs);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setRecomendaciones(parsed);
+        }
+      }
+    } catch {}
+
+    // 3. Sincronizar recomendaciones más recientes desde Supabase
+    try {
+      Promise.resolve(
+        supabase
+          .from("reportes_diarios")
+          .select("data")
+          .eq("report_id", "CONFIG_RECOMENDACIONES")
+          .single()
+      ).then(({ data }) => {
+        if (data && data.data && Array.isArray((data.data as any).recomendaciones)) {
+          const dbRecs = (data.data as any).recomendaciones;
+          if (dbRecs.length > 0) {
+            setRecomendaciones(dbRecs);
+            localStorage.setItem("vanilla_recomendaciones_data", JSON.stringify(dbRecs));
+          }
+        }
+      }).catch(() => {});
+    } catch {}
+
+    // 4. Escuchar evento storage por si se actualiza en otra pestaña
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === "vanilla_recomendaciones_data" && e.newValue) {
+        try {
+          const parsed = JSON.parse(e.newValue);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setRecomendaciones(parsed);
+          }
+        } catch {}
+      }
+    };
+    window.addEventListener("storage", handleStorageChange);
+
+    // Cargar datos del protocolo
     try {
       const saved = localStorage.getItem("vanilla_actividades_checked");
       if (saved) {
@@ -61,6 +117,10 @@ export default function ActividadesPage() {
     } catch {
       // Ignore local storage error
     }
+
+    return () => {
+      window.removeEventListener("storage", handleStorageChange);
+    };
   }, []);
 
   const toggleItem = (key: string) => {
@@ -266,6 +326,19 @@ export default function ActividadesPage() {
               <Printer className="w-3.5 h-3.5" />
               <span className="hidden sm:inline">Imprimir</span>
             </button>
+
+            {isAdminLoggedIn && (
+              <Link
+                href="/admin?tab=recomendaciones"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center space-x-1 px-2.5 py-1.5 rounded-lg bg-forest-800 hover:bg-forest-700 text-vanilla-300 text-xs font-medium border border-forest-600 transition-colors"
+                title="Editar Recomendaciones en el Panel Administrador"
+              >
+                <Edit3 className="w-3.5 h-3.5 text-vanilla-400" />
+                <span className="hidden md:inline">Editar Recomendaciones</span>
+              </Link>
+            )}
           </div>
         </div>
       </div>
@@ -539,15 +612,30 @@ export default function ActividadesPage() {
                     </h3>
                   </div>
                 </div>
-                <div className="px-2.5 py-0.5 rounded bg-forest-800 text-vanilla-300 text-[10px] font-semibold border border-forest-700 uppercase tracking-wider">
-                  Directrices Técnicas • Sin Checklist
+
+                <div className="flex items-center space-x-2 flex-shrink-0">
+                  {isAdminLoggedIn && (
+                    <Link
+                      href="/admin?tab=recomendaciones"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-md bg-vanilla-500 hover:bg-vanilla-600 text-forest-950 font-bold text-[10px] uppercase tracking-wider shadow transition-all hover:scale-105"
+                      title="Abrir editor de recomendaciones en el Panel Administrador"
+                    >
+                      <Edit3 className="w-3 h-3 text-forest-950" />
+                      <span>Editar Recomendaciones</span>
+                    </Link>
+                  )}
+                  <div className="px-2.5 py-0.5 rounded bg-forest-800 text-vanilla-300 text-[10px] font-semibold border border-forest-700 uppercase tracking-wider">
+                    Directrices Técnicas • Sin Checklist
+                  </div>
                 </div>
               </div>
 
               {/* Sub-barra informativa */}
               <div className="bg-forest-950/90 px-3 py-1 flex items-center justify-between text-[11px] text-forest-200">
                 <span>
-                  Total: <strong>{RECOMENDACIONES_DATA.length}</strong> directrices esenciales de manejo agronómico y bioseguridad
+                  Total: <strong>{recomendaciones.length}</strong> directrices esenciales de manejo agronómico y bioseguridad
                 </span>
                 <span className="text-vanilla-300 text-[10px] font-medium hidden sm:inline">
                   Supervisión ITEC Ecuador
@@ -556,7 +644,7 @@ export default function ActividadesPage() {
 
               {/* Lista de Recomendaciones con Punto Distintivo */}
               <div className="p-4 bg-gradient-to-b from-[#FAF7F2] to-white grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 flex-1">
-                {RECOMENDACIONES_DATA.map((item, idx) => (
+                {recomendaciones.map((item, idx) => (
                   <div
                     key={idx}
                     className="flex items-start space-x-2.5 p-2 rounded-lg bg-white border border-vanilla-200/90 shadow-[0_1px_2px_rgba(0,0,0,0.03)] hover:border-forest-600 transition-all"

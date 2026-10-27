@@ -327,7 +327,20 @@ export async function generateActivityProtocolPDF(protocol: ActivityProtocol) {
     },
   ]);
 
-  RECOMENDACIONES_DATA.forEach((rec, idx) => {
+  let activeRecs = RECOMENDACIONES_DATA;
+  if (typeof window !== "undefined") {
+    try {
+      const saved = localStorage.getItem("vanilla_recomendaciones_data");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          activeRecs = parsed;
+        }
+      }
+    } catch {}
+  }
+
+  activeRecs.forEach((rec) => {
     tableBody.push([
       `•  ${rec}`,
       {
