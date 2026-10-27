@@ -31,15 +31,6 @@ export interface AppliedInput {
   areaLote: string;
 }
 
-export type CropHealthLevel = "Bueno" | "Regular" | "Malo";
-
-export interface CropGeneralStatus {
-  desarrolloVegetativo: CropHealthLevel;
-  floracion: CropHealthLevel;
-  formacionVainas: CropHealthLevel;
-  estadoFitosanitario: CropHealthLevel;
-}
-
 export interface DailyReport {
   id: string;
   created_at: string;
@@ -59,8 +50,6 @@ export interface DailyReport {
   actividades: ActivityItem[];
   herramientas: ToolItem[];
   insumos: AppliedInput[];
-  // Estado
-  estadoCultivo?: CropGeneralStatus;
   // Observaciones & Fotos
   observaciones: string;
   foto1Url?: string;

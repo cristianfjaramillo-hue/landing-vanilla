@@ -52,12 +52,6 @@ export const INITIAL_MOCK_REPORTS: DailyReport[] = [
     insumos: [
       { id: "1", insumo: "Biol fermentado orgánico (chicha de monte)", dosis: "2 L / bomba", metodo: "Foliar matutino", areaLote: "Lote 1-A" },
     ],
-    estadoCultivo: {
-      desarrolloVegetativo: "Bueno",
-      floracion: "Bueno",
-      formacionVainas: "Bueno",
-      estadoFitosanitario: "Bueno",
-    },
     observaciones: "Floración en pico óptimo. Polinización ejecutada entre las 06:30 y las 10:00 con éxito por las guardianas de la comunidad. Excelente retención de humedad en el suelo de bosque.",
     foto1Url: "/assets/informe-diario-referencia.jpg",
     foto2Url: "/assets/logo-amazon-vanilla-cream.png",
@@ -84,12 +78,6 @@ export const INITIAL_MOCK_REPORTS: DailyReport[] = [
       { id: "manuales", nombre: "Herramientas manuales", utilizada: true },
     ],
     insumos: [],
-    estadoCultivo: {
-      desarrolloVegetativo: "Bueno",
-      floracion: "Regular",
-      formacionVainas: "Bueno",
-      estadoFitosanitario: "Bueno",
-    },
     observaciones: "Lluvia persistente durante la tarde. Buen drenaje natural del suelo de chakra. Se programó fertilización foliar con biochar y compost para el día siguiente.",
   },
 ];

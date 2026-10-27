@@ -656,7 +656,7 @@ export default function ActividadesPage() {
                     localStorage.setItem("vanilla_actividades_obs", e.target.value);
                   } catch {}
                 }}
-                placeholder="Anota aquí cualquier condición climática atípica, alertas fitosanitarias, requerimientos de insumos o instrucciones específicas para las cuadrillas..."
+                placeholder="Anota aquí cualquier condición climática atípica, observaciones fitosanitarias, requerimientos de insumos o instrucciones específicas para las cuadrillas..."
                 className="w-full p-2.5 text-xs bg-white border border-vanilla-300 rounded-lg text-forest-950 focus:outline-none focus:border-forest-800"
               />
             </div>
