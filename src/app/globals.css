@@ -46,3 +46,72 @@ body {
 .animate-line-shimmer {
   animation: lineShimmer 3.2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
 }
+
+/* ==============================================================================
+   PATRÓN ANCESTRAL WAORANI - LATERALES HERO (DESVANECIMIENTO EN MOVIMIENTO)
+   ============================================================================== */
+
+@keyframes waoraniVerticalScroll {
+  0% {
+    background-position-y: 0px;
+  }
+  100% {
+    background-position-y: 1024px;
+  }
+}
+
+@keyframes waoraniFadePulse {
+  0%, 100% {
+    opacity: 0.30;
+    filter: drop-shadow(0 0 2px rgba(200, 148, 78, 0.2));
+  }
+  50% {
+    opacity: 0.60;
+    filter: drop-shadow(0 0 10px rgba(200, 148, 78, 0.55));
+  }
+}
+
+@keyframes waoraniWaveTravel {
+  0% {
+    transform: translateY(-120%);
+    opacity: 0;
+  }
+  20% {
+    opacity: 0.6;
+  }
+  80% {
+    opacity: 0.6;
+  }
+  100% {
+    transform: translateY(220%);
+    opacity: 0;
+  }
+}
+
+.waorani-strip {
+  background-image: url('/assets/patron-lateral.png');
+  background-repeat: repeat-y;
+  background-size: 100% auto;
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 12%, black 88%, transparent 100%);
+  mask-image: linear-gradient(to bottom, transparent 0%, black 12%, black 88%, transparent 100%);
+  animation: waoraniVerticalScroll 24s linear infinite, waoraniFadePulse 5.5s ease-in-out infinite;
+}
+
+.waorani-strip-delayed {
+  background-image: url('/assets/patron-lateral.png');
+  background-repeat: repeat-y;
+  background-size: 100% auto;
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 12%, black 88%, transparent 100%);
+  mask-image: linear-gradient(to bottom, transparent 0%, black 12%, black 88%, transparent 100%);
+  animation: waoraniVerticalScroll 24s linear infinite, waoraniFadePulse 5.5s ease-in-out infinite;
+  animation-delay: -2.75s, -2.75s;
+}
+
+.waorani-wave-beam {
+  animation: waoraniWaveTravel 4s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+.waorani-wave-beam-delayed {
+  animation: waoraniWaveTravel 4s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  animation-delay: -2s;
+}

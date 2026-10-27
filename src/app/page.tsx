@@ -8,13 +8,17 @@ import {
   ClipboardList,
   ExternalLink,
 } from "lucide-react";
+import WaoraniSidePatterns from "@/components/WaoraniSidePatterns";
 
 export default function HomePage() {
   return (
     <div className="space-y-16 pb-20">
       {/* 1. HERO SECTION */}
       <section className="relative overflow-hidden bg-forest-950 text-white pt-24 pb-28 sm:pb-36 border-b-4 border-vanilla-500">
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center space-y-8">
+        {/* Patrones Ancestrales Waorani en los Laterales Verdes (Verticales con Desvanecimiento y Movimiento al 60% de Opacidad) */}
+        <WaoraniSidePatterns />
+
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center space-y-8 z-10">
           {/* Logo Principal (40% más grande, sin cuadro ni sombra de fondo, con brillo que recorre las letras) */}
           <div className="relative w-[340px] sm:w-[540px] md:w-[670px] lg:w-[720px] h-40 sm:h-52 md:h-64 lg:h-72 mx-auto flex items-center justify-center my-2">
             <div className="relative w-full h-full flex items-center justify-center">
