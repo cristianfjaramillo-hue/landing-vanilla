@@ -49,6 +49,26 @@ const RESPONSABLES_AUTORIZADOS = [
   "GEMENCA",
 ] as const;
 
+const INSUMOS_DISPONIBLES = [
+  "Sustrato y abono",
+  "Té de ceniza",
+  "Té de ortiga",
+  "Biofertilizante",
+] as const;
+
+const DOSIS_DISPONIBLES = [
+  "1 dosis",
+  "2 dosis",
+  "3 dosis",
+  "4 dosis",
+  "5 dosis",
+] as const;
+
+const METODOS_APLICACION = [
+  "A la raíz",
+  "A la hoja",
+] as const;
+
 export default function NuevoReportePage() {
   const todayStr = new Date().toISOString().split("T")[0];
 
@@ -712,55 +732,126 @@ export default function NuevoReportePage() {
                 </button>
               </div>
 
+              {/* Encabezados de columna para pantallas medianas/grandes */}
+              <div className="hidden sm:grid grid-cols-4 gap-2.5 px-3 py-2 bg-forest-900 text-white rounded-lg text-[11px] font-bold uppercase tracking-wider mb-2">
+                <span>Insumo</span>
+                <span>Dosis</span>
+                <span>Método de Aplicación</span>
+                <span>Área</span>
+              </div>
+
               <div className="space-y-2">
-                {insumos.map((row, idx) => (
+                {insumos.map((row) => (
                   <div
                     key={row.id}
-                    className="grid grid-cols-1 sm:grid-cols-4 gap-2 bg-vanilla-50/60 p-2.5 rounded-lg border border-vanilla-200 items-center"
+                    className="grid grid-cols-1 sm:grid-cols-4 gap-2.5 bg-vanilla-50/60 p-2.5 rounded-xl border border-vanilla-200 items-center"
                   >
-                    <input
-                      type="text"
-                      placeholder="Insumo (ej. Biol, Compost)"
-                      value={row.insumo}
-                      onChange={(e) => updateInsumo(row.id, "insumo", e.target.value)}
-                      onFocus={() => updateInsumo(row.id, "insumo", "")}
-                      className="text-xs px-2.5 py-1.5 bg-white rounded border border-vanilla-300 focus:outline-none"
-                    />
-                    <input
-                      type="text"
-                      placeholder="Dosis (ej. 2L / bomba)"
-                      value={row.dosis}
-                      onChange={(e) => updateInsumo(row.id, "dosis", e.target.value)}
-                      onFocus={() => updateInsumo(row.id, "dosis", "")}
-                      className="text-xs px-2.5 py-1.5 bg-white rounded border border-vanilla-300 focus:outline-none"
-                    />
-                    <input
-                      type="text"
-                      placeholder="Método (Foliar, radicular)"
-                      value={row.metodo}
-                      onChange={(e) => updateInsumo(row.id, "metodo", e.target.value)}
-                      onFocus={() => updateInsumo(row.id, "metodo", "")}
-                      className="text-xs px-2.5 py-1.5 bg-white rounded border border-vanilla-300 focus:outline-none"
-                    />
-                    <div className="flex items-center space-x-2">
-                      <input
-                        type="text"
-                        placeholder="Área"
-                        value={row.areaLote}
-                        onChange={(e) => updateInsumo(row.id, "areaLote", e.target.value)}
-                        onFocus={() => updateInsumo(row.id, "areaLote", "")}
-                        className="text-xs px-2.5 py-1.5 bg-white rounded border border-vanilla-300 focus:outline-none flex-1"
-                      />
-                      {insumos.length > 1 && (
-                        <button
-                          type="button"
-                          onClick={() => removeInsumo(row.id)}
-                          className="p-1.5 text-red-500 hover:bg-red-50 rounded"
-                          title="Eliminar fila"
+                    {/* 1. Insumo (Lista Desplegable) */}
+                    <div>
+                      <span className="sm:hidden block text-[10px] font-bold text-forest-700 uppercase mb-0.5">
+                        Insumo:
+                      </span>
+                      <div className="relative">
+                        <select
+                          value={row.insumo}
+                          onChange={(e) => updateInsumo(row.id, "insumo", e.target.value)}
+                          className="w-full text-xs font-semibold px-3 py-2 bg-white rounded-lg border border-vanilla-300 text-forest-950 focus:outline-none focus:ring-2 focus:ring-forest-600 shadow-sm cursor-pointer appearance-none pr-8 hover:border-forest-400 transition-colors"
                         >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      )}
+                          <option value="">Seleccione Insumo...</option>
+                          {INSUMOS_DISPONIBLES.map((ins) => (
+                            <option key={ins} value={ins} className="font-semibold text-forest-950 py-1">
+                              {ins}
+                            </option>
+                          ))}
+                        </select>
+                        <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2.5 text-forest-700">
+                          <ChevronDown className="w-3.5 h-3.5" />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* 2. Dosis (Lista Desplegable) */}
+                    <div>
+                      <span className="sm:hidden block text-[10px] font-bold text-forest-700 uppercase mb-0.5">
+                        Dosis:
+                      </span>
+                      <div className="relative">
+                        <select
+                          value={row.dosis}
+                          onChange={(e) => updateInsumo(row.id, "dosis", e.target.value)}
+                          className="w-full text-xs font-semibold px-3 py-2 bg-white rounded-lg border border-vanilla-300 text-forest-950 focus:outline-none focus:ring-2 focus:ring-forest-600 shadow-sm cursor-pointer appearance-none pr-8 hover:border-forest-400 transition-colors"
+                        >
+                          <option value="">Seleccione Dosis...</option>
+                          {DOSIS_DISPONIBLES.map((dos) => (
+                            <option key={dos} value={dos} className="font-semibold text-forest-950 py-1">
+                              {dos}
+                            </option>
+                          ))}
+                        </select>
+                        <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2.5 text-forest-700">
+                          <ChevronDown className="w-3.5 h-3.5" />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* 3. Método de Aplicación (Lista Desplegable con 2 opciones) */}
+                    <div>
+                      <span className="sm:hidden block text-[10px] font-bold text-forest-700 uppercase mb-0.5">
+                        Método:
+                      </span>
+                      <div className="relative">
+                        <select
+                          value={row.metodo}
+                          onChange={(e) => updateInsumo(row.id, "metodo", e.target.value)}
+                          className="w-full text-xs font-semibold px-3 py-2 bg-white rounded-lg border border-vanilla-300 text-forest-950 focus:outline-none focus:ring-2 focus:ring-forest-600 shadow-sm cursor-pointer appearance-none pr-8 hover:border-forest-400 transition-colors"
+                        >
+                          <option value="">Seleccione Método...</option>
+                          {METODOS_APLICACION.map((met) => (
+                            <option key={met} value={met} className="font-semibold text-forest-950 py-1">
+                              {met}
+                            </option>
+                          ))}
+                        </select>
+                        <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2.5 text-forest-700">
+                          <ChevronDown className="w-3.5 h-3.5" />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* 4. Área (Lista Desplegable) */}
+                    <div>
+                      <span className="sm:hidden block text-[10px] font-bold text-forest-700 uppercase mb-0.5">
+                        Área:
+                      </span>
+                      <div className="flex items-center space-x-2">
+                        <div className="relative flex-1">
+                          <select
+                            value={row.areaLote}
+                            onChange={(e) => updateInsumo(row.id, "areaLote", e.target.value)}
+                            className="w-full text-xs font-semibold px-3 py-2 bg-white rounded-lg border border-vanilla-300 text-forest-950 focus:outline-none focus:ring-2 focus:ring-forest-600 shadow-sm cursor-pointer appearance-none pr-8 hover:border-forest-400 transition-colors"
+                          >
+                            <option value="">Seleccione Área...</option>
+                            {AREAS_DISPONIBLES.map((ar) => (
+                              <option key={ar} value={ar} className="font-semibold text-forest-950 py-1">
+                                {ar}
+                              </option>
+                            ))}
+                          </select>
+                          <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2.5 text-forest-700">
+                            <ChevronDown className="w-3.5 h-3.5" />
+                          </div>
+                        </div>
+                        {insumos.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => removeInsumo(row.id)}
+                            className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors flex-shrink-0"
+                            title="Eliminar fila"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
+                      </div>
                     </div>
                   </div>
                 ))}

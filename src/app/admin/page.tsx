@@ -2419,7 +2419,7 @@ export default function AdminPage() {
                           <th className="py-2 px-3 w-10 text-center">N°</th>
                           <th className="py-2 px-3 w-48">Actividad</th>
                           <th className="py-2 px-3">Descripción / Observaciones Breves</th>
-                          <th className="py-2 px-3 w-32">Área / Lote</th>
+                          <th className="py-2 px-3 w-32">Área</th>
                           <th className="py-2 px-3 w-20 text-center">Realizado</th>
                         </tr>
                       </thead>
