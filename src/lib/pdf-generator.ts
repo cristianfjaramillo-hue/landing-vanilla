@@ -51,18 +51,18 @@ export async function generateDailyReportPDF(
   doc.setFontSize(10);
   doc.text("SEGUIMIENTO Y CONTROL DEL CULTIVO | ITEC ECUADOR - TERRITORIO WAORANI", 105, 18, { align: "center" });
 
-  // 2. Fecha del Informe, Área y Responsable
+  // 2. Fecha del Informe, Proyecto y Responsable
   const fechaDisplay = report.fechaReporte || report.fechaDesde || new Date().toISOString().split("T")[0];
-  const areaDisplay = report.area || report.lote;
+  const proyectoDisplay = report.proyecto || "Proyecto Vainilla";
 
   autoTable(doc, {
     startY: 29,
     theme: "grid",
-    head: [["FECHA DEL INFORME", "ÁREA Y RESPONSABLE"]],
+    head: [["FECHA DEL INFORME", "PROYECTO Y RESPONSABLE"]],
     body: [
       [
         `Fecha: ${fechaDisplay}`,
-        `Área: ${areaDisplay}\nResponsable: ${report.responsable}`,
+        `Proyecto: ${proyectoDisplay}\nResponsable: ${report.responsable}`,
       ],
     ],
     headStyles: { fillColor: greenHeader as [number, number, number], textColor: 255, fontStyle: "bold" },
@@ -244,7 +244,7 @@ export async function generateDailyReportPDF(
     );
   }
 
-  const filename = `Informe_Vainilla_${(report.area || report.lote || "Area").replace(/\s+/g, "_")}_${fechaDisplay}.pdf`;
+  const filename = `Informe_Vainilla_${fechaDisplay}.pdf`;
   if (autoDownload) {
     doc.save(filename);
   }

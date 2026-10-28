@@ -2362,10 +2362,10 @@ export default function AdminPage() {
 
                   <div>
                     <span className="font-bold text-forest-700 block uppercase text-[10px]">
-                      Área:
+                      Proyecto:
                     </span>
                     <p className="font-bold text-sm text-forest-950 mt-0.5">
-                      {previewReport.area || previewReport.lote}
+                      {previewReport.proyecto || "Proyecto Vainilla"}
                     </p>
                   </div>
 
@@ -2603,7 +2603,7 @@ export default function AdminPage() {
                     onClick={() => {
                       const text = `🌿 *INFORME DIARIO CULTIVO DE VAINILLA*%0A` +
                         `*ID:* ${previewReport.id}%0A` +
-                        `*Área:* ${previewReport.area || previewReport.lote}%0A` +
+                        `*Proyecto:* ${previewReport.proyecto || "Proyecto Vainilla"}%0A` +
                         `*Fecha:* ${previewReport.fechaReporte}%0A` +
                         `*Responsable:* ${previewReport.responsable}%0A` +
                         `*Clima:* ${previewReport.clima} (${previewReport.temperatura !== undefined ? `${previewReport.temperatura}°C` : `${previewReport.tempMin}°C`})` +

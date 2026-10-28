@@ -72,8 +72,8 @@ const METODOS_APLICACION = [
 export default function NuevoReportePage() {
   const todayStr = new Date().toISOString().split("T")[0];
 
-  // 1. Cabecera (Área y Responsable seleccionables)
-  const [area, setArea] = useState<string>("INVERNADERO N°1");
+  // 1. Cabecera (Proyecto fijo y Responsable seleccionable)
+  const [proyecto] = useState<string>("Proyecto Vainilla");
   const [responsable, setResponsable] = useState<string>("GUIMARE");
 
   // 2. Condiciones Diarias (Temperatura única)
@@ -169,7 +169,6 @@ export default function NuevoReportePage() {
 
   // Reiniciar formulario completo borrando todo dato ingresado
   const resetForm = () => {
-    setArea("INVERNADERO N°1");
     setResponsable("GUIMARE");
     setTemperatura(26);
     setHumedad(85);
@@ -192,8 +191,9 @@ export default function NuevoReportePage() {
     return {
       id: "REP-" + Date.now().toString().slice(-6),
       created_at: new Date().toISOString(),
-      area,
-      lote: area,
+      proyecto: "Proyecto Vainilla",
+      area: "Proyecto Vainilla",
+      lote: "Proyecto Vainilla",
       responsable: responsable.trim() || "GUIMARE",
       fechaReporte: todayStr,
       fechaDesde: todayStr,
@@ -373,11 +373,11 @@ export default function NuevoReportePage() {
           </div>
 
           <div className="p-3 sm:p-8 space-y-6 sm:space-y-8">
-            {/* SECCIÓN 1: FECHA DEL INFORME, ÁREA & RESPONSABLE */}
+            {/* SECCIÓN 1: FECHA DEL INFORME, PROYECTO & RESPONSABLE */}
             <div className="bg-vanilla-50/70 p-5 rounded-xl border border-vanilla-200">
               <h2 className="text-xs font-bold uppercase tracking-wider text-forest-900 mb-4 flex items-center space-x-2">
                 <Calendar className="w-4 h-4 text-vanilla-600" />
-                <span>1. Fecha del Informe, Área & Responsable</span>
+                <span>1. Fecha del Informe, Proyecto & Responsable</span>
               </h2>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -399,27 +399,21 @@ export default function NuevoReportePage() {
                   </div>
                 </div>
 
-                {/* Casillero Área (Botón de Selección Desplegable) */}
+                {/* Casillero Proyecto (Fijo: Proyecto Vainilla) */}
                 <div>
-                  <label className="block text-xs font-semibold text-forest-800 mb-1">
-                    Área:
+                  <label className="block text-xs font-semibold text-forest-800 mb-1 flex items-center justify-between">
+                    <span>Proyecto:</span>
+                    <span className="text-[10px] font-bold text-vanilla-800 bg-vanilla-100 px-2 py-0.5 rounded-full border border-vanilla-300">
+                      Fijo
+                    </span>
                   </label>
                   <div className="relative">
-                    <select
-                      value={area}
-                      onChange={(e) => setArea(e.target.value)}
-                      className="w-full text-sm font-semibold px-3 py-2.5 bg-white rounded-lg border border-vanilla-300 text-forest-950 focus:outline-none focus:ring-2 focus:ring-forest-600 shadow-sm cursor-pointer appearance-none pr-9 hover:border-forest-400 transition-colors"
-                      required
-                    >
-                      {AREAS_DISPONIBLES.map((a) => (
-                        <option key={a} value={a} className="font-semibold text-forest-950 py-1">
-                          {a}
-                        </option>
-                      ))}
-                    </select>
-                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-forest-700">
-                      <ChevronDown className="w-4 h-4" />
-                    </div>
+                    <input
+                      type="text"
+                      value="Proyecto Vainilla"
+                      readOnly
+                      className="w-full text-sm font-bold px-3 py-2.5 bg-forest-50/60 rounded-lg border border-vanilla-300 text-forest-950 cursor-default select-none shadow-inner"
+                    />
                   </div>
                 </div>
 
@@ -605,7 +599,7 @@ export default function NuevoReportePage() {
                       <th className="py-2 sm:py-2.5 px-1.5 sm:px-3 font-bold text-[11px] sm:text-xs">
                         <span>Observaciones</span>
                       </th>
-                      <th className="py-2 sm:py-2.5 px-1.5 sm:px-3 w-16 sm:w-32 font-bold text-[11px] sm:text-xs">
+                      <th className="py-2 sm:py-2.5 px-1.5 sm:px-3 w-28 sm:w-44 font-bold text-[11px] sm:text-xs">
                         <span>Área</span>
                       </th>
                       <th className="py-2 sm:py-2.5 pr-3 sm:pr-3 pl-1 sm:px-3 w-10 sm:w-20 text-center font-bold text-[10px] sm:text-xs">
@@ -639,14 +633,23 @@ export default function NuevoReportePage() {
                           />
                         </td>
                         <td className="py-1.5 sm:py-2 px-1.5 sm:px-3">
-                          <input
-                            type="text"
-                            value={act.areaLote}
-                            onChange={(e) => updateActividadArea(act.id, e.target.value)}
-                            onFocus={() => updateActividadArea(act.id, "")}
-                            placeholder="Área"
-                            className="w-full px-1 sm:px-2 py-1 bg-transparent border-b border-dashed border-vanilla-300 focus:border-forest-600 focus:outline-none text-[11px] sm:text-xs"
-                          />
+                          <div className="relative">
+                            <select
+                              value={act.areaLote}
+                              onChange={(e) => updateActividadArea(act.id, e.target.value)}
+                              className="w-full text-[11px] sm:text-xs font-semibold px-2 py-1 bg-white rounded-md border border-vanilla-300 text-forest-950 focus:outline-none focus:ring-1 focus:ring-forest-600 shadow-sm cursor-pointer appearance-none pr-6 hover:border-forest-400 transition-colors"
+                            >
+                              <option value="">Seleccione Área...</option>
+                              {AREAS_DISPONIBLES.map((ar) => (
+                                <option key={ar} value={ar} className="font-semibold text-forest-950 py-0.5">
+                                  {ar}
+                                </option>
+                              ))}
+                            </select>
+                            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-1.5 text-forest-700">
+                              <ChevronDown className="w-3 h-3" />
+                            </div>
+                          </div>
                         </td>
                         <td className="py-1.5 sm:py-2 pr-3 sm:pr-3 pl-1 sm:px-3 text-center">
                           <button

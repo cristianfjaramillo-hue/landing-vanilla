@@ -35,6 +35,7 @@ export interface DailyReport {
   id: string;
   created_at: string;
   // Encabezado
+  proyecto?: string;
   area?: string;
   lote: string;
   responsable: string;
