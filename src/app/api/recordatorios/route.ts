@@ -6,6 +6,19 @@ let cachedReminders: ScheduledReminder[] = [];
 
 export async function GET() {
   try {
+    // 0. Obtener lista de recordatorios eliminados
+    let deletedRemIds: string[] = [];
+    try {
+      const { data: delConfig } = await supabaseAdmin
+        .from("reportes_diarios")
+        .select("data")
+        .eq("report_id", "CONFIG_DELETED_REMINDERS")
+        .single();
+      if (Array.isArray(delConfig?.data?.deletedIds)) {
+        deletedRemIds = delConfig.data.deletedIds;
+      }
+    } catch {}
+
     // 1. Consultar recordatorios guardados en reportes_diarios (IDs que empiezan por REM-)
     const { data: remRows, error: remErr } = await supabaseAdmin
       .from("reportes_diarios")
@@ -16,7 +29,7 @@ export async function GET() {
     const dbReminders: ScheduledReminder[] = [];
     if (!remErr && remRows) {
       remRows.forEach((r: any) => {
-        if (r.data) {
+        if (r.data && !deletedRemIds.includes(r.report_id)) {
           dbReminders.push(r.data as ScheduledReminder);
         }
       });
@@ -37,7 +50,7 @@ export async function GET() {
             if (act.fechaProxima && act.fechaProxima.trim() !== "") {
               const remId = `REM-${report.id}-${act.id}`;
               const exists = dbReminders.some((m) => m.id === remId);
-              if (!exists) {
+              if (!exists && !deletedRemIds.includes(remId)) {
                 dbReminders.push({
                   id: remId,
                   reportId: report.id,
@@ -57,14 +70,16 @@ export async function GET() {
       });
     }
 
-    // Unificar con caché
+    // Unificar con caché, excluyendo eliminados
     const map = new Map<string, ScheduledReminder>();
-    [...dbReminders, ...cachedReminders].forEach((r) => {
-      const existing = map.get(r.id);
-      if (!existing || (r.recordatoriosEnviados || 0) > (existing.recordatoriosEnviados || 0)) {
-        map.set(r.id, r);
-      }
-    });
+    [...dbReminders, ...cachedReminders]
+      .filter((r) => !deletedRemIds.includes(r.id))
+      .forEach((r) => {
+        const existing = map.get(r.id);
+        if (!existing || (r.recordatoriosEnviados || 0) > (existing.recordatoriosEnviados || 0)) {
+          map.set(r.id, r);
+        }
+      });
 
     const unified = Array.from(map.values()).sort(
       (a, b) => new Date(a.fechaProgramada).getTime() - new Date(b.fechaProgramada).getTime()
@@ -142,12 +157,40 @@ export async function DELETE(request: Request) {
     cachedReminders = cachedReminders.filter((r) => r.id !== id);
 
     try {
+      // 1. Eliminar fila de Supabase
       await supabaseAdmin.from("reportes_diarios").delete().eq("report_id", id);
+
+      // 2. Registrar en la lista de eliminados permanentes
+      const { data: configRow } = await supabaseAdmin
+        .from("reportes_diarios")
+        .select("data")
+        .eq("report_id", "CONFIG_DELETED_REMINDERS")
+        .single();
+
+      const currentDeleted: string[] = Array.isArray(configRow?.data?.deletedIds)
+        ? configRow.data.deletedIds
+        : [];
+
+      if (!currentDeleted.includes(id)) {
+        currentDeleted.push(id);
+        await supabaseAdmin.from("reportes_diarios").upsert(
+          [
+            {
+              report_id: "CONFIG_DELETED_REMINDERS",
+              lote: "CONFIGURACION_SISTEMA",
+              responsable: "ADMIN",
+              fecha_reporte: new Date().toISOString().split("T")[0],
+              data: { deletedIds: currentDeleted },
+            },
+          ],
+          { onConflict: "report_id" }
+        );
+      }
     } catch (e) {
       console.warn("Supabase delete notice:", e);
     }
 
-    return NextResponse.json({ success: true, message: `Recordatorio ${id} eliminado` });
+    return NextResponse.json({ success: true, message: `Recordatorio ${id} eliminado permanentemente` });
   } catch (err: any) {
     return NextResponse.json({ success: false, error: err.message }, { status: 500 });
   }

@@ -136,9 +136,19 @@ export default function AdminPage() {
   // Cargar datos
   const loadReports = async () => {
     try {
-      // 1. Cargar desde localStorage
-      const localData = JSON.parse(localStorage.getItem("vanilla_daily_reports") || "[]");
-      const combined = [...localData, ...INITIAL_MOCK_REPORTS];
+      // 0. Listas negras para evitar que elementos eliminados vuelvan a aparecer
+      const deletedReportIds: string[] = JSON.parse(
+        localStorage.getItem("vanilla_deleted_report_ids") || "[]"
+      );
+      const deletedProtocolIds: string[] = JSON.parse(
+        localStorage.getItem("vanilla_deleted_protocol_ids") || "[]"
+      );
+
+      // 1. Cargar desde localStorage respetando eliminaciones
+      const localData: DailyReport[] = JSON.parse(localStorage.getItem("vanilla_daily_reports") || "[]");
+      const filteredLocal = localData.filter((r) => !deletedReportIds.includes(r.id));
+      const filteredMock = INITIAL_MOCK_REPORTS.filter((r) => !deletedReportIds.includes(r.id));
+      const combined = [...filteredLocal, ...filteredMock];
       // Eliminar duplicados por ID
       const unique = Array.from(new Map(combined.map((item) => [item.id, item])).values());
       // Ordenar por fecha de más reciente a más antiguo
@@ -147,10 +157,10 @@ export default function AdminPage() {
       );
       setReports(unique);
 
-      // 2. Cargar Protocolos de Actividades desde localStorage (más reciente primero)
-      const localProtocols: ActivityProtocol[] = JSON.parse(
-        localStorage.getItem("vanilla_saved_actividades") || "[]"
-      );
+      // 2. Cargar Protocolos de Actividades desde localStorage respetando eliminaciones
+      const localProtocols: ActivityProtocol[] = (
+        JSON.parse(localStorage.getItem("vanilla_saved_actividades") || "[]") as ActivityProtocol[]
+      ).filter((p) => !deletedProtocolIds.includes(p.id));
       localProtocols.sort(
         (a, b) => new Date(b.created_at || b.fecha).getTime() - new Date(a.created_at || a.fecha).getTime()
       );
@@ -223,15 +233,32 @@ export default function AdminPage() {
                 localStorage.setItem("vanilla_actividades_sections_data", JSON.stringify(rowData.sections));
                 localStorage.setItem("vanilla_actividades_user_configured", "true");
               }
+            } else if (row.report_id === "CONFIG_DELETED_REMINDERS" && Array.isArray(rowData?.deletedIds)) {
+              // Sincronizar recordatorios eliminados desde el servidor
+              const localDeletedRem: string[] = JSON.parse(
+                localStorage.getItem("vanilla_deleted_reminder_ids") || "[]"
+              );
+              const mergedDeleted = Array.from(new Set([...localDeletedRem, ...rowData.deletedIds]));
+              localStorage.setItem("vanilla_deleted_reminder_ids", JSON.stringify(mergedDeleted));
+            } else if (row.report_id?.startsWith("REM-") || row.report_id?.startsWith("CONFIG_")) {
+              // Configuración o recordatorios individuales - no procesar como reportes diarios
+              return;
             } else if (row.report_id?.startsWith("ACT-") || rowData?.tipo === "protocolo_actividades") {
-              dbProtocols.push(rowData as ActivityProtocol);
+              const protoId = rowData?.id || row.report_id;
+              if (!deletedProtocolIds.includes(protoId) && !deletedProtocolIds.includes(row.report_id)) {
+                dbProtocols.push(rowData as ActivityProtocol);
+              }
             } else {
-              dbReports.push(rowData as DailyReport);
+              const repId = rowData?.id || row.report_id;
+              if (!deletedReportIds.includes(repId) && !deletedReportIds.includes(row.report_id)) {
+                dbReports.push(rowData as DailyReport);
+              }
             }
           });
 
           if (dbReports.length > 0) {
-            const allTogether = Array.from(new Map([...dbReports, ...unique].map((item) => [item.id, item])).values());
+            const allTogether = Array.from(new Map([...dbReports, ...unique].map((item) => [item.id, item])).values())
+              .filter((r) => !deletedReportIds.includes(r.id));
             allTogether.sort(
               (a, b) => new Date(b.created_at || b.fechaReporte).getTime() - new Date(a.created_at || a.fechaReporte).getTime()
             );
@@ -241,7 +268,7 @@ export default function AdminPage() {
           if (dbProtocols.length > 0) {
             const allProtocols = Array.from(
               new Map([...dbProtocols, ...localProtocols].map((item) => [item.id, item])).values()
-            );
+            ).filter((p) => !deletedProtocolIds.includes(p.id));
             allProtocols.sort(
               (a, b) => new Date(b.created_at || b.fecha).getTime() - new Date(a.created_at || a.fecha).getTime()
             );
@@ -262,27 +289,37 @@ export default function AdminPage() {
   // Cargar lista consolidada de recordatorios programados
   const loadRemindersList = async (currentReports?: DailyReport[]) => {
     try {
-      const localReminders: ScheduledReminder[] = JSON.parse(
-        localStorage.getItem("vanilla_scheduled_reminders") || "[]"
+      const deletedReminderIds: string[] = JSON.parse(
+        localStorage.getItem("vanilla_deleted_reminder_ids") || "[]"
+      );
+      const deletedReportIds: string[] = JSON.parse(
+        localStorage.getItem("vanilla_deleted_report_ids") || "[]"
       );
 
-      const repList = currentReports || reports;
+      const localReminders: ScheduledReminder[] = (
+        JSON.parse(localStorage.getItem("vanilla_scheduled_reminders") || "[]") as ScheduledReminder[]
+      ).filter((r) => !deletedReminderIds.includes(r.id) && !deletedReportIds.includes(r.reportId));
+
+      const repList = (currentReports || reports).filter((r) => !deletedReportIds.includes(r.id));
       const extractedReminders: ScheduledReminder[] = [];
       repList.forEach((r) => {
         (r.actividades || []).forEach((act) => {
           if (act.fechaProxima && act.fechaProxima.trim() !== "") {
-            extractedReminders.push({
-              id: `REM-${r.id}-${act.id}`,
-              reportId: r.id,
-              actividadNombre: act.nombre,
-              area: act.areaLote || "INVERNADERO N°1",
-              responsable: r.responsable,
-              observacionesPrevias: act.descripcion || r.observaciones,
-              fechaProgramada: act.fechaProxima,
-              recordatoriosEnviados: 0,
-              estado: "pendiente",
-              created_at: r.created_at || new Date().toISOString(),
-            });
+            const remId = `REM-${r.id}-${act.id}`;
+            if (!deletedReminderIds.includes(remId)) {
+              extractedReminders.push({
+                id: remId,
+                reportId: r.id,
+                actividadNombre: act.nombre,
+                area: act.areaLote || "INVERNADERO N°1",
+                responsable: r.responsable,
+                observacionesPrevias: act.descripcion || r.observaciones,
+                fechaProgramada: act.fechaProxima,
+                recordatoriosEnviados: 0,
+                estado: "pendiente",
+                created_at: r.created_at || new Date().toISOString(),
+              });
+            }
           }
         });
       });
@@ -293,7 +330,9 @@ export default function AdminPage() {
         if (res.ok) {
           const data = await res.json();
           if (Array.isArray(data.reminders)) {
-            apiReminders = data.reminders;
+            apiReminders = data.reminders.filter(
+              (r: ScheduledReminder) => !deletedReminderIds.includes(r.id) && !deletedReportIds.includes(r.reportId)
+            );
           }
         }
       } catch (e) {
@@ -303,6 +342,7 @@ export default function AdminPage() {
       const combined = [...apiReminders, ...localReminders, ...extractedReminders];
       const map = new Map<string, ScheduledReminder>();
       for (const item of combined) {
+        if (deletedReminderIds.includes(item.id) || deletedReportIds.includes(item.reportId)) continue;
         const existing = map.get(item.id);
         if (!existing) {
           map.set(item.id, item);
@@ -313,9 +353,9 @@ export default function AdminPage() {
         }
       }
 
-      const mergedList = Array.from(map.values()).sort(
-        (a, b) => new Date(a.fechaProgramada).getTime() - new Date(b.fechaProgramada).getTime()
-      );
+      const mergedList = Array.from(map.values())
+        .filter((r) => !deletedReminderIds.includes(r.id) && !deletedReportIds.includes(r.reportId))
+        .sort((a, b) => new Date(a.fechaProgramada).getTime() - new Date(b.fechaProgramada).getTime());
 
       setReminders(mergedList);
       localStorage.setItem("vanilla_scheduled_reminders", JSON.stringify(mergedList));
@@ -453,13 +493,27 @@ export default function AdminPage() {
 
   // Eliminar recordatorio
   const handleDeleteReminder = async (id: string) => {
-    if (confirm("¿Estás seguro de eliminar esta labor programada del cronograma?")) {
+    if (confirm("¿Estás seguro de eliminar esta labor programada del cronograma de forma permanente?")) {
       const updated = reminders.filter((r) => r.id !== id);
       setReminders(updated);
       localStorage.setItem("vanilla_scheduled_reminders", JSON.stringify(updated));
+
+      const deletedReminderIds: string[] = JSON.parse(
+        localStorage.getItem("vanilla_deleted_reminder_ids") || "[]"
+      );
+      if (!deletedReminderIds.includes(id)) {
+        deletedReminderIds.push(id);
+        localStorage.setItem("vanilla_deleted_reminder_ids", JSON.stringify(deletedReminderIds));
+      }
+
       try {
-        await fetch(`/api/recordatorios?id=${id}`, { method: "DELETE" });
-      } catch (e) {}
+        await Promise.allSettled([
+          fetch(`/api/admin/eliminar?id=${encodeURIComponent(id)}&type=recordatorio`, { method: "DELETE" }),
+          fetch(`/api/recordatorios?id=${encodeURIComponent(id)}`, { method: "DELETE" }),
+        ]);
+      } catch (e) {
+        console.warn("Aviso eliminando recordatorio:", e);
+      }
     }
   };
 
@@ -850,15 +904,31 @@ export default function AdminPage() {
   };
 
   // Eliminar informe
-  const handleDeleteReport = (id: string) => {
-    if (confirm(`¿Estás seguro de que deseas eliminar permanentemente el reporte ${id}?`)) {
+  const handleDeleteReport = async (id: string) => {
+    if (confirm(`¿Estás seguro de que deseas eliminar permanentemente el reporte ${id} de la base de datos?`)) {
       const updated = reports.filter((r) => r.id !== id);
       setReports(updated);
       localStorage.setItem("vanilla_daily_reports", JSON.stringify(updated));
 
+      const deletedReportIds: string[] = JSON.parse(
+        localStorage.getItem("vanilla_deleted_report_ids") || "[]"
+      );
+      if (!deletedReportIds.includes(id)) {
+        deletedReportIds.push(id);
+        localStorage.setItem("vanilla_deleted_report_ids", JSON.stringify(deletedReportIds));
+      }
+
+      const updatedReminders = reminders.filter((r) => r.reportId !== id && !r.id.startsWith(`REM-${id}`));
+      setReminders(updatedReminders);
+      localStorage.setItem("vanilla_scheduled_reminders", JSON.stringify(updatedReminders));
+
       try {
-        supabase.from("reportes_diarios").delete().eq("report_id", id);
-      } catch (e) {}
+        await fetch(`/api/admin/eliminar?id=${encodeURIComponent(id)}&type=reporte`, {
+          method: "DELETE",
+        });
+      } catch (e) {
+        console.warn("Aviso eliminando reporte en servidor:", e);
+      }
     }
   };
 
@@ -877,13 +947,23 @@ export default function AdminPage() {
 
   // Eliminar protocolo de actividades
   const handleDeleteProtocol = async (id: string) => {
-    if (confirm(`¿Estás seguro de que deseas eliminar permanentemente el protocolo de actividades ${id}?`)) {
+    if (confirm(`¿Estás seguro de que deseas eliminar permanentemente el protocolo de actividades ${id} de la base de datos?`)) {
       const updated = protocols.filter((p) => p.id !== id);
       setProtocols(updated);
       localStorage.setItem("vanilla_saved_actividades", JSON.stringify(updated));
 
+      const deletedProtocolIds: string[] = JSON.parse(
+        localStorage.getItem("vanilla_deleted_protocol_ids") || "[]"
+      );
+      if (!deletedProtocolIds.includes(id)) {
+        deletedProtocolIds.push(id);
+        localStorage.setItem("vanilla_deleted_protocol_ids", JSON.stringify(deletedProtocolIds));
+      }
+
       try {
-        await supabase.from("reportes_diarios").delete().eq("report_id", id);
+        await fetch(`/api/admin/eliminar?id=${encodeURIComponent(id)}&type=protocolo`, {
+          method: "DELETE",
+        });
       } catch (e) {
         console.warn("Error eliminando protocolo en Supabase:", e);
       }
