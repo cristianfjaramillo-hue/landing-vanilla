@@ -43,6 +43,9 @@ import {
   Bell,
   Clock,
   Send,
+  AlertTriangle,
+  Mail,
+  Key,
 } from "lucide-react";
 import { INITIAL_MOCK_REPORTS, DEFAULT_ACTIVITIES, DEFAULT_TOOLS } from "@/lib/constants";
 import { DailyReport, ActivityItem, ToolItem, ActivityProtocol, ScheduledReminder } from "@/lib/types";
@@ -83,6 +86,16 @@ export default function AdminPage() {
   const [isTriggeringCron, setIsTriggeringCron] = useState(false);
   const [sendingReminderId, setSendingReminderId] = useState<string | null>(null);
   const [cronFeedback, setCronFeedback] = useState<{ text: string; type: "success" | "error" } | null>(null);
+
+  // Configuración del Canal de Envío de Correos (Resend / Gmail)
+  const [showEmailConfigModal, setShowEmailConfigModal] = useState(false);
+  const [emailStatus, setEmailStatus] = useState<{ configured: boolean; provider?: string; recipient?: string } | null>(null);
+  const [configProvider, setConfigProvider] = useState<"resend" | "gmail">("resend");
+  const [configResendKey, setConfigResendKey] = useState("");
+  const [configGmailUser, setConfigGmailUser] = useState("cristian.f.jaramillo@gmail.com");
+  const [configGmailPass, setConfigGmailPass] = useState("");
+  const [isSavingEmailConfig, setIsSavingEmailConfig] = useState(false);
+  const [emailConfigFeedback, setEmailConfigFeedback] = useState<{ text: string; type: "success" | "error" } | null>(null);
 
   // Configuración dinámica de actividades y herramientas
   const [customActivities, setCustomActivities] = useState<ActivityItem[]>(DEFAULT_ACTIVITIES);
@@ -334,6 +347,61 @@ export default function AdminPage() {
     }
   };
 
+  // Consultar estado de configuración de correo
+  const checkEmailStatus = async () => {
+    try {
+      const res = await fetch("/api/config-email");
+      if (res.ok) {
+        const data = await res.json();
+        setEmailStatus(data);
+      }
+    } catch (e) {
+      console.warn("Aviso email status:", e);
+    }
+  };
+
+  // Guardar y probar credenciales de correo inmediatamente
+  const handleSaveEmailConfig = async () => {
+    try {
+      setIsSavingEmailConfig(true);
+      setEmailConfigFeedback(null);
+
+      const payload = {
+        provider: configProvider,
+        resendApiKey: configResendKey,
+        smtpUser: configGmailUser,
+        smtpPass: configGmailPass,
+        smtpHost: "smtp.gmail.com",
+        smtpPort: 465,
+        testNow: true,
+      };
+
+      const res = await fetch("/api/config-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setEmailConfigFeedback({
+          text: "¡Excelente! Correo de prueba enviado exitosamente a cristian.f.jaramillo@gmail.com. Por favor revisa tu bandeja de entrada.",
+          type: "success",
+        });
+        await checkEmailStatus();
+      } else {
+        setEmailConfigFeedback({
+          text: `Error al probar envío: ${data.error || "Verifica la clave ingresada."}`,
+          type: "error",
+        });
+      }
+    } catch (err: any) {
+      setEmailConfigFeedback({ text: err.message || "Error al conectar", type: "error" });
+    } finally {
+      setIsSavingEmailConfig(false);
+    }
+  };
+
   // Enviar un recordatorio específico inmediatamente por correo
   const handleSendSingleReminder = async (rem: ScheduledReminder) => {
     try {
@@ -345,7 +413,9 @@ export default function AdminPage() {
         body: JSON.stringify({ manualId: rem.id, force: true }),
       });
       const data = await res.json();
-      if (res.ok) {
+      const firstResult = data.results && data.results[0];
+
+      if (res.ok && firstResult && firstResult.enviado) {
         const nextEnvios = Math.min(3, (rem.recordatoriosEnviados || 0) + 1);
         const updated = reminders.map((r) =>
           r.id === rem.id
@@ -360,11 +430,19 @@ export default function AdminPage() {
         setReminders(updated);
         localStorage.setItem("vanilla_scheduled_reminders", JSON.stringify(updated));
         setCronFeedback({
-          text: `¡Aviso (${nextEnvios}/3) enviado exitosamente por correo a ${data.recipient || "cristian.f.jaramillo@gmail.com"}!`,
+          text: `✅ ¡Aviso (${nextEnvios}/3) entregado exitosamente a ${data.recipient || "cristian.f.jaramillo@gmail.com"}!`,
           type: "success",
         });
       } else {
-        setCronFeedback({ text: data.error || "No se pudo despachar el correo", type: "error" });
+        const errMessage = (firstResult && firstResult.razon) || data.error || "Falta configurar el proveedor de correo en el sistema.";
+        setCronFeedback({
+          text: `⚠️ No se pudo entregar el correo real: ${errMessage}`,
+          type: "error",
+        });
+        // Si no está configurado, abrir modal para facilitar al usuario
+        if (errMessage.includes("proveedor de correo") || errMessage.includes("RESEND_API_KEY") || errMessage.includes("credenciales")) {
+          setShowEmailConfigModal(true);
+        }
       }
     } catch (err: any) {
       setCronFeedback({ text: err.message || "Error de red", type: "error" });
@@ -728,6 +806,7 @@ export default function AdminPage() {
     if (savedAuth === "true") {
       setIsAuthenticated(true);
       loadReports();
+      checkEmailStatus();
 
       // Abrir pestaña directamente si viene por URL (ej. ?tab=recomendaciones)
       if (typeof window !== "undefined") {
@@ -2514,6 +2593,52 @@ export default function AdminPage() {
               </div>
             </div>
 
+            {/* Banner de Estado de Configuración de Correo */}
+            {emailStatus && !emailStatus.configured && (
+              <div className="bg-amber-50 border border-amber-300 rounded-2xl p-4 sm:p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-sm">
+                <div className="flex items-start space-x-3">
+                  <span className="p-2 bg-amber-100 rounded-xl text-amber-800 flex-shrink-0 mt-0.5">
+                    <AlertTriangle className="w-5 h-5 text-amber-700" />
+                  </span>
+                  <div>
+                    <h4 className="font-bold text-amber-950 text-sm">
+                      Paso Requerido: Conectar Proveedor de Correo para Envío Real
+                    </h4>
+                    <p className="text-xs text-amber-800 mt-1 max-w-2xl leading-relaxed">
+                      El sistema está listo para enviar recordatorios y reportes a <strong>cristian.f.jaramillo@gmail.com</strong>, pero necesita una clave de envío (<strong>Resend API Key</strong> gratuita o <strong>Contraseña de Aplicación de Google</strong>) para que los correos salgan por internet y lleguen a tu bandeja.
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setShowEmailConfigModal(true)}
+                  className="inline-flex items-center space-x-2 px-4 py-2.5 rounded-xl bg-forest-900 hover:bg-forest-800 text-white font-bold text-xs shadow-md transition-all whitespace-nowrap self-start md:self-center"
+                >
+                  <Key className="w-4 h-4 text-vanilla-400" />
+                  <span>Configurar Correo Ahora &rarr;</span>
+                </button>
+              </div>
+            )}
+
+            {emailStatus && emailStatus.configured && (
+              <div className="bg-emerald-50 border border-emerald-300 rounded-xl p-3 flex items-center justify-between text-xs text-emerald-950">
+                <div className="flex items-center space-x-2">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+                  <span>
+                    Canal activo vía <strong>{emailStatus.provider?.toUpperCase()}</strong> hacia <strong>{emailStatus.recipient}</strong>.
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowEmailConfigModal(true)}
+                  className="px-3 py-1 bg-white hover:bg-emerald-100 text-emerald-900 border border-emerald-300 rounded-lg font-bold text-[11px] transition-colors"
+                >
+                  Cambiar Clave
+                </button>
+              </div>
+            )}
+
             {/* Notificación de feedback del Cron */}
             {cronFeedback && (
               <div
@@ -3392,6 +3517,176 @@ export default function AdminPage() {
             </div>
           </div>
         )}
+
+        {/* Modal de Configuración del Proveedor de Correo */}
+        {showEmailConfigModal && (
+          <div
+            onClick={() => setShowEmailConfigModal(false)}
+            className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 overflow-y-auto animate-in fade-in duration-200"
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              className="bg-white rounded-2xl max-w-xl w-full border border-vanilla-300 shadow-2xl overflow-hidden my-auto"
+            >
+              {/* Encabezado */}
+              <div className="bg-forest-900 text-white p-5 flex items-center justify-between">
+                <div className="flex items-center space-x-2.5">
+                  <Mail className="w-5 h-5 text-vanilla-400" />
+                  <div>
+                    <h3 className="font-serif font-bold text-base text-vanilla-200">
+                      Conexión de Correo Electrónico
+                    </h3>
+                    <p className="text-[11px] text-vanilla-300">
+                      Destino configurado: <strong>cristian.f.jaramillo@gmail.com</strong>
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowEmailConfigModal(false)}
+                  className="p-1 rounded-full hover:bg-forest-800 text-vanilla-300 hover:text-white transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Contenido del Modal */}
+              <div className="p-6 space-y-5">
+                <p className="text-xs text-forest-800 leading-relaxed">
+                  Para que los correos lleguen a tu bandeja de entrada real, el servidor necesita conectarse a través de un servicio de correo autorizado. Selecciona tu método preferido:
+                </p>
+
+                {/* Selector de Método */}
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setConfigProvider("resend")}
+                    className={`p-3 rounded-xl border text-left transition-all ${
+                      configProvider === "resend"
+                        ? "border-forest-900 bg-forest-50/60 ring-2 ring-forest-900/20"
+                        : "border-vanilla-200 hover:bg-vanilla-50/50"
+                    }`}
+                  >
+                    <span className="text-xs font-bold text-forest-950 block">1. Resend (Recomendado)</span>
+                    <span className="text-[11px] text-forest-600 block mt-0.5">
+                      100% gratis • 3,000 correos/mes
+                    </span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setConfigProvider("gmail")}
+                    className={`p-3 rounded-xl border text-left transition-all ${
+                      configProvider === "gmail"
+                        ? "border-forest-900 bg-forest-50/60 ring-2 ring-forest-900/20"
+                        : "border-vanilla-200 hover:bg-vanilla-50/50"
+                    }`}
+                  >
+                    <span className="text-xs font-bold text-forest-950 block">2. Gmail Directo</span>
+                    <span className="text-[11px] text-forest-600 block mt-0.5">
+                      Contraseña de aplicación Google
+                    </span>
+                  </button>
+                </div>
+
+                {/* Formulario según proveedor */}
+                {configProvider === "resend" ? (
+                  <div className="space-y-3 bg-vanilla-50/60 p-4 rounded-xl border border-vanilla-200">
+                    <label className="block text-xs font-bold text-forest-950">
+                      API Key de Resend (comienza con <code>re_</code>):
+                    </label>
+                    <input
+                      type="password"
+                      placeholder="re_123456789abcdef..."
+                      value={configResendKey}
+                      onChange={(e) => setConfigResendKey(e.target.value)}
+                      className="w-full px-3 py-2 text-xs bg-white border border-vanilla-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-forest-600 font-mono"
+                    />
+                    <p className="text-[11px] text-forest-600 leading-relaxed">
+                      💡 <strong>¿Cómo obtenerla gratis en 30 segundos?</strong><br />
+                      Ingresa a <a href="https://resend.com/signup" target="_blank" rel="noopener noreferrer" className="text-forest-900 font-bold underline">resend.com/signup</a>, inicia sesión con Google, ve a <em>API Keys</em> &rarr; <em>Create API Key</em> y pégala aquí.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-3 bg-vanilla-50/60 p-4 rounded-xl border border-vanilla-200">
+                    <div>
+                      <label className="block text-xs font-bold text-forest-950 mb-1">
+                        Tu cuenta de correo Gmail:
+                      </label>
+                      <input
+                        type="email"
+                        value={configGmailUser}
+                        onChange={(e) => setConfigGmailUser(e.target.value)}
+                        className="w-full px-3 py-2 text-xs bg-white border border-vanilla-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-forest-600"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-forest-950 mb-1">
+                        Contraseña de Aplicación de Google (16 caracteres):
+                      </label>
+                      <input
+                        type="password"
+                        placeholder="abcd efgh ijkl mnop"
+                        value={configGmailPass}
+                        onChange={(e) => setConfigGmailPass(e.target.value)}
+                        className="w-full px-3 py-2 text-xs bg-white border border-vanilla-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-forest-600 font-mono tracking-wider"
+                      />
+                    </div>
+
+                    <p className="text-[11px] text-forest-600 leading-relaxed">
+                      💡 <strong>¿Dónde se genera la contraseña de aplicación?</strong><br />
+                      1. Ve a tu cuenta de Google: <a href="https://myaccount.google.com/apppasswords" target="_blank" rel="noopener noreferrer" className="text-forest-900 font-bold underline">myaccount.google.com/apppasswords</a>.<br />
+                      2. Escribe de nombre "Amazon Vanilla" y haz clic en Crear.<br />
+                      3. Copia el código de 16 letras amarillas y pégalo aquí.
+                    </p>
+                  </div>
+                )}
+
+                {/* Notificación de Feedback */}
+                {emailConfigFeedback && (
+                  <div
+                    className={`p-3 rounded-xl border text-xs ${
+                      emailConfigFeedback.type === "success"
+                        ? "bg-emerald-50 border-emerald-300 text-emerald-900 font-semibold"
+                        : "bg-red-50 border-red-300 text-red-900"
+                    }`}
+                  >
+                    {emailConfigFeedback.text}
+                  </div>
+                )}
+
+                {/* Botones de acción */}
+                <div className="flex items-center justify-end space-x-2 pt-2 border-t border-vanilla-200">
+                  <button
+                    type="button"
+                    onClick={() => setShowEmailConfigModal(false)}
+                    className="px-4 py-2 rounded-lg border border-vanilla-300 hover:bg-vanilla-50 text-forest-700 text-xs font-semibold"
+                  >
+                    Cerrar
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleSaveEmailConfig}
+                    disabled={
+                      isSavingEmailConfig ||
+                      (configProvider === "resend" ? !configResendKey.trim() : !configGmailPass.trim())
+                    }
+                    className="inline-flex items-center space-x-1.5 px-5 py-2 rounded-lg bg-forest-900 hover:bg-forest-800 disabled:opacity-50 disabled:cursor-not-allowed text-white text-xs font-bold shadow transition-all"
+                  >
+                    {isSavingEmailConfig ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin text-vanilla-400" />
+                    ) : (
+                      <Send className="w-3.5 h-3.5 text-vanilla-400" />
+                    )}
+                    <span>{isSavingEmailConfig ? "Probando Envío..." : "Guardar y Enviar Correo de Prueba"}</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
       </div>
     </div>
   );

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
-import nodemailer from "nodemailer";
 import { supabaseAdmin } from "@/lib/supabase";
 import { ScheduledReminder } from "@/lib/types";
+import { sendAppEmail } from "@/lib/email-service";
 
 // Manejador central para procesar recordatorios (admite GET y POST)
 async function processReminders(options: { manualId?: string; force?: boolean } = {}) {
@@ -212,94 +212,54 @@ async function processReminders(options: { manualId?: string; force?: boolean } 
 </html>
     `;
 
-    let emailSent = false;
+    // Despacho de correo real mediante el servicio centralizado
+    const emailRes = await sendAppEmail({
+      to: targetEmail,
+      subject: emailSubject,
+      html: htmlBody,
+    });
 
-    // Intento 1: Resend
-    const resendApiKey = process.env.RESEND_API_KEY;
-    if (resendApiKey && resendApiKey !== "re_tuApiKeyDeResendAqui") {
+    const emailSent = emailRes.success;
+
+    // Actualizar estado en Supabase SOLO si el correo se envió efectivamente
+    if (emailSent) {
       try {
-        const resendRes = await fetch("https://api.resend.com/emails", {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${resendApiKey}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            from: process.env.NOTIFICATION_EMAIL_FROM || "Amazon Vanilla <onboarding@resend.dev>",
-            to: [targetEmail],
-            subject: emailSubject,
-            html: htmlBody,
-          }),
-        });
-        if (resendRes.ok) emailSent = true;
-      } catch (e) {
-        console.warn("Error enviando por Resend:", e);
+        const updatedCount = nextCount;
+        const updatedEstado = updatedCount >= 3 ? "completado" : "pendiente";
+        await supabaseAdmin
+          .from("recordatorios_programados")
+          .update({
+            recordatorios_enviados: updatedCount,
+            ultimo_envio: now.toISOString(),
+            estado: updatedEstado,
+          })
+          .eq("id", reminder.id);
+      } catch (dbErr) {
+        console.warn("Error actualizando recordatorio en DB:", dbErr);
       }
-    }
-
-    // Intento 2: SMTP / Nodemailer
-    if (!emailSent) {
-      const smtpHost = process.env.SMTP_HOST;
-      const smtpUser = process.env.SMTP_USER;
-      const smtpPass = process.env.SMTP_PASS;
-
-      if (smtpHost && smtpUser && smtpPass && smtpUser !== "notificaciones@tudominio.com") {
-        try {
-          const transporter = nodemailer.createTransport({
-            host: smtpHost,
-            port: Number(process.env.SMTP_PORT) || 587,
-            secure: process.env.SMTP_SECURE === "true",
-            auth: { user: smtpUser, pass: smtpPass },
-          });
-
-          await transporter.sendMail({
-            from: process.env.NOTIFICATION_EMAIL_FROM || `"Amazon Vanilla Waorani" <${smtpUser}>`,
-            to: targetEmail,
-            subject: emailSubject,
-            html: htmlBody,
-          });
-          emailSent = true;
-        } catch (smtpErr) {
-          console.warn("Error enviando por SMTP:", smtpErr);
-        }
-      }
-    }
-
-    // Si no hay correo configurado, considerar procesado para simulación/pruebas
-    const wasDelivered = emailSent || (!resendApiKey && !process.env.SMTP_HOST);
-
-    // Actualizar estado en Supabase
-    try {
-      const updatedCount = nextCount;
-      const updatedEstado = updatedCount >= 3 ? "completado" : "pendiente";
-      await supabaseAdmin
-        .from("recordatorios_programados")
-        .update({
-          recordatorios_enviados: updatedCount,
-          ultimo_envio: now.toISOString(),
-          estado: updatedEstado,
-        })
-        .eq("id", reminder.id);
-    } catch (dbErr) {
-      console.warn("Error actualizando recordatorio en DB:", dbErr);
     }
 
     results.push({
       id: reminder.id,
       actividad: reminder.actividadNombre,
       fechaProgramada: reminder.fechaProgramada,
-      envioNumero: nextCount,
-      enviado: wasDelivered,
-      razon: emailSent ? "Enviado por correo" : "Simulado exitosamente (credenciales en Vercel)",
+      envioNumero: emailSent ? nextCount : reminder.recordatoriosEnviados,
+      enviado: emailSent,
+      razon: emailSent
+        ? `Enviado exitosamente vía ${emailRes.provider} a ${targetEmail}`
+        : emailRes.error || "No se pudo entregar el correo",
     });
   }
 
+  const successCount = results.filter((r) => r.enviado).length;
+
   return {
-    success: true,
+    success: successCount > 0 || results.length === 0,
     processedAt: now.toISOString(),
     recipient: targetEmail,
     totalReminders: reminders.length,
-    processedCount: results.filter((r) => r.enviado).length,
+    processedCount: successCount,
+    error: successCount === 0 && results.length > 0 ? results[0].razon : undefined,
     results,
   };
 }

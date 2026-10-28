@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import nodemailer from "nodemailer";
+import { sendAppEmail } from "@/lib/email-service";
 
 export async function POST(request: Request) {
   try {
@@ -178,86 +178,34 @@ export async function POST(request: Request) {
 </html>
     `;
 
-    // 1. Intento de envío mediante Resend (Recomendado para Vercel)
-    const resendApiKey = process.env.RESEND_API_KEY;
-    if (resendApiKey && resendApiKey !== "re_tuApiKeyDeResendAqui") {
-      const resendRes = await fetch("https://api.resend.com/emails", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${resendApiKey}`,
-          "Content-Type": "application/json",
+    // Despacho de correo electrónico centralizado
+    const emailResult = await sendAppEmail({
+      to: targetEmail,
+      subject: emailSubject,
+      html: htmlTemplate,
+      attachments: [
+        {
+          filename: pdfFilename,
+          content: pdfBase64,
+          contentType: "application/pdf",
         },
-        body: JSON.stringify({
-          from: process.env.NOTIFICATION_EMAIL_FROM || "Amazon Vanilla <onboarding@resend.dev>",
-          to: [targetEmail],
-          subject: emailSubject,
-          html: htmlTemplate,
-          attachments: [
-            {
-              filename: pdfFilename,
-              content: pdfBase64,
-            },
-          ],
-        }),
-      });
+      ],
+    });
 
-      const resendData = await resendRes.json();
-      if (resendRes.ok) {
-        return NextResponse.json({
-          success: true,
-          provider: "resend",
-          recipient: targetEmail,
-          data: resendData,
-        });
-      }
-      console.warn("Resend devolvió un error:", resendData);
-    }
-
-    // 2. Intento de envío mediante SMTP / Nodemailer (Gmail o servidor de correo)
-    const smtpHost = process.env.SMTP_HOST;
-    const smtpUser = process.env.SMTP_USER;
-    const smtpPass = process.env.SMTP_PASS;
-
-    if (smtpHost && smtpUser && smtpPass && smtpUser !== "notificaciones@tudominio.com") {
-      const transporter = nodemailer.createTransport({
-        host: smtpHost,
-        port: Number(process.env.SMTP_PORT) || 587,
-        secure: process.env.SMTP_SECURE === "true",
-        auth: {
-          user: smtpUser,
-          pass: smtpPass,
-        },
-      });
-
-      const info = await transporter.sendMail({
-        from: process.env.NOTIFICATION_EMAIL_FROM || `"Amazon Vanilla Waorani" <${smtpUser}>`,
-        to: targetEmail,
-        subject: emailSubject,
-        html: htmlTemplate,
-        attachments: [
-          {
-            filename: pdfFilename,
-            content: Buffer.from(pdfBase64, "base64"),
-            contentType: "application/pdf",
-          },
-        ],
-      });
-
+    if (emailResult.success) {
       return NextResponse.json({
         success: true,
-        provider: "smtp",
-        recipient: targetEmail,
-        messageId: info.messageId,
+        provider: emailResult.provider,
+        recipient: emailResult.recipient,
+        messageId: emailResult.messageId,
       });
     }
 
-    // 3. Si no hay credenciales SMTP/Resend configuradas en las variables de entorno:
     return NextResponse.json({
       success: true,
       configured: false,
       recipient: targetEmail,
-      message:
-        "El informe se procesó correctamente. Para envío real de correos electrónicos, configura RESEND_API_KEY o credenciales SMTP en Vercel.",
+      message: emailResult.error || "Informe guardado. Configure las credenciales de correo para envío automático.",
     });
   } catch (error: any) {
     console.error("Error al enviar correo electrónico:", error);
