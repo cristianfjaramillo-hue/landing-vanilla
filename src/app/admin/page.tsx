@@ -662,15 +662,14 @@ export default function AdminPage() {
   const exportAllToCSV = () => {
     if (reports.length === 0) return alert("No hay reportes para exportar.");
 
-    const headers = ["ID", "Fecha", "Lote", "Responsable", "Clima", "TempMin", "TempMax", "Humedad", "Actividades", "Observaciones"];
+    const headers = ["ID", "Fecha", "Área", "Responsable", "Clima", "Temperatura", "Humedad", "Actividades", "Observaciones"];
     const rows = reports.map((r) => [
       `"${r.id}"`,
       `"${r.fechaReporte}"`,
-      `"${r.lote}"`,
+      `"${r.area || r.lote}"`,
       `"${r.responsable}"`,
       `"${r.clima}"`,
-      r.tempMin,
-      r.tempMax,
+      r.temperatura !== undefined ? r.temperatura : (r.tempMin || 26),
       r.humedad,
       `"${r.actividades.filter((a) => a.realizado).map((a) => a.nombre).join("; ")}"`,
       `"${(r.observaciones || "").replace(/"/g, '""')}"`,
@@ -939,7 +938,7 @@ export default function AdminPage() {
                 <span className="text-xs text-forest-600 font-medium">Temp. Promedio</span>
                 <p className="text-2xl font-serif font-bold text-forest-900 mt-1">
                   {reports.length > 0
-                    ? Math.round(reports.reduce((acc, r) => acc + (r.tempMax || 28), 0) / reports.length)
+                    ? Math.round(reports.reduce((acc, r) => acc + (r.temperatura ?? r.tempMax ?? 26), 0) / reports.length)
                     : 28}
                   °C
                 </p>
@@ -1033,12 +1032,12 @@ export default function AdminPage() {
                             <span>{report.fechaReporte}</span>
                           </span>
                           <span className="text-xs px-2 py-0.5 rounded-full bg-vanilla-100 text-vanilla-800 font-medium">
-                            {report.clima} ({report.tempMin}°C - {report.tempMax}°C)
+                            {report.clima} ({report.temperatura !== undefined ? `${report.temperatura}°C` : `${report.tempMin}°C - ${report.tempMax}°C`})
                           </span>
                         </div>
 
                         <h3 className="text-base font-bold text-forest-900">
-                          {report.lote}
+                          {report.area || report.lote}
                         </h3>
                         <p className="text-xs text-forest-600">
                           Responsable: <strong>{report.responsable}</strong>
@@ -2349,57 +2348,51 @@ export default function AdminPage() {
 
               {/* Contenido Completo del Informe */}
               <div className="p-6 space-y-6 text-xs text-forest-900">
-                {/* 1. Rango de Fechas & Responsable */}
+                {/* 1. Fecha del Informe, Área & Responsable */}
                 <div className="bg-vanilla-50 p-4 rounded-xl border border-vanilla-200 grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div>
                     <span className="font-bold text-forest-700 block uppercase text-[10px]">
-                      Rango de Fechas del Informe:
+                      Fecha del Informe:
                     </span>
-                    <p className="font-medium text-sm mt-0.5">
-                      Desde: <span className="font-semibold">{previewReport.fechaDesde}</span> — Hasta:{" "}
-                      <span className="font-semibold">{previewReport.fechaHasta}</span>
+                    <p className="font-semibold text-sm mt-0.5 text-forest-950">
+                      {previewReport.fechaReporte || previewReport.fechaDesde}
                     </p>
                   </div>
 
                   <div>
                     <span className="font-bold text-forest-700 block uppercase text-[10px]">
-                      Lote / Chakra:
+                      Área:
                     </span>
                     <p className="font-bold text-sm text-forest-950 mt-0.5">
-                      {previewReport.lote}
+                      {previewReport.area || previewReport.lote}
                     </p>
                   </div>
 
                   <div>
                     <span className="font-bold text-forest-700 block uppercase text-[10px]">
-                      Responsable de Campo:
+                      Responsable Autorizado:
                     </span>
-                    <p className="font-semibold text-sm mt-0.5">
+                    <p className="font-semibold text-sm mt-0.5 text-forest-950">
                       {previewReport.responsable}
                     </p>
                   </div>
                 </div>
 
-                {/* 2. Condiciones del Día */}
+                {/* 2. Condiciones Diarias */}
                 <div className="bg-forest-50/60 p-4 rounded-xl border border-forest-100 flex flex-wrap items-center justify-between gap-4">
                   <div className="flex items-center space-x-2">
-                    <Calendar className="w-4 h-4 text-vanilla-600" />
-                    <span>Fecha de Registro: <strong>{previewReport.fechaReporte}</strong></span>
-                  </div>
-
-                  <div className="flex items-center space-x-2">
-                    <Sun className="w-4 h-4 text-vanilla-600" />
-                    <span>Clima: <strong>{previewReport.clima} {previewReport.climaOtro ? `(${previewReport.climaOtro})` : ""}</strong></span>
-                  </div>
-
-                  <div className="flex items-center space-x-2">
                     <Thermometer className="w-4 h-4 text-forest-700" />
-                    <span>Temperatura: <strong>{previewReport.tempMin}°C - {previewReport.tempMax}°C</strong></span>
+                    <span>Temperatura: <strong>{previewReport.temperatura !== undefined ? `${previewReport.temperatura}°C` : `${previewReport.tempMin}°C - ${previewReport.tempMax}°C`}</strong></span>
                   </div>
 
                   <div className="flex items-center space-x-2">
                     <Droplets className="w-4 h-4 text-blue-600" />
                     <span>Humedad: <strong>{previewReport.humedad}%</strong></span>
+                  </div>
+
+                  <div className="flex items-center space-x-2">
+                    <Sun className="w-4 h-4 text-vanilla-600" />
+                    <span>Clima: <strong>{previewReport.clima} {previewReport.climaOtro ? `(${previewReport.climaOtro})` : ""}</strong></span>
                   </div>
                 </div>
 
@@ -2602,10 +2595,10 @@ export default function AdminPage() {
                     onClick={() => {
                       const text = `🌿 *INFORME DIARIO CULTIVO DE VAINILLA*%0A` +
                         `*ID:* ${previewReport.id}%0A` +
-                        `*Lote:* ${previewReport.lote}%0A` +
+                        `*Área:* ${previewReport.area || previewReport.lote}%0A` +
                         `*Fecha:* ${previewReport.fechaReporte}%0A` +
                         `*Responsable:* ${previewReport.responsable}%0A` +
-                        `*Clima:* ${previewReport.clima} (${previewReport.tempMin}°C - ${previewReport.tempMax}°C)`;
+                        `*Clima:* ${previewReport.clima} (${previewReport.temperatura !== undefined ? `${previewReport.temperatura}°C` : `${previewReport.tempMin}°C`})`;
                       window.open(`https://api.whatsapp.com/send?text=${text}`, "_blank");
                     }}
                     className="p-2 rounded-lg bg-[#25D366] hover:bg-[#1EBE5D] text-white transition-colors"

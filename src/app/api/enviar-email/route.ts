@@ -69,11 +69,11 @@ export async function POST(request: Request) {
           </tr>
           <tr>
             <td style="padding: 16px 20px; border-bottom: 1px solid #EAE3D8;">
-              <span style="font-size: 11px; text-transform: uppercase; color: #735D3D; font-weight: bold;">Invernadero / Lote:</span><br>
-              <strong style="font-size: 13px; color: #1C3B24;">${report.lote}</strong>
+              <span style="font-size: 11px; text-transform: uppercase; color: #735D3D; font-weight: bold;">Área:</span><br>
+              <strong style="font-size: 13px; color: #1C3B24;">${report.area || report.lote}</strong>
             </td>
             <td style="padding: 16px 20px; border-bottom: 1px solid #EAE3D8;">
-              <span style="font-size: 11px; text-transform: uppercase; color: #735D3D; font-weight: bold;">Responsable de Campo:</span><br>
+              <span style="font-size: 11px; text-transform: uppercase; color: #735D3D; font-weight: bold;">Responsable:</span><br>
               <strong style="font-size: 13px; color: #1C3B24;">${report.responsable}</strong>
             </td>
           </tr>
@@ -81,7 +81,7 @@ export async function POST(request: Request) {
             <td colspan="2" style="padding: 16px 20px;">
               <span style="font-size: 11px; text-transform: uppercase; color: #735D3D; font-weight: bold;">Condiciones Climáticas:</span><br>
               <span style="font-size: 13px; color: #2A4430;">
-                Clima: <strong>${report.clima}</strong> | Temp: <strong>${report.tempMin}°C - ${report.tempMax}°C</strong> | Humedad: <strong>${report.humedad}%</strong>
+                Clima: <strong>${report.clima}</strong> | Temp: <strong>${report.temperatura !== undefined ? `${report.temperatura}°C` : `${report.tempMin}°C - ${report.tempMax}°C`}</strong> | Humedad: <strong>${report.humedad}%</strong>
               </span>
             </td>
           </tr>

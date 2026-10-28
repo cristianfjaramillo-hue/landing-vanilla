@@ -22,25 +22,41 @@ import {
   Trash2,
   CheckCircle2,
   ArrowLeft,
+  ChevronDown,
 } from "lucide-react";
 import { DEFAULT_ACTIVITIES, DEFAULT_TOOLS } from "@/lib/constants";
 import { ActivityItem, ToolItem, AppliedInput, DailyReport } from "@/lib/types";
 import { generateDailyReportPDF } from "@/lib/pdf-generator";
 import { supabase } from "@/lib/supabase";
 
+const AREAS_DISPONIBLES = [
+  "INVERNADERO N°1",
+  "INVERNADERO N°2",
+  "INVERNADERO N°3",
+  "INVERNADERO N°4",
+  "INVERNADERO N°5",
+  "CHACRA CACAO",
+  "CHACRA VAINILLA",
+] as const;
+
+const RESPONSABLES_AUTORIZADOS = [
+  "GUIMARE",
+  "FELIPE",
+  "PEGO",
+  "DORE",
+  "CINDY",
+  "GEMENCA",
+] as const;
+
 export default function NuevoReportePage() {
   const todayStr = new Date().toISOString().split("T")[0];
 
-  // 1. Cabecera
-  const [fechaDesde, setFechaDesde] = useState(todayStr);
-  const [fechaHasta, setFechaHasta] = useState(todayStr);
-  const [lote, setLote] = useState("Lote 1 - Chakra Waorani Nemompari");
-  const [responsable, setResponsable] = useState("");
+  // 1. Cabecera (Área y Responsable seleccionables)
+  const [area, setArea] = useState<string>("INVERNADERO N°1");
+  const [responsable, setResponsable] = useState<string>("GUIMARE");
 
-  // 2. Condiciones del día
-  const [fechaReporte, setFechaReporte] = useState(todayStr);
-  const [tempMin, setTempMin] = useState<number | string>(22);
-  const [tempMax, setTempMax] = useState<number | string>(30);
+  // 2. Condiciones Diarias (Temperatura única)
+  const [temperatura, setTemperatura] = useState<number | string>(26);
   const [humedad, setHumedad] = useState<number | string>(85);
   const [clima, setClima] = useState<"Soleado" | "Nublado" | "Lluvia" | "Otro">("Soleado");
   const [climaOtro, setClimaOtro] = useState("");
@@ -129,14 +145,9 @@ export default function NuevoReportePage() {
 
   // Reiniciar formulario completo borrando todo dato ingresado
   const resetForm = () => {
-    const today = new Date().toISOString().split("T")[0];
-    setFechaDesde(today);
-    setFechaHasta(today);
-    setLote("Lote 1 - Chakra Waorani Nemompari");
-    setResponsable("");
-    setFechaReporte(today);
-    setTempMin(22);
-    setTempMax(30);
+    setArea("INVERNADERO N°1");
+    setResponsable("GUIMARE");
+    setTemperatura(26);
     setHumedad(85);
     setClima("Soleado");
     setClimaOtro("");
@@ -152,16 +163,19 @@ export default function NuevoReportePage() {
 
   // Compilar el objeto de reporte
   const buildReportObject = (): DailyReport => {
+    const tempVal = temperatura !== "" && !isNaN(Number(temperatura)) ? Number(temperatura) : 26;
     return {
       id: "REP-" + Date.now().toString().slice(-6),
       created_at: new Date().toISOString(),
-      fechaDesde,
-      fechaHasta,
-      lote: lote.trim() || "Lote 1 - Chakra Waorani Nemompari",
-      responsable: responsable.trim() || "Técnico ITEC / Guardián Waorani",
-      fechaReporte,
-      tempMin: tempMin !== "" && !isNaN(Number(tempMin)) ? Number(tempMin) : 22,
-      tempMax: tempMax !== "" && !isNaN(Number(tempMax)) ? Number(tempMax) : 30,
+      area,
+      lote: area,
+      responsable: responsable.trim() || "GUIMARE",
+      fechaReporte: todayStr,
+      fechaDesde: todayStr,
+      fechaHasta: todayStr,
+      temperatura: tempVal,
+      tempMin: tempVal,
+      tempMax: tempVal,
       humedad: humedad !== "" && !isNaN(Number(humedad)) ? Number(humedad) : 85,
       clima,
       climaOtro: clima === "Otro" ? climaOtro : undefined,
@@ -333,122 +347,116 @@ export default function NuevoReportePage() {
           </div>
 
           <div className="p-3 sm:p-8 space-y-6 sm:space-y-8">
-            {/* SECCIÓN 1: RANGO DE FECHAS & RESPONSABLE */}
+            {/* SECCIÓN 1: FECHA DEL INFORME, ÁREA & RESPONSABLE */}
             <div className="bg-vanilla-50/70 p-5 rounded-xl border border-vanilla-200">
               <h2 className="text-xs font-bold uppercase tracking-wider text-forest-900 mb-4 flex items-center space-x-2">
                 <Calendar className="w-4 h-4 text-vanilla-600" />
-                <span>1. Rango de Fechas del Informe & Responsable</span>
+                <span>1. Fecha del Informe, Área & Responsable</span>
               </h2>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div>
-                  <label className="block text-xs font-semibold text-forest-800 mb-1">
-                    Desde:
-                  </label>
-                  <input
-                    type="date"
-                    value={fechaDesde}
-                    onChange={(e) => setFechaDesde(e.target.value)}
-                    className="w-full text-sm px-3 py-2 bg-white rounded-lg border border-vanilla-300 focus:outline-none focus:ring-2 focus:ring-forest-600"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-forest-800 mb-1">
-                    Hasta:
-                  </label>
-                  <input
-                    type="date"
-                    value={fechaHasta}
-                    onChange={(e) => setFechaHasta(e.target.value)}
-                    className="w-full text-sm px-3 py-2 bg-white rounded-lg border border-vanilla-300 focus:outline-none focus:ring-2 focus:ring-forest-600"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-forest-800 mb-1">
-                    Lote / Área:
-                  </label>
-                  <input
-                    type="text"
-                    value={lote}
-                    onChange={(e) => setLote(e.target.value)}
-                    onFocus={() => setLote("")}
-                    placeholder="Lote 1 - Chakra Waorani Nemompari"
-                    className="w-full text-sm px-3 py-2 bg-white rounded-lg border border-vanilla-300 focus:outline-none focus:ring-2 focus:ring-forest-600"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-forest-800 mb-1">
-                    Responsable de Campo:
-                  </label>
-                  <input
-                    type="text"
-                    value={responsable}
-                    onChange={(e) => setResponsable(e.target.value)}
-                    onFocus={() => setResponsable("")}
-                    placeholder="Nombre del técnico o líder"
-                    className="w-full text-sm px-3 py-2 bg-white rounded-lg border border-vanilla-300 focus:outline-none focus:ring-2 focus:ring-forest-600"
-                    required
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* SECCIÓN 2: CONDICIONES DEL DÍA */}
-            <div className="bg-forest-50/50 p-5 rounded-xl border border-forest-100">
-              <h2 className="text-xs font-bold uppercase tracking-wider text-forest-900 mb-4 flex items-center space-x-2">
-                <Sun className="w-4 h-4 text-vanilla-600" />
-                <span>2. Condiciones del Día</span>
-              </h2>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
-                <div>
-                  <label className="block text-xs font-semibold text-forest-800 mb-1">
-                    Fecha de Registro:
-                  </label>
-                  <input
-                    type="date"
-                    value={fechaReporte}
-                    onChange={(e) => setFechaReporte(e.target.value)}
-                    className="w-full text-sm px-3 py-2 bg-white rounded-lg border border-vanilla-300 focus:outline-none focus:ring-2 focus:ring-forest-600"
-                    required
-                  />
-                </div>
-
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                {/* Fecha Única y Automática */}
                 <div>
                   <label className="block text-xs font-semibold text-forest-800 mb-1 flex items-center justify-between">
-                    <span>Temperatura (°C):</span>
-                    <span className="text-[10px] text-forest-600">Mín / Máx</span>
+                    <span>Fecha del Informe:</span>
+                    <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100/90 px-2 py-0.5 rounded-full border border-emerald-300">
+                      Fecha Actual Automática
+                    </span>
                   </label>
-                  <div className="flex items-center space-x-2">
+                  <div className="relative">
                     <input
-                      type="number"
-                      value={tempMin}
-                      onChange={(e) => setTempMin(e.target.value === "" ? "" : Number(e.target.value))}
-                      onFocus={() => setTempMin("")}
-                      placeholder="22"
-                      className="w-1/2 text-sm px-2.5 py-2 bg-white rounded-lg border border-vanilla-300 text-center focus:outline-none focus:ring-2 focus:ring-forest-600"
-                    />
-                    <span className="text-forest-400">-</span>
-                    <input
-                      type="number"
-                      value={tempMax}
-                      onChange={(e) => setTempMax(e.target.value === "" ? "" : Number(e.target.value))}
-                      onFocus={() => setTempMax("")}
-                      placeholder="30"
-                      className="w-1/2 text-sm px-2.5 py-2 bg-white rounded-lg border border-vanilla-300 text-center focus:outline-none focus:ring-2 focus:ring-forest-600"
+                      type="date"
+                      value={todayStr}
+                      readOnly
+                      className="w-full text-sm font-semibold px-3 py-2.5 bg-forest-50/60 rounded-lg border border-vanilla-300 text-forest-900 cursor-default select-none shadow-inner"
                     />
                   </div>
                 </div>
 
+                {/* Casillero Área (Botón de Selección Desplegable) */}
                 <div>
                   <label className="block text-xs font-semibold text-forest-800 mb-1">
-                    Humedad Relativa (%):
+                    Área:
+                  </label>
+                  <div className="relative">
+                    <select
+                      value={area}
+                      onChange={(e) => setArea(e.target.value)}
+                      className="w-full text-sm font-semibold px-3 py-2.5 bg-white rounded-lg border border-vanilla-300 text-forest-950 focus:outline-none focus:ring-2 focus:ring-forest-600 shadow-sm cursor-pointer appearance-none pr-9 hover:border-forest-400 transition-colors"
+                      required
+                    >
+                      {AREAS_DISPONIBLES.map((a) => (
+                        <option key={a} value={a} className="font-semibold text-forest-950 py-1">
+                          {a}
+                        </option>
+                      ))}
+                    </select>
+                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-forest-700">
+                      <ChevronDown className="w-4 h-4" />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Casillero Responsable (Botón de Selección Desplegable) */}
+                <div>
+                  <label className="block text-xs font-semibold text-forest-800 mb-1">
+                    Responsable Autorizado:
+                  </label>
+                  <div className="relative">
+                    <select
+                      value={responsable}
+                      onChange={(e) => setResponsable(e.target.value)}
+                      className="w-full text-sm font-semibold px-3 py-2.5 bg-white rounded-lg border border-vanilla-300 text-forest-950 focus:outline-none focus:ring-2 focus:ring-forest-600 shadow-sm cursor-pointer appearance-none pr-9 hover:border-forest-400 transition-colors"
+                      required
+                    >
+                      {RESPONSABLES_AUTORIZADOS.map((r) => (
+                        <option key={r} value={r} className="font-semibold text-forest-950 py-1">
+                          {r}
+                        </option>
+                      ))}
+                    </select>
+                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-forest-700">
+                      <ChevronDown className="w-4 h-4" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* SECCIÓN 2: CONDICIONES DIARIAS */}
+            <div className="bg-forest-50/50 p-5 rounded-xl border border-forest-100">
+              <h2 className="text-xs font-bold uppercase tracking-wider text-forest-900 mb-4 flex items-center space-x-2">
+                <Sun className="w-4 h-4 text-vanilla-600" />
+                <span>2. Condiciones Diarias</span>
+              </h2>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-end">
+                {/* Temperatura Única (Reubicada) */}
+                <div>
+                  <label className="block text-xs font-semibold text-forest-800 mb-1 flex items-center space-x-1.5">
+                    <Thermometer className="w-4 h-4 text-forest-600" />
+                    <span>Temperatura:</span>
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="number"
+                      step="0.1"
+                      value={temperatura}
+                      onChange={(e) => setTemperatura(e.target.value === "" ? "" : Number(e.target.value))}
+                      onFocus={() => setTemperatura("")}
+                      placeholder="26"
+                      className="w-full text-sm font-semibold px-3 py-2.5 bg-white rounded-lg border border-vanilla-300 text-forest-950 focus:outline-none focus:ring-2 focus:ring-forest-600 shadow-sm pr-9"
+                      required
+                    />
+                    <span className="absolute right-3 top-2.5 text-xs text-forest-500 font-bold">°C</span>
+                  </div>
+                </div>
+
+                {/* Humedad Relativa */}
+                <div>
+                  <label className="block text-xs font-semibold text-forest-800 mb-1 flex items-center space-x-1.5">
+                    <Droplets className="w-4 h-4 text-blue-600" />
+                    <span>Humedad Relativa:</span>
                   </label>
                   <div className="relative">
                     <input
@@ -459,12 +467,14 @@ export default function NuevoReportePage() {
                       onChange={(e) => setHumedad(e.target.value === "" ? "" : Number(e.target.value))}
                       onFocus={() => setHumedad("")}
                       placeholder="85"
-                      className="w-full text-sm px-3 py-2 bg-white rounded-lg border border-vanilla-300 focus:outline-none focus:ring-2 focus:ring-forest-600"
+                      className="w-full text-sm font-semibold px-3 py-2.5 bg-white rounded-lg border border-vanilla-300 text-forest-950 focus:outline-none focus:ring-2 focus:ring-forest-600 shadow-sm pr-9"
+                      required
                     />
-                    <span className="absolute right-3 top-2.5 text-xs text-forest-400 font-semibold">%</span>
+                    <span className="absolute right-3 top-2.5 text-xs text-forest-500 font-bold">%</span>
                   </div>
                 </div>
 
+                {/* Estado del Tiempo */}
                 <div>
                   <label className="block text-xs font-semibold text-forest-800 mb-1">
                     Estado del Tiempo:
@@ -480,7 +490,7 @@ export default function NuevoReportePage() {
                         key={item.val}
                         type="button"
                         onClick={() => setClima(item.val as any)}
-                        className={`p-1.5 rounded-lg text-[11px] font-semibold flex flex-col items-center justify-center transition-all ${
+                        className={`py-2 px-1 rounded-lg text-[11px] font-semibold flex flex-col items-center justify-center transition-all ${
                           clima === item.val
                             ? "bg-forest-900 text-white shadow-sm"
                             : "bg-white text-forest-800 border border-vanilla-300 hover:bg-vanilla-100"
@@ -535,8 +545,7 @@ export default function NuevoReportePage() {
                         <span className="hidden md:inline">Descripción / Observaciones Breves</span>
                       </th>
                       <th className="py-2 sm:py-2.5 px-1.5 sm:px-3 w-16 sm:w-32 font-bold text-[11px] sm:text-xs">
-                        <span className="md:hidden">Área</span>
-                        <span className="hidden md:inline">Área / Lote</span>
+                        <span>Área</span>
                       </th>
                       <th className="py-2 sm:py-2.5 pr-3 sm:pr-3 pl-1 sm:px-3 w-10 sm:w-20 text-center font-bold text-[10px] sm:text-xs">
                         <span className="sm:hidden">✓</span>
@@ -694,7 +703,7 @@ export default function NuevoReportePage() {
                     <div className="flex items-center space-x-2">
                       <input
                         type="text"
-                        placeholder="Área / Lote"
+                        placeholder="Área"
                         value={row.areaLote}
                         onChange={(e) => updateInsumo(row.id, "areaLote", e.target.value)}
                         onFocus={() => updateInsumo(row.id, "areaLote", "")}

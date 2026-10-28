@@ -35,14 +35,16 @@ export interface DailyReport {
   id: string;
   created_at: string;
   // Encabezado
-  fechaDesde: string;
-  fechaHasta: string;
+  area?: string;
   lote: string;
   responsable: string;
-  // Condiciones
+  // Fechas y Condiciones
   fechaReporte: string;
-  tempMin: number;
-  tempMax: number;
+  fechaDesde?: string;
+  fechaHasta?: string;
+  temperatura?: number;
+  tempMin?: number;
+  tempMax?: number;
   humedad: number;
   clima: "Soleado" | "Nublado" | "Lluvia" | "Otro";
   climaOtro?: string;

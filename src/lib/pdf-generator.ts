@@ -51,15 +51,18 @@ export async function generateDailyReportPDF(
   doc.setFontSize(10);
   doc.text("SEGUIMIENTO Y CONTROL DEL CULTIVO | ITEC ECUADOR - TERRITORIO WAORANI", 105, 18, { align: "center" });
 
-  // 2. Rango de Fechas y Responsable
+  // 2. Fecha del Informe, Área y Responsable
+  const fechaDisplay = report.fechaReporte || report.fechaDesde || new Date().toISOString().split("T")[0];
+  const areaDisplay = report.area || report.lote;
+
   autoTable(doc, {
     startY: 29,
     theme: "grid",
-    head: [["RANGO DE FECHAS DEL INFORME", "UBICACIÓN Y RESPONSABLE"]],
+    head: [["FECHA DEL INFORME", "ÁREA Y RESPONSABLE"]],
     body: [
       [
-        `Desde: ${report.fechaDesde}      Hasta: ${report.fechaHasta}`,
-        `Lote / Área: ${report.lote}\nResponsable: ${report.responsable}`,
+        `Fecha: ${fechaDisplay}`,
+        `Área: ${areaDisplay}\nResponsable: ${report.responsable}`,
       ],
     ],
     headStyles: { fillColor: greenHeader as [number, number, number], textColor: 255, fontStyle: "bold" },
@@ -68,13 +71,21 @@ export async function generateDailyReportPDF(
 
   // 3. Condiciones del Día
   const condY = (doc as any).lastAutoTable.finalY + 4;
+  const tempDisplay = report.temperatura !== undefined
+    ? `${report.temperatura}°C`
+    : report.tempMin !== undefined && report.tempMax !== undefined
+      ? `${report.tempMin}°C - ${report.tempMax}°C`
+      : report.tempMin !== undefined
+        ? `${report.tempMin}°C`
+        : "26°C";
+
   autoTable(doc, {
     startY: condY,
     theme: "grid",
     head: [["CONDICIONES DEL DÍA"]],
     body: [
       [
-        `Fecha: ${report.fechaReporte}   |   Temperatura: Mín ${report.tempMin}°C - Máx ${report.tempMax}°C   |   Humedad: ${report.humedad}%   |   Clima: ${report.clima} ${report.climaOtro ? `(${report.climaOtro})` : ""}`,
+        `Temperatura: ${tempDisplay}   |   Humedad: ${report.humedad}%   |   Clima: ${report.clima} ${report.climaOtro ? `(${report.climaOtro})` : ""}`,
       ],
     ],
     headStyles: { fillColor: [42, 86, 55], textColor: 255, fontStyle: "bold" },
@@ -94,7 +105,7 @@ export async function generateDailyReportPDF(
   autoTable(doc, {
     startY: actY,
     theme: "grid",
-    head: [["N°", "Actividad", "Descripción / Observaciones", "Área / Lote", "Realizado"]],
+    head: [["N°", "Actividad", "Descripción / Observaciones", "Área", "Realizado"]],
     body: actRows,
     headStyles: { fillColor: greenHeader as [number, number, number], textColor: 255 },
     columnStyles: {
@@ -132,7 +143,7 @@ export async function generateDailyReportPDF(
   autoTable(doc, {
     startY: insY,
     theme: "grid",
-    head: [["Insumo Aplicado", "Dosis", "Método de Aplicación", "Área / Lote"]],
+    head: [["Insumo Aplicado", "Dosis", "Método de Aplicación", "Área"]],
     body: insRows,
     headStyles: { fillColor: greenHeader as [number, number, number], textColor: 255 },
     styles: { fontSize: 8, cellPadding: 2 },
@@ -230,7 +241,7 @@ export async function generateDailyReportPDF(
     );
   }
 
-  const filename = `Informe_Vainilla_${report.lote.replace(/\s+/g, "_")}_${report.fechaReporte}.pdf`;
+  const filename = `Informe_Vainilla_${(report.area || report.lote || "Area").replace(/\s+/g, "_")}_${fechaDisplay}.pdf`;
   if (autoDownload) {
     doc.save(filename);
   }
