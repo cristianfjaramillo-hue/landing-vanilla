@@ -10,7 +10,16 @@ export const DEFAULT_ACTIVITIES: ActivityItem[] = [
   { id: 7, nombre: "Control de enfermedades", descripcion: "", areaLote: "", realizado: false },
   { id: 8, nombre: "Instalación / Mantenimiento de tutores vivos", descripcion: "", areaLote: "", realizado: false },
   { id: 9, nombre: "Revisión de brotes y conteo de vainas", descripcion: "", areaLote: "", realizado: false },
-  { id: 10, nombre: "Otra actividad agronómica", descripcion: "", areaLote: "", realizado: false },
+  { id: 10, nombre: "Formación de conducción de esquejes", descripcion: "", areaLote: "", realizado: false },
+  { id: 11, nombre: "Amarres de tallos", descripcion: "", areaLote: "", realizado: false },
+  { id: 12, nombre: "Manejo de sustrato o abono", descripcion: "", areaLote: "", realizado: false },
+  { id: 13, nombre: "Preparación de Té de cáscara de plátano", descripcion: "", areaLote: "", realizado: false },
+  { id: 14, nombre: "Preparación de Té de ceniza", descripcion: "", areaLote: "", realizado: false },
+  { id: 15, nombre: "Preparación de Té de ortiga", descripcion: "", areaLote: "", realizado: false },
+  { id: 16, nombre: "Elaboración de Biofertilizante", descripcion: "", areaLote: "", realizado: false },
+  { id: 17, nombre: "Mantenimiento de la malla", descripcion: "", areaLote: "", realizado: false },
+  { id: 18, nombre: "Solarización de madera", descripcion: "", areaLote: "", realizado: false },
+  { id: 19, nombre: "Otra actividad agronómica", descripcion: "", areaLote: "", realizado: false },
 ];
 
 export const DEFAULT_TOOLS: ToolItem[] = [

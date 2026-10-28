@@ -61,7 +61,7 @@ export default function NuevoReportePage() {
   const [clima, setClima] = useState<"Soleado" | "Nublado" | "Lluvia" | "Otro">("Soleado");
   const [climaOtro, setClimaOtro] = useState("");
 
-  // 3. Actividades (10 items con check y frases cortas)
+  // 3. Actividades (19 items con check y notas cortas)
   const [actividades, setActividades] = useState<ActivityItem[]>(DEFAULT_ACTIVITIES);
 
   // 4. Herramientas
