@@ -48,6 +48,8 @@ export interface DailyReport {
   humedad: number;
   clima: "Soleado" | "Nublado" | "Lluvia" | "Otro";
   climaOtro?: string;
+  // Condiciones del Terreno
+  alcalinidad?: number | string;
   // Listas
   actividades: ActivityItem[];
   herramientas: ToolItem[];

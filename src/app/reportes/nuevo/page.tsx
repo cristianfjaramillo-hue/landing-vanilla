@@ -23,6 +23,7 @@ import {
   CheckCircle2,
   ArrowLeft,
   ChevronDown,
+  Layers,
 } from "lucide-react";
 import { DEFAULT_ACTIVITIES, DEFAULT_TOOLS } from "@/lib/constants";
 import { ActivityItem, ToolItem, AppliedInput, DailyReport } from "@/lib/types";
@@ -60,6 +61,9 @@ export default function NuevoReportePage() {
   const [humedad, setHumedad] = useState<number | string>(85);
   const [clima, setClima] = useState<"Soleado" | "Nublado" | "Lluvia" | "Otro">("Soleado");
   const [climaOtro, setClimaOtro] = useState("");
+
+  // Condiciones del Terreno
+  const [alcalinidad, setAlcalinidad] = useState<number | string>("");
 
   // 3. Actividades (19 items con check y notas cortas)
   const [actividades, setActividades] = useState<ActivityItem[]>(DEFAULT_ACTIVITIES);
@@ -151,6 +155,7 @@ export default function NuevoReportePage() {
     setHumedad(85);
     setClima("Soleado");
     setClimaOtro("");
+    setAlcalinidad("");
     setActividades(DEFAULT_ACTIVITIES);
     setHerramientas(DEFAULT_TOOLS);
     setOtraHerramienta("");
@@ -179,6 +184,7 @@ export default function NuevoReportePage() {
       humedad: humedad !== "" && !isNaN(Number(humedad)) ? Number(humedad) : 85,
       clima,
       climaOtro: clima === "Otro" ? climaOtro : undefined,
+      alcalinidad: alcalinidad !== "" ? alcalinidad : undefined,
       actividades,
       herramientas: herramientas.map((h) =>
         h.id === "otra" && otraHerramienta ? { ...h, nombre: `Otra: ${otraHerramienta}` } : h
@@ -516,6 +522,42 @@ export default function NuevoReportePage() {
                   />
                 </div>
               )}
+            </div>
+
+            {/* CONDICIONES DEL TERRENO */}
+            <div className="bg-vanilla-50/70 p-5 rounded-xl border border-vanilla-200">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4">
+                {/* Título de la casilla */}
+                <div className="flex items-center space-x-2">
+                  <Layers className="w-4 h-4 text-vanilla-600 flex-shrink-0" />
+                  <h2 className="text-xs font-bold uppercase tracking-wider text-forest-900 whitespace-nowrap">
+                    CONDICIONES DEL TERRENO:
+                  </h2>
+                </div>
+
+                {/* Casilla activa fija ALCALINIDAD y Cuadro de Porcentaje */}
+                <div className="flex items-center space-x-2 sm:space-x-3 flex-1 max-w-xl">
+                  {/* Casilla activa que dice ALCALINIDAD como palabra fija */}
+                  <div className="inline-flex items-center justify-center px-3.5 py-2.5 rounded-lg bg-forest-900 text-vanilla-300 font-bold text-xs uppercase tracking-wider select-none shadow-sm flex-shrink-0 border border-forest-800">
+                    ALCALINIDAD
+                  </div>
+
+                  {/* Cuadro para escribir el porcentaje de alcalinidad */}
+                  <div className="relative flex-1">
+                    <input
+                      type="number"
+                      step="any"
+                      min="0"
+                      max="100"
+                      value={alcalinidad}
+                      onChange={(e) => setAlcalinidad(e.target.value)}
+                      placeholder="Ingrese porcentaje de alcalinidad..."
+                      className="w-full text-sm font-semibold px-3.5 py-2.5 bg-white rounded-lg border border-vanilla-300 text-forest-950 focus:outline-none focus:ring-2 focus:ring-forest-600 shadow-sm pr-9"
+                    />
+                    <span className="absolute right-3.5 top-2.5 text-xs text-forest-500 font-bold">%</span>
+                  </div>
+                </div>
+              </div>
             </div>
 
             {/* SECCIÓN 3: ACTIVIDADES REALIZADAS (Checks rápidos + Frases Cortas) */}

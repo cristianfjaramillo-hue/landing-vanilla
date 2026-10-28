@@ -81,7 +81,7 @@ export async function POST(request: Request) {
             <td colspan="2" style="padding: 16px 20px;">
               <span style="font-size: 11px; text-transform: uppercase; color: #735D3D; font-weight: bold;">Condiciones Climáticas:</span><br>
               <span style="font-size: 13px; color: #2A4430;">
-                Clima: <strong>${report.clima}</strong> | Temp: <strong>${report.temperatura !== undefined ? `${report.temperatura}°C` : `${report.tempMin}°C - ${report.tempMax}°C`}</strong> | Humedad: <strong>${report.humedad}%</strong>
+                Clima: <strong>${report.clima}</strong> | Temp: <strong>${report.temperatura !== undefined ? `${report.temperatura}°C` : `${report.tempMin}°C - ${report.tempMax}°C`}</strong> | Humedad: <strong>${report.humedad}%</strong>${report.alcalinidad ? ` | Alcalinidad: <strong>${report.alcalinidad}%</strong>` : ""}
               </span>
             </td>
           </tr>

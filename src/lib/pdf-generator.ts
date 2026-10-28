@@ -69,7 +69,7 @@ export async function generateDailyReportPDF(
     styles: { fontSize: 9, cellPadding: 2.5 },
   });
 
-  // 3. Condiciones del Día
+  // 3. Condiciones del Día y Terreno
   const condY = (doc as any).lastAutoTable.finalY + 4;
   const tempDisplay = report.temperatura !== undefined
     ? `${report.temperatura}°C`
@@ -79,13 +79,16 @@ export async function generateDailyReportPDF(
         ? `${report.tempMin}°C`
         : "26°C";
 
+  const alcalinidadDisplay = report.alcalinidad ? `${report.alcalinidad}%` : "No registrada";
+
   autoTable(doc, {
     startY: condY,
     theme: "grid",
-    head: [["CONDICIONES DEL DÍA"]],
+    head: [["CONDICIONES DEL DÍA", "CONDICIONES DEL TERRENO"]],
     body: [
       [
         `Temperatura: ${tempDisplay}   |   Humedad: ${report.humedad}%   |   Clima: ${report.clima} ${report.climaOtro ? `(${report.climaOtro})` : ""}`,
+        `Alcalinidad: ${alcalinidadDisplay}`,
       ],
     ],
     headStyles: { fillColor: [42, 86, 55], textColor: 255, fontStyle: "bold" },

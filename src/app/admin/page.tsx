@@ -662,7 +662,7 @@ export default function AdminPage() {
   const exportAllToCSV = () => {
     if (reports.length === 0) return alert("No hay reportes para exportar.");
 
-    const headers = ["ID", "Fecha", "Área", "Responsable", "Clima", "Temperatura", "Humedad", "Actividades", "Observaciones"];
+    const headers = ["ID", "Fecha", "Área", "Responsable", "Clima", "Temperatura", "Humedad", "Alcalinidad (%)", "Actividades", "Observaciones"];
     const rows = reports.map((r) => [
       `"${r.id}"`,
       `"${r.fechaReporte}"`,
@@ -671,6 +671,7 @@ export default function AdminPage() {
       `"${r.clima}"`,
       r.temperatura !== undefined ? r.temperatura : (r.tempMin || 26),
       r.humedad,
+      r.alcalinidad ? `${r.alcalinidad}%` : "-",
       `"${r.actividades.filter((a) => a.realizado).map((a) => a.nombre).join("; ")}"`,
       `"${(r.observaciones || "").replace(/"/g, '""')}"`,
     ]);
@@ -2378,7 +2379,7 @@ export default function AdminPage() {
                   </div>
                 </div>
 
-                {/* 2. Condiciones Diarias */}
+                {/* 2. Condiciones Diarias y Terreno */}
                 <div className="bg-forest-50/60 p-4 rounded-xl border border-forest-100 flex flex-wrap items-center justify-between gap-4">
                   <div className="flex items-center space-x-2">
                     <Thermometer className="w-4 h-4 text-forest-700" />
@@ -2393,6 +2394,13 @@ export default function AdminPage() {
                   <div className="flex items-center space-x-2">
                     <Sun className="w-4 h-4 text-vanilla-600" />
                     <span>Clima: <strong>{previewReport.clima} {previewReport.climaOtro ? `(${previewReport.climaOtro})` : ""}</strong></span>
+                  </div>
+
+                  <div className="flex items-center space-x-2">
+                    <span className="px-2.5 py-1 rounded-md bg-forest-900 text-vanilla-300 font-bold text-[10px] uppercase tracking-wider">
+                      Alcalinidad
+                    </span>
+                    <span><strong>{previewReport.alcalinidad ? `${previewReport.alcalinidad}%` : "No registrada"}</strong></span>
                   </div>
                 </div>
 
@@ -2598,7 +2606,8 @@ export default function AdminPage() {
                         `*Área:* ${previewReport.area || previewReport.lote}%0A` +
                         `*Fecha:* ${previewReport.fechaReporte}%0A` +
                         `*Responsable:* ${previewReport.responsable}%0A` +
-                        `*Clima:* ${previewReport.clima} (${previewReport.temperatura !== undefined ? `${previewReport.temperatura}°C` : `${previewReport.tempMin}°C`})`;
+                        `*Clima:* ${previewReport.clima} (${previewReport.temperatura !== undefined ? `${previewReport.temperatura}°C` : `${previewReport.tempMin}°C`})` +
+                        (previewReport.alcalinidad ? `%0A*Alcalinidad Terreno:* ${previewReport.alcalinidad}%` : "");
                       window.open(`https://api.whatsapp.com/send?text=${text}`, "_blank");
                     }}
                     className="p-2 rounded-lg bg-[#25D366] hover:bg-[#1EBE5D] text-white transition-colors"
