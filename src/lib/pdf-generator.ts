@@ -108,7 +108,7 @@ export async function generateDailyReportPDF(
   autoTable(doc, {
     startY: actY,
     theme: "grid",
-    head: [["N°", "Actividad", "Descripción / Observaciones", "Área", "Realizado"]],
+    head: [["N°", "Actividad", "Observaciones", "Área", "Realizado"]],
     body: actRows,
     headStyles: { fillColor: greenHeader as [number, number, number], textColor: 255 },
     columnStyles: {

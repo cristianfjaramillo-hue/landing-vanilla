@@ -603,8 +603,7 @@ export default function NuevoReportePage() {
                         Actividad
                       </th>
                       <th className="py-2 sm:py-2.5 px-1.5 sm:px-3 font-bold text-[11px] sm:text-xs">
-                        <span className="md:hidden">Descripción</span>
-                        <span className="hidden md:inline">Descripción / Observaciones Breves</span>
+                        <span>Observaciones</span>
                       </th>
                       <th className="py-2 sm:py-2.5 px-1.5 sm:px-3 w-16 sm:w-32 font-bold text-[11px] sm:text-xs">
                         <span>Área</span>
