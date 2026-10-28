@@ -635,7 +635,7 @@ export default function NuevoReportePage() {
               <div className="mb-2.5 flex items-center space-x-2 text-[11px] text-forest-800 bg-forest-50 py-1.5 px-3 rounded-lg border border-forest-200">
                 <Bell className="w-3.5 h-3.5 text-vanilla-600 flex-shrink-0" />
                 <span>
-                  <strong>Recordatorio Inteligente:</strong> Las labores que tengan <strong>Fecha Próx.</strong> recibirán automáticamente <strong>3 avisos por correo electrónico 24 horas antes</strong> de la fecha programada.
+                  <strong>Recordatorio Inteligente:</strong> Cada labor con <strong>Fecha Próx.</strong> recibirá individualmente <strong>3 correos de recordatorio 24 horas antes</strong> de su fecha fijada (sin límite diario en la cantidad de labores).
                 </span>
               </div>
 

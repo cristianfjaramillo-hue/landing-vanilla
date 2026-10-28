@@ -2693,10 +2693,10 @@ export default function AdminPage() {
 
               <div className="bg-white p-4 rounded-xl border border-vanilla-200 shadow-sm">
                 <p className="text-[11px] font-bold uppercase tracking-wider text-forest-600">
-                  Frecuencia de Cron
+                  Capacidad de Envíos
                 </p>
-                <p className="text-sm font-bold text-forest-950 mt-2">Cada 8 Horas</p>
-                <p className="text-[10px] text-forest-500 mt-0.5">Automático en Vercel</p>
+                <p className="text-sm font-bold text-forest-950 mt-2">Sin Límite Diario</p>
+                <p className="text-[10px] text-forest-500 mt-0.5">3 avisos por cada labor fijada</p>
               </div>
             </div>
 
@@ -2733,7 +2733,7 @@ export default function AdminPage() {
                 <div className="flex items-center space-x-2">
                   <Calendar className="w-4 h-4 text-vanilla-400" />
                   <h3 className="font-bold text-xs uppercase tracking-wider">
-                    Agenda de Labores & Estado de Notificaciones (3 Avisos / 24 Horas)
+                    Agenda de Labores & Notificaciones (3 Avisos por cada labor)
                   </h3>
                 </div>
                 <span className="text-[11px] text-vanilla-300">
@@ -2767,7 +2767,7 @@ export default function AdminPage() {
                         <th className="py-2.5 px-3">Actividad & Observación</th>
                         <th className="py-2.5 px-3 w-36">Área</th>
                         <th className="py-2.5 px-3 w-28">Responsable</th>
-                        <th className="py-2.5 px-3 w-40 text-center">Avisos 24h (3 máx)</th>
+                        <th className="py-2.5 px-3 w-40 text-center">Ciclo de Avisos (3 por labor)</th>
                         <th className="py-2.5 px-3 w-48 text-right">Acciones</th>
                       </tr>
                     </thead>
@@ -2911,12 +2911,9 @@ export default function AdminPage() {
             <div className="p-4 bg-vanilla-50 rounded-xl border border-vanilla-200 text-xs text-forest-800 flex items-start space-x-2.5">
               <span className="text-base">📅</span>
               <div className="leading-relaxed">
-                <strong>¿Cómo funciona el sistema de 3 avisos dentro de 24 horas?</strong>
+                <strong>¿Cómo funciona el sistema de 3 avisos por cada labor?</strong>
                 <p className="mt-0.5 text-forest-700">
-                  Cada labor registrada con <strong>Fecha Próx.</strong> en el Informe Diario entra en el radar de supervisión. 
-                  Dentro de las 24 horas antes de dicha fecha, el sistema ejecuta 3 comprobaciones programadas y despacha 
-                  hasta <strong>3 correos electrónicos consecutivos</strong> a la cuenta <code>cristian.f.jaramillo@gmail.com</code> recordando 
-                  el nombre de la actividad, el área asignada, el responsable y las observaciones anotadas previamente.
+                  Cada labor guardada con <strong>Fecha Próx.</strong> cuenta con su propio ciclo independiente de <strong>3 correos de aviso 24 horas antes</strong>. Si en un mismo día programas 2, 3 o más labores diferentes, <strong>cada una recibirá sus 3 correos por separado sin límite diario de envíos</strong>, garantizando que recibas el detalle de cada actividad en <code>cristian.f.jaramillo@gmail.com</code>.
                 </p>
               </div>
             </div>
