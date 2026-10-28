@@ -14,6 +14,7 @@ export interface ActivityItem {
   nombre: string;
   descripcion: string;
   areaLote: string;
+  fechaProxima?: string;
   realizado: boolean;
 }
 
@@ -74,4 +75,18 @@ export interface ActivityProtocol {
   completadas: number;
   porcentaje: number;
   tipo?: string;
+}
+
+export interface ScheduledReminder {
+  id: string;
+  reportId: string;
+  actividadNombre: string;
+  area: string;
+  responsable: string;
+  observacionesPrevias?: string;
+  fechaProgramada: string;
+  recordatoriosEnviados: number; // 0, 1, 2, 3
+  ultimoEnvio?: string;
+  estado: "pendiente" | "completado" | "cancelado";
+  created_at: string;
 }

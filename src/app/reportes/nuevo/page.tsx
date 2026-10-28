@@ -24,9 +24,11 @@ import {
   ArrowLeft,
   ChevronDown,
   Layers,
+  Bell,
+  Clock,
 } from "lucide-react";
 import { DEFAULT_ACTIVITIES, DEFAULT_TOOLS } from "@/lib/constants";
-import { ActivityItem, ToolItem, AppliedInput, DailyReport } from "@/lib/types";
+import { ActivityItem, ToolItem, AppliedInput, DailyReport, ScheduledReminder } from "@/lib/types";
 import { generateDailyReportPDF } from "@/lib/pdf-generator";
 import { supabase } from "@/lib/supabase";
 
@@ -123,6 +125,12 @@ export default function NuevoReportePage() {
   const updateActividadArea = (id: number, areaLote: string) => {
     setActividades((prev) =>
       prev.map((act) => (act.id === id ? { ...act, areaLote } : act))
+    );
+  };
+
+  const updateActividadFechaProx = (id: number, fechaProxima: string) => {
+    setActividades((prev) =>
+      prev.map((act) => (act.id === id ? { ...act, fechaProxima } : act))
     );
   };
 
@@ -232,6 +240,44 @@ export default function NuevoReportePage() {
         localStorage.setItem("vanilla_daily_reports", JSON.stringify([newReport, ...existing]));
       } catch (storageErr) {
         console.warn("Aviso guardando en localStorage:", storageErr);
+      }
+
+      // 1b. Registrar tareas programadas para recordatorios automáticos (24h antes)
+      const tasksToRemind = newReport.actividades.filter(
+        (a) => a.fechaProxima && a.fechaProxima.trim() !== ""
+      );
+
+      if (tasksToRemind.length > 0) {
+        try {
+          const existingReminders: ScheduledReminder[] = JSON.parse(
+            localStorage.getItem("vanilla_scheduled_reminders") || "[]"
+          );
+          const newReminders: ScheduledReminder[] = tasksToRemind.map((task) => ({
+            id: `REM-${Date.now().toString().slice(-6)}-${task.id}`,
+            reportId: newReport.id,
+            actividadNombre: task.nombre,
+            area: task.areaLote || "INVERNADERO N°1",
+            responsable: newReport.responsable,
+            observacionesPrevias: task.descripcion || newReport.observaciones,
+            fechaProgramada: task.fechaProxima!,
+            recordatoriosEnviados: 0,
+            estado: "pendiente",
+            created_at: new Date().toISOString(),
+          }));
+
+          localStorage.setItem(
+            "vanilla_scheduled_reminders",
+            JSON.stringify([...newReminders, ...existingReminders])
+          );
+
+          fetch("/api/recordatorios", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ reminders: newReminders }),
+          }).catch((err) => console.warn("Aviso sincronizando recordatorios:", err));
+        } catch (remErr) {
+          console.warn("Aviso guardando recordatorios locales:", remErr);
+        }
       }
 
       // 2. Sincronizar en segundo plano con Supabase (sin congelar la pantalla)
@@ -586,6 +632,13 @@ export default function NuevoReportePage() {
                 </span>
               </div>
 
+              <div className="mb-2.5 flex items-center space-x-2 text-[11px] text-forest-800 bg-forest-50 py-1.5 px-3 rounded-lg border border-forest-200">
+                <Bell className="w-3.5 h-3.5 text-vanilla-600 flex-shrink-0" />
+                <span>
+                  <strong>Recordatorio Inteligente:</strong> Las labores que tengan <strong>Fecha Próx.</strong> recibirán automáticamente <strong>3 avisos por correo electrónico 24 horas antes</strong> de la fecha programada.
+                </span>
+              </div>
+
               <div className="overflow-x-auto border border-vanilla-200 rounded-xl">
                 <table className="w-full text-left text-xs">
                   <thead className="bg-forest-900 text-white">
@@ -593,14 +646,20 @@ export default function NuevoReportePage() {
                       <th className="hidden sm:table-cell py-2 sm:py-2.5 px-1 sm:px-3 w-7 sm:w-10 text-center font-bold text-[11px] sm:text-xs">
                         N°
                       </th>
-                      <th className="py-2 sm:py-2.5 pl-3 sm:pl-3 pr-2 sm:pr-3 w-28 sm:w-48 font-bold text-[11px] sm:text-xs text-left">
+                      <th className="py-2 sm:py-2.5 pl-3 sm:pl-3 pr-2 sm:pr-3 w-28 sm:w-44 font-bold text-[11px] sm:text-xs text-left">
                         Actividad
                       </th>
                       <th className="py-2 sm:py-2.5 px-1.5 sm:px-3 font-bold text-[11px] sm:text-xs">
                         <span>Observaciones</span>
                       </th>
-                      <th className="py-2 sm:py-2.5 px-1.5 sm:px-3 w-28 sm:w-44 font-bold text-[11px] sm:text-xs">
+                      <th className="py-2 sm:py-2.5 px-1.5 sm:px-3 w-24 sm:w-36 font-bold text-[11px] sm:text-xs">
                         <span>Área</span>
+                      </th>
+                      <th className="py-2 sm:py-2.5 px-1 sm:px-2 w-28 sm:w-36 font-bold text-[11px] sm:text-xs text-center">
+                        <div className="flex items-center justify-center space-x-1">
+                          <Clock className="w-3.5 h-3.5 text-vanilla-300" />
+                          <span>Fecha Próx.</span>
+                        </div>
                       </th>
                       <th className="py-2 sm:py-2.5 pr-3 sm:pr-3 pl-1 sm:px-3 w-10 sm:w-20 text-center font-bold text-[10px] sm:text-xs">
                         <span className="sm:hidden">✓</span>
@@ -650,6 +709,16 @@ export default function NuevoReportePage() {
                               <ChevronDown className="w-3 h-3" />
                             </div>
                           </div>
+                        </td>
+                        <td className="py-1.5 sm:py-2 px-1 sm:px-2">
+                          <input
+                            type="date"
+                            min={todayStr}
+                            value={act.fechaProxima || ""}
+                            onChange={(e) => updateActividadFechaProx(act.id, e.target.value)}
+                            className="w-full text-[11px] sm:text-xs font-semibold px-2 py-1 bg-white rounded-md border border-vanilla-300 text-forest-950 focus:outline-none focus:ring-1 focus:ring-forest-600 shadow-sm cursor-pointer hover:border-forest-400 transition-colors"
+                            title="Selecciona la fecha para la próxima labor"
+                          />
                         </td>
                         <td className="py-1.5 sm:py-2 pr-3 sm:pr-3 pl-1 sm:px-3 text-center">
                           <button

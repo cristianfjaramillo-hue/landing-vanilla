@@ -22,6 +22,20 @@ export async function POST(request: Request) {
       .map((a: any) => `<li style="margin-bottom: 4px;"><strong>${a.nombre}</strong> (${a.areaLote || "Todo el lote"})</li>`)
       .join("");
 
+    const scheduledList = (report.actividades || [])
+      .filter((a: any) => a.fechaProxima && a.fechaProxima.trim() !== "")
+      .map(
+        (a: any) =>
+          `<li style="margin-bottom: 8px;">
+            <strong>${a.nombre}</strong> (${a.areaLote || "Todo el lote"})<br>
+            <span style="display: inline-block; background-color: #FEF3C7; color: #92400E; font-size: 11px; font-weight: bold; padding: 2px 8px; border-radius: 4px; margin-top: 2px;">
+              ⏰ Fecha Próx: ${a.fechaProxima}
+            </span>
+            ${a.descripcion ? `<br><span style="font-size: 11px; color: #4B6352; font-style: italic;">Observación: ${a.descripcion}</span>` : ""}
+          </li>`
+      )
+      .join("");
+
     const htmlTemplate = `
 <!DOCTYPE html>
 <html lang="es">
@@ -96,6 +110,25 @@ export async function POST(request: Request) {
             ${actList || "<li>No se marcaron actividades específicas.</li>"}
           </ul>
         </div>
+
+        ${
+          scheduledList
+            ? `
+        <!-- Labores Programadas con Recordatorio Automático -->
+        <div style="background-color: #F0FDF4; border: 1px solid #86EFAC; border-radius: 12px; padding: 16px 20px; margin: 20px 0;">
+          <h3 style="font-size: 13px; font-weight: bold; text-transform: uppercase; color: #166534; margin: 0 0 6px 0;">
+            📅 Labores Programadas con Recordatorio Automático (24h antes)
+          </h3>
+          <p style="font-size: 11px; color: #15803D; margin: 0 0 10px 0;">
+            El sistema enviará automáticamente 3 correos de recordatorio dentro de las 24 horas previas a cada labor fijada:
+          </p>
+          <ul style="font-size: 12px; color: #14532D; padding-left: 20px; margin: 0;">
+            ${scheduledList}
+          </ul>
+        </div>
+        `
+            : ""
+        }
 
         <!-- Observaciones -->
         ${
