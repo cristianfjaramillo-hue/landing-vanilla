@@ -9,27 +9,54 @@ async function processReminders(options: { manualId?: string; force?: boolean } 
     process.env.NOTIFICATION_EMAIL_TO || process.env.ADMIN_EMAIL || "cristian.f.jaramillo@gmail.com";
   const now = new Date();
 
-  // 1. Obtener lista de recordatorios pendientes desde Supabase
+  // 1. Obtener lista de recordatorios pendientes desde Supabase (tabla reportes_diarios)
   let reminders: ScheduledReminder[] = [];
   try {
-    const { data, error } = await supabaseAdmin
-      .from("recordatorios_programados")
-      .select("*");
+    const { data: remRows } = await supabaseAdmin
+      .from("reportes_diarios")
+      .select("*")
+      .like("report_id", "REM-%");
 
-    if (!error && data && data.length > 0) {
-      reminders = data.map((item: any) => ({
-        id: item.id,
-        reportId: item.report_id || item.reportId || "",
-        actividadNombre: item.actividad_nombre || item.actividadNombre || "",
-        area: item.area || "",
-        responsable: item.responsable || "",
-        observacionesPrevias: item.observaciones_previas || item.observacionesPrevias || "",
-        fechaProgramada: item.fecha_programada || item.fechaProgramada || "",
-        recordatoriosEnviados: item.recordatorios_enviados ?? item.recordatoriosEnviados ?? 0,
-        ultimoEnvio: item.ultimo_envio || item.ultimoEnvio || undefined,
-        estado: item.estado || "pendiente",
-        created_at: item.created_at || new Date().toISOString(),
-      }));
+    if (remRows && remRows.length > 0) {
+      remRows.forEach((r: any) => {
+        if (r.data) {
+          reminders.push(r.data as ScheduledReminder);
+        }
+      });
+    }
+
+    // Extraer también de informes diarios existentes con fechaProxima
+    const { data: repRows } = await supabaseAdmin
+      .from("reportes_diarios")
+      .select("*")
+      .like("report_id", "REP-%");
+
+    if (repRows) {
+      repRows.forEach((row: any) => {
+        const report = row.data as any;
+        if (report && Array.isArray(report.actividades)) {
+          report.actividades.forEach((act: any) => {
+            if (act.fechaProxima && act.fechaProxima.trim() !== "") {
+              const remId = `REM-${report.id}-${act.id}`;
+              const exists = reminders.some((m) => m.id === remId);
+              if (!exists) {
+                reminders.push({
+                  id: remId,
+                  reportId: report.id,
+                  actividadNombre: act.nombre,
+                  area: act.areaLote || "INVERNADERO N°1",
+                  responsable: report.responsable || "GUIMARE",
+                  observacionesPrevias: act.descripcion || report.observaciones,
+                  fechaProgramada: act.fechaProxima,
+                  recordatoriosEnviados: 0,
+                  estado: "pendiente",
+                  created_at: report.created_at || new Date().toISOString(),
+                });
+              }
+            }
+          });
+        }
+      });
     }
   } catch (dbErr) {
     console.warn("Aviso al consultar Supabase en cron recordatorios:", dbErr);
@@ -226,14 +253,24 @@ async function processReminders(options: { manualId?: string; force?: boolean } 
       try {
         const updatedCount = nextCount;
         const updatedEstado = updatedCount >= 3 ? "completado" : "pendiente";
+        const updatedObj: ScheduledReminder = {
+          ...reminder,
+          recordatoriosEnviados: updatedCount,
+          ultimoEnvio: now.toISOString(),
+          estado: updatedEstado,
+        };
+
         await supabaseAdmin
-          .from("recordatorios_programados")
-          .update({
-            recordatorios_enviados: updatedCount,
-            ultimo_envio: now.toISOString(),
-            estado: updatedEstado,
-          })
-          .eq("id", reminder.id);
+          .from("reportes_diarios")
+          .upsert([
+            {
+              report_id: reminder.id,
+              lote: "CRONOGRAMA",
+              responsable: reminder.responsable,
+              fecha_reporte: reminder.fechaProgramada,
+              data: updatedObj,
+            },
+          ], { onConflict: "report_id" });
       } catch (dbErr) {
         console.warn("Error actualizando recordatorio en DB:", dbErr);
       }

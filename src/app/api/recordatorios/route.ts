@@ -2,42 +2,80 @@ import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 import { ScheduledReminder } from "@/lib/types";
 
-// Memoria en caché del servidor para garantizar disponibilidad si la tabla de Supabase no está configurada
 let cachedReminders: ScheduledReminder[] = [];
 
 export async function GET() {
   try {
-    // Intentar consultar Supabase
-    const { data, error } = await supabaseAdmin
-      .from("recordatorios_programados")
+    // 1. Consultar recordatorios guardados en reportes_diarios (IDs que empiezan por REM-)
+    const { data: remRows, error: remErr } = await supabaseAdmin
+      .from("reportes_diarios")
       .select("*")
+      .like("report_id", "REM-%")
       .order("created_at", { ascending: false });
 
-    if (!error && data && data.length > 0) {
-      // Normalizar datos de Supabase
-      const mapped: ScheduledReminder[] = data.map((item: any) => ({
-        id: item.id,
-        reportId: item.report_id || item.reportId || "",
-        actividadNombre: item.actividad_nombre || item.actividadNombre || "",
-        area: item.area || "",
-        responsable: item.responsable || "",
-        observacionesPrevias: item.observaciones_previas || item.observacionesPrevias || "",
-        fechaProgramada: item.fecha_programada || item.fechaProgramada || "",
-        recordatoriosEnviados: item.recordatorios_enviados ?? item.recordatoriosEnviados ?? 0,
-        ultimoEnvio: item.ultimo_envio || item.ultimoEnvio || undefined,
-        estado: item.estado || "pendiente",
-        created_at: item.created_at || new Date().toISOString(),
-      }));
-
-      // Sincronizar caché
-      cachedReminders = mapped;
-      return NextResponse.json({ success: true, reminders: mapped, source: "supabase" });
+    const dbReminders: ScheduledReminder[] = [];
+    if (!remErr && remRows) {
+      remRows.forEach((r: any) => {
+        if (r.data) {
+          dbReminders.push(r.data as ScheduledReminder);
+        }
+      });
     }
-  } catch (err) {
-    console.warn("Aviso al consultar Supabase recordatorios:", err);
-  }
 
-  return NextResponse.json({ success: true, reminders: cachedReminders, source: "cache" });
+    // 2. Extraer también labores con fechaProxima de todos los informes diarios registrados
+    const { data: repRows } = await supabaseAdmin
+      .from("reportes_diarios")
+      .select("*")
+      .like("report_id", "REP-%")
+      .order("created_at", { ascending: false });
+
+    if (repRows) {
+      repRows.forEach((row: any) => {
+        const report = row.data as any;
+        if (report && Array.isArray(report.actividades)) {
+          report.actividades.forEach((act: any) => {
+            if (act.fechaProxima && act.fechaProxima.trim() !== "") {
+              const remId = `REM-${report.id}-${act.id}`;
+              const exists = dbReminders.some((m) => m.id === remId);
+              if (!exists) {
+                dbReminders.push({
+                  id: remId,
+                  reportId: report.id,
+                  actividadNombre: act.nombre,
+                  area: act.areaLote || "INVERNADERO N°1",
+                  responsable: report.responsable || "GUIMARE",
+                  observacionesPrevias: act.descripcion || report.observaciones,
+                  fechaProgramada: act.fechaProxima,
+                  recordatoriosEnviados: 0,
+                  estado: "pendiente",
+                  created_at: report.created_at || new Date().toISOString(),
+                });
+              }
+            }
+          });
+        }
+      });
+    }
+
+    // Unificar con caché
+    const map = new Map<string, ScheduledReminder>();
+    [...dbReminders, ...cachedReminders].forEach((r) => {
+      const existing = map.get(r.id);
+      if (!existing || (r.recordatoriosEnviados || 0) > (existing.recordatoriosEnviados || 0)) {
+        map.set(r.id, r);
+      }
+    });
+
+    const unified = Array.from(map.values()).sort(
+      (a, b) => new Date(a.fechaProgramada).getTime() - new Date(b.fechaProgramada).getTime()
+    );
+
+    cachedReminders = unified;
+    return NextResponse.json({ success: true, reminders: unified, source: "database" });
+  } catch (err: any) {
+    console.warn("Aviso al consultar recordatorios:", err);
+    return NextResponse.json({ success: true, reminders: cachedReminders, source: "cache" });
+  }
 }
 
 export async function POST(request: Request) {
@@ -56,7 +94,7 @@ export async function POST(request: Request) {
       );
     }
 
-    // 1. Guardar en caché en memoria del servidor
+    // Actualizar caché
     for (const r of reminders) {
       const idx = cachedReminders.findIndex((c) => c.id === r.id);
       if (idx >= 0) {
@@ -66,36 +104,24 @@ export async function POST(request: Request) {
       }
     }
 
-    // 2. Persistir en Supabase (tabla recordatorios_programados)
+    // Persistir en Supabase (tabla reportes_diarios con report_id = REM-...)
     try {
       const rows = reminders.map((r) => ({
-        id: r.id,
-        report_id: r.reportId,
-        actividad_nombre: r.actividadNombre,
-        area: r.area,
+        report_id: r.id,
+        lote: "CRONOGRAMA",
         responsable: r.responsable,
-        observaciones_previas: r.observacionesPrevias || "",
-        fecha_programada: r.fechaProgramada,
-        recordatorios_enviados: r.recordatoriosEnviados || 0,
-        ultimo_envio: r.ultimoEnvio || null,
-        estado: r.estado || "pendiente",
+        fecha_reporte: r.fechaProgramada,
         data: r,
       }));
 
-      const { error } = await supabaseAdmin
-        .from("recordatorios_programados")
-        .upsert(rows, { onConflict: "id" });
-
-      if (error) {
-        console.warn("Supabase upsert recordatorios:", error.message);
-      }
+      await supabaseAdmin.from("reportes_diarios").upsert(rows, { onConflict: "report_id" });
     } catch (dbErr) {
-      console.warn("Supabase notice recordatorios:", dbErr);
+      console.warn("Supabase notice upserting reminders:", dbErr);
     }
 
     return NextResponse.json({
       success: true,
-      message: `${reminders.length} recordatorio(s) programado(s) exitosamente`,
+      message: `${reminders.length} recordatorio(s) registrado(s) exitosamente`,
       reminders,
     });
   } catch (err: any) {
@@ -116,7 +142,7 @@ export async function DELETE(request: Request) {
     cachedReminders = cachedReminders.filter((r) => r.id !== id);
 
     try {
-      await supabaseAdmin.from("recordatorios_programados").delete().eq("id", id);
+      await supabaseAdmin.from("reportes_diarios").delete().eq("report_id", id);
     } catch (e) {
       console.warn("Supabase delete notice:", e);
     }
