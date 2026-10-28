@@ -652,14 +652,14 @@ export default function NuevoReportePage() {
                       <th className="py-2 sm:py-2.5 px-1.5 sm:px-3 font-bold text-[11px] sm:text-xs">
                         <span>Observaciones</span>
                       </th>
-                      <th className="py-2 sm:py-2.5 px-1.5 sm:px-3 w-24 sm:w-36 font-bold text-[11px] sm:text-xs">
-                        <span>Área</span>
-                      </th>
                       <th className="py-2 sm:py-2.5 px-1 sm:px-2 w-28 sm:w-36 font-bold text-[11px] sm:text-xs text-center">
                         <div className="flex items-center justify-center space-x-1">
                           <Clock className="w-3.5 h-3.5 text-vanilla-300" />
                           <span>Fecha Próx.</span>
                         </div>
+                      </th>
+                      <th className="py-2 sm:py-2.5 px-1.5 sm:px-3 w-24 sm:w-36 font-bold text-[11px] sm:text-xs">
+                        <span>Área</span>
                       </th>
                       <th className="py-2 sm:py-2.5 pr-3 sm:pr-3 pl-1 sm:px-3 w-10 sm:w-20 text-center font-bold text-[10px] sm:text-xs">
                         <span className="sm:hidden">✓</span>
@@ -691,6 +691,16 @@ export default function NuevoReportePage() {
                             className="w-full px-1 sm:px-2 py-1 bg-transparent border-b border-dashed border-vanilla-300 focus:border-forest-600 focus:outline-none text-[11px] sm:text-xs"
                           />
                         </td>
+                        <td className="py-1.5 sm:py-2 px-1 sm:px-2">
+                          <input
+                            type="date"
+                            min={todayStr}
+                            value={act.fechaProxima || ""}
+                            onChange={(e) => updateActividadFechaProx(act.id, e.target.value)}
+                            className="w-full text-[11px] sm:text-xs font-semibold px-2 py-1 bg-white rounded-md border border-vanilla-300 text-forest-950 focus:outline-none focus:ring-1 focus:ring-forest-600 shadow-sm cursor-pointer hover:border-forest-400 transition-colors"
+                            title="Selecciona la fecha para la próxima labor"
+                          />
+                        </td>
                         <td className="py-1.5 sm:py-2 px-1.5 sm:px-3">
                           <div className="relative">
                             <select
@@ -709,16 +719,6 @@ export default function NuevoReportePage() {
                               <ChevronDown className="w-3 h-3" />
                             </div>
                           </div>
-                        </td>
-                        <td className="py-1.5 sm:py-2 px-1 sm:px-2">
-                          <input
-                            type="date"
-                            min={todayStr}
-                            value={act.fechaProxima || ""}
-                            onChange={(e) => updateActividadFechaProx(act.id, e.target.value)}
-                            className="w-full text-[11px] sm:text-xs font-semibold px-2 py-1 bg-white rounded-md border border-vanilla-300 text-forest-950 focus:outline-none focus:ring-1 focus:ring-forest-600 shadow-sm cursor-pointer hover:border-forest-400 transition-colors"
-                            title="Selecciona la fecha para la próxima labor"
-                          />
                         </td>
                         <td className="py-1.5 sm:py-2 pr-3 sm:pr-3 pl-1 sm:px-3 text-center">
                           <button

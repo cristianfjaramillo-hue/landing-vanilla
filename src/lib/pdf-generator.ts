@@ -101,23 +101,23 @@ export async function generateDailyReportPDF(
     act.id.toString(),
     act.nombre,
     act.descripcion || "-",
-    act.areaLote || "-",
     act.fechaProxima || "-",
+    act.areaLote || "-",
     act.realizado ? "SI [X]" : "NO [ ]",
   ]);
 
   autoTable(doc, {
     startY: actY,
     theme: "grid",
-    head: [["N°", "Actividad", "Observaciones", "Área", "Fecha Próx.", "Realizado"]],
+    head: [["N°", "Actividad", "Observaciones", "Fecha Próx.", "Área", "Realizado"]],
     body: actRows,
     headStyles: { fillColor: greenHeader as [number, number, number], textColor: 255 },
     columnStyles: {
       0: { cellWidth: 8, halign: "center" },
       1: { cellWidth: 50 },
       2: { cellWidth: 60 },
-      3: { cellWidth: 28 },
-      4: { cellWidth: 22, halign: "center" },
+      3: { cellWidth: 22, halign: "center" },
+      4: { cellWidth: 28 },
       5: { cellWidth: 16, halign: "center" },
     },
     styles: { fontSize: 7.5, cellPadding: 1.5 },

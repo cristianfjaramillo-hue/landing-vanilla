@@ -2916,8 +2916,8 @@ export default function AdminPage() {
                           <th className="py-2 px-3 w-10 text-center">N°</th>
                           <th className="py-2 px-3 w-48">Actividad</th>
                           <th className="py-2 px-3">Observaciones</th>
-                          <th className="py-2 px-3 w-32">Área</th>
                           <th className="py-2 px-3 w-28 text-center">Fecha Próx.</th>
+                          <th className="py-2 px-3 w-32">Área</th>
                           <th className="py-2 px-3 w-20 text-center">Realizado</th>
                         </tr>
                       </thead>
@@ -2936,9 +2936,6 @@ export default function AdminPage() {
                             <td className="py-2 px-3 text-forest-700">
                               {act.descripcion || "-"}
                             </td>
-                            <td className="py-2 px-3 text-forest-600">
-                              {act.areaLote || "-"}
-                            </td>
                             <td className="py-2 px-3 text-center">
                               {act.fechaProxima ? (
                                 <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded bg-amber-100 text-amber-900 font-bold text-[11px] border border-amber-300">
@@ -2948,6 +2945,9 @@ export default function AdminPage() {
                               ) : (
                                 <span className="text-forest-400 text-xs">-</span>
                               )}
+                            </td>
+                            <td className="py-2 px-3 text-forest-600">
+                              {act.areaLote || "-"}
                             </td>
                             <td className="py-2 px-3 text-center">
                               {act.realizado ? (
