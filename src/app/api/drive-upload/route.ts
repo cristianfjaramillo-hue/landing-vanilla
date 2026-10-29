@@ -70,7 +70,23 @@ export async function POST(request: Request) {
           });
         }
 
-        const driveJson = await driveRes.json();
+        const rawResponse = await driveRes.text();
+        let driveJson: any = null;
+        try {
+          driveJson = JSON.parse(rawResponse);
+        } catch {
+          if (rawResponse.includes("No se encontró la función")) {
+            return NextResponse.json({
+              success: false,
+              error: "Google Apps Script indica: 'No se encontró la función doPost'. En script.google.com, asegúrate de guardar el código con el Disquete 💾 (Ctrl+S) y seleccionar 'Nueva versión' al Implementar.",
+            });
+          }
+          return NextResponse.json({
+            success: false,
+            error: `Google Apps Script devolvió una página de error en lugar de JSON. Verifica que el archivo de código se haya guardado correctamente.`,
+          });
+        }
+
         if (driveJson?.success) {
           return NextResponse.json({
             success: true,
@@ -127,10 +143,15 @@ export async function POST(request: Request) {
         });
 
         if (driveRes.ok) {
-          const driveJson = await driveRes.json();
-          if (driveJson?.success) {
-            uploaded = true;
-            driveFileUrl = driveJson.fileUrl || "";
+          const rawText = await driveRes.text();
+          try {
+            const driveJson = JSON.parse(rawText);
+            if (driveJson?.success) {
+              uploaded = true;
+              driveFileUrl = driveJson.fileUrl || "";
+            }
+          } catch {
+            serverNotice = "Respuesta no JSON de Google";
           }
         }
       } catch (uploadErr: any) {
