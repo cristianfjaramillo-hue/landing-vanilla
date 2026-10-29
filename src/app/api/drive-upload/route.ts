@@ -22,6 +22,7 @@ export async function POST(request: Request) {
 
     // Acción para guardar la configuración del Webhook desde el panel Admin
     if (action === "save_webhook") {
+      const trimmedUrl = (newWebhook || "").trim();
       const { error } = await supabaseAdmin.from("reportes_diarios").upsert(
         [
           {
@@ -29,7 +30,7 @@ export async function POST(request: Request) {
             lote: "CONFIGURACION_SISTEMA",
             responsable: "ADMIN",
             fecha_reporte: new Date().toISOString().split("T")[0],
-            data: { webhookUrl: (newWebhook || "").trim() },
+            data: { webhookUrl: trimmedUrl },
           },
         ],
         { onConflict: "report_id" }
@@ -37,7 +38,58 @@ export async function POST(request: Request) {
       if (error) {
         return NextResponse.json({ success: false, error: error.message }, { status: 500 });
       }
-      return NextResponse.json({ success: true, message: "Webhook de Google Drive guardado correctamente" });
+      return NextResponse.json({ success: true, message: "Webhook de Google Drive guardado correctamente", webhookUrl: trimmedUrl });
+    }
+
+    // Acción para probar la conexión con el Webhook de Google Drive
+    if (action === "test_webhook") {
+      const targetUrl = (newWebhook || "").trim();
+      if (!targetUrl) {
+        return NextResponse.json({ success: false, error: "Debes ingresar una URL de Webhook válida antes de probar." });
+      }
+
+      // PDF minimal de prueba en Base64
+      const samplePdfBase64 = "JVBERi0xLjQKMSAwIG9iajw8L1R5cGUvQ2F0YWxvZy9QYWdlcyAyIDAgUj4+ZW5kb2JqCjIgMCBvYmo8PC9UeXBlL1BhZ2VzL0tpZHNbMyAwIFJdL0NvdW50IDE+PmVuZG9iagozIDAgb2JqPDwvVHlwZS9QYWdlL01lZGlhQm94WzAgMCAzMDAgMTQ0XS9QYXJlbnQgMiAwIFIvUmVzb3VyY2VzPDw+Pj4+ZW5kb2JqCnhyZWYKMCA0CjAwMDAwMDAwMDAgNjU1MzUgZiAKMDAwMDAwMDAwOSAwMDAwMCBuIAowMDAwMDAwMDUyIDAwMDAwIG4gCjAwMDAwMDAxMDIgMDAwMDAgbiAKdHJhaWxlcjw8L1NpemUgNC9Sb290IDEgMCBSPj4Kc3RhcnR4cmVmCjE3OAolJUVPRg==";
+
+      try {
+        const driveRes = await fetch(targetUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            folderId: DRIVE_FOLDERS.diario.id,
+            filename: `Test_Conexion_${new Date().toISOString().slice(0, 10)}.pdf`,
+            base64: samplePdfBase64,
+            reportId: "TEST_VERIFICATION",
+          }),
+        });
+
+        if (!driveRes.ok) {
+          return NextResponse.json({
+            success: false,
+            error: `El webhook respondió con código HTTP ${driveRes.status}: ${driveRes.statusText}. Verifica los permisos del script ("Cualquier usuario").`,
+          });
+        }
+
+        const driveJson = await driveRes.json();
+        if (driveJson?.success) {
+          return NextResponse.json({
+            success: true,
+            message: "¡Conexión verificada con éxito! Se creó un archivo de prueba en tu carpeta de Google Drive.",
+            fileUrl: driveJson.fileUrl,
+            folderUrl: DRIVE_FOLDERS.diario.url,
+          });
+        } else {
+          return NextResponse.json({
+            success: false,
+            error: driveJson?.error || "El script de Google respondió con error al intentar crear el archivo.",
+          });
+        }
+      } catch (testErr: any) {
+        return NextResponse.json({
+          success: false,
+          error: `Error de red al conectar con el Webhook: ${testErr.message}`,
+        });
+      }
     }
 
     const folderConfig = type === "actividades" ? DRIVE_FOLDERS.actividades : DRIVE_FOLDERS.diario;

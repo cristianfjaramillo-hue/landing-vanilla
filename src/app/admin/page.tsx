@@ -43,15 +43,62 @@ import {
   Bell,
   Clock,
   Send,
-  AlertTriangle,
   Mail,
   Key,
+  AlertTriangle,
+  CloudUpload,
+  Copy,
+  FolderOpen,
 } from "lucide-react";
 import { INITIAL_MOCK_REPORTS, DEFAULT_ACTIVITIES, DEFAULT_TOOLS } from "@/lib/constants";
 import { DailyReport, ActivityItem, ToolItem, ActivityProtocol, ScheduledReminder } from "@/lib/types";
 import { generateDailyReportPDF, generateActivityProtocolPDF } from "@/lib/pdf-generator";
 import { SECTIONS_DATA, RECOMENDACIONES_DATA, ActivitySection } from "@/lib/actividades-data";
 import { supabase } from "@/lib/supabase";
+
+const GOOGLE_APPS_SCRIPT_TEMPLATE = `function doPost(e) {
+  try {
+    var raw = e.postData.contents;
+    var data = JSON.parse(raw);
+    var folderId = data.folderId;
+    var filename = data.filename || ("Documento_" + Utilities.formatDate(new Date(), "GMT-5", "yyyyMMdd_HHmmss") + ".pdf");
+    var base64 = data.base64 || "";
+
+    if (base64.indexOf(",") > -1) {
+      base64 = base64.split(",")[1];
+    }
+
+    var decoded = Utilities.base64Decode(base64);
+    var blob = Utilities.newBlob(decoded, "application/pdf", filename);
+
+    var folder = DriveApp.getFolderById(folderId);
+    var file = folder.createFile(blob);
+    file.setDescription("Subido automáticamente por el Sistema Amazon Vanilla / ITEC Ecuador");
+
+    var result = {
+      success: true,
+      fileId: file.getId(),
+      fileUrl: file.getUrl(),
+      filename: filename,
+      folderId: folderId
+    };
+
+    return ContentService.createTextOutput(JSON.stringify(result))
+      .setMimeType(ContentService.MimeType.JSON);
+  } catch (err) {
+    return ContentService.createTextOutput(JSON.stringify({
+      success: false,
+      error: err.toString()
+    })).setMimeType(ContentService.MimeType.JSON);
+  }
+}
+
+function doGet(e) {
+  return ContentService.createTextOutput(JSON.stringify({
+    success: true,
+    message: "Webhook Google Drive Amazon Vanilla activo y listo para recibir archivos"
+  })).setMimeType(ContentService.MimeType.JSON);
+}`;
 
 export default function AdminPage() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -96,6 +143,17 @@ export default function AdminPage() {
   const [configGmailPass, setConfigGmailPass] = useState("");
   const [isSavingEmailConfig, setIsSavingEmailConfig] = useState(false);
   const [emailConfigFeedback, setEmailConfigFeedback] = useState<{ text: string; type: "success" | "error" } | null>(null);
+
+  // Configuración de Google Drive Webhook
+  const [driveWebhookUrl, setDriveWebhookUrl] = useState("");
+  const [driveConnected, setDriveConnected] = useState(false);
+  const [isSavingDriveWebhook, setIsSavingDriveWebhook] = useState(false);
+  const [isTestingDriveWebhook, setIsTestingDriveWebhook] = useState(false);
+  const [isBulkUploadingDrive, setIsBulkUploadingDrive] = useState(false);
+  const [driveFeedback, setDriveFeedback] = useState<{ text: string; type: "success" | "error"; fileUrl?: string } | null>(null);
+  const [uploadingToDriveId, setUploadingToDriveId] = useState<string | null>(null);
+  const [uploadDriveSuccess, setUploadDriveSuccess] = useState<{ [id: string]: string }>({});
+  const [copiedScript, setCopiedScript] = useState(false);
 
   // Configuración dinámica de actividades y herramientas
   const [customActivities, setCustomActivities] = useState<ActivityItem[]>(DEFAULT_ACTIVITIES);
@@ -458,6 +516,207 @@ export default function AdminPage() {
       setEmailConfigFeedback({ text: err.message || "Error al conectar", type: "error" });
     } finally {
       setIsSavingEmailConfig(false);
+    }
+  };
+
+  // Consultar estado de Google Drive Webhook
+  const checkDriveStatus = async () => {
+    try {
+      const res = await fetch("/api/drive-upload");
+      if (res.ok) {
+        const data = await res.json();
+        if (data.hasWebhook && data.webhookUrl) {
+          setDriveWebhookUrl(data.webhookUrl);
+          setDriveConnected(true);
+        } else {
+          setDriveConnected(false);
+        }
+      }
+    } catch (e) {
+      console.warn("Aviso drive status:", e);
+    }
+  };
+
+  // Guardar configuración del Webhook de Google Drive
+  const handleSaveDriveWebhook = async () => {
+    const trimmed = driveWebhookUrl.trim();
+    if (!trimmed) {
+      alert("Por favor ingresa la URL de tu Webhook de Google Apps Script.");
+      return;
+    }
+    setIsSavingDriveWebhook(true);
+    setDriveFeedback(null);
+    try {
+      const res = await fetch("/api/drive-upload", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "save_webhook",
+          webhookUrl: trimmed,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setDriveConnected(true);
+        setDriveFeedback({
+          type: "success",
+          text: "¡Webhook guardado exitosamente en el sistema! Todos los informes y protocolos se subirán automáticamente.",
+        });
+      } else {
+        setDriveFeedback({
+          type: "error",
+          text: data.error || "Error al guardar el Webhook.",
+        });
+      }
+    } catch (err: any) {
+      setDriveFeedback({ type: "error", text: err.message || "Error al guardar" });
+    } finally {
+      setIsSavingDriveWebhook(false);
+    }
+  };
+
+  // Probar conexión real creando un archivo de prueba en Google Drive
+  const handleTestDriveWebhook = async () => {
+    const trimmed = driveWebhookUrl.trim();
+    if (!trimmed) {
+      alert("Por favor ingresa la URL del Webhook antes de probar la conexión.");
+      return;
+    }
+    setIsTestingDriveWebhook(true);
+    setDriveFeedback(null);
+    try {
+      const res = await fetch("/api/drive-upload", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "test_webhook",
+          webhookUrl: trimmed,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setDriveConnected(true);
+        setDriveFeedback({
+          type: "success",
+          text: data.message,
+          fileUrl: data.fileUrl,
+        });
+      } else {
+        setDriveFeedback({
+          type: "error",
+          text: data.error || "No se pudo conectar con el Webhook de Google Drive.",
+        });
+      }
+    } catch (err: any) {
+      setDriveFeedback({ type: "error", text: `Error de red: ${err.message}` });
+    } finally {
+      setIsTestingDriveWebhook(false);
+    }
+  };
+
+  // Subir un informe diario individual a Google Drive
+  const handleUploadReportToDrive = async (report: DailyReport) => {
+    setUploadingToDriveId(report.id);
+    try {
+      const { base64, filename } = await generateDailyReportPDF(report, false);
+      const res = await fetch("/api/drive-upload", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: "diario",
+          filename,
+          pdfBase64: base64,
+          reportId: report.id,
+        }),
+      });
+      const data = await res.json();
+      if (data.success && data.uploaded) {
+        setUploadDriveSuccess((prev) => ({ ...prev, [report.id]: data.driveFileUrl || data.folderUrl }));
+        alert(`✅ ¡Informe ${report.id} subido con éxito a Google Drive!\n\nCarpeta: Informes Diarios`);
+      } else if (!data.hasWebhook) {
+        alert("⚠️ No tienes vinculado el Webhook de Google Drive todavía.\n\nVe a la pestaña 'Configuración' en este panel para vincularlo en 1 minuto con el script oficial.");
+        setActiveTab("configuracion");
+      } else {
+        alert(`Aviso: ${data.serverNotice || data.message || "No se pudo subir a Drive."}`);
+      }
+    } catch (err: any) {
+      console.error("Error subiendo reporte a Drive:", err);
+      alert(`Error al subir a Google Drive: ${err.message}`);
+    } finally {
+      setUploadingToDriveId(null);
+    }
+  };
+
+  // Subir un protocolo de actividades individual a Google Drive
+  const handleUploadProtocolToDrive = async (protocol: ActivityProtocol) => {
+    setUploadingToDriveId(protocol.id);
+    try {
+      const { base64, filename } = await generateActivityProtocolPDF(protocol, activitySections, false);
+      const res = await fetch("/api/drive-upload", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: "actividades",
+          filename,
+          pdfBase64: base64,
+          reportId: protocol.id,
+        }),
+      });
+      const data = await res.json();
+      if (data.success && data.uploaded) {
+        setUploadDriveSuccess((prev) => ({ ...prev, [protocol.id]: data.driveFileUrl || data.folderUrl }));
+        alert(`✅ ¡Protocolo ${protocol.id} subido con éxito a Google Drive!\n\nCarpeta: Listado de Actividades`);
+      } else if (!data.hasWebhook) {
+        alert("⚠️ No tienes vinculado el Webhook de Google Drive todavía.\n\nVe a la pestaña 'Configuración' en este panel para vincularlo en 1 minuto con el script oficial.");
+        setActiveTab("configuracion");
+      } else {
+        alert(`Aviso: ${data.serverNotice || data.message || "No se pudo subir a Drive."}`);
+      }
+    } catch (err: any) {
+      console.error("Error subiendo protocolo a Drive:", err);
+      alert(`Error al subir a Google Drive: ${err.message}`);
+    } finally {
+      setUploadingToDriveId(null);
+    }
+  };
+
+  // Subir todos los reportes existentes a Google Drive en lote
+  const handleUploadAllPendingReportsToDrive = async () => {
+    if (reports.length === 0) return alert("No hay reportes para subir.");
+    if (!driveConnected && !driveWebhookUrl) {
+      alert("Debes configurar primero la URL de tu Webhook en la sección 'Configuración'.");
+      setActiveTab("configuracion");
+      return;
+    }
+    if (!confirm(`¿Deseas subir todos los ${reports.length} informes diarios generados a la carpeta de Google Drive?`)) {
+      return;
+    }
+    setIsBulkUploadingDrive(true);
+    let okCount = 0;
+    try {
+      for (const rep of reports) {
+        try {
+          const { base64, filename } = await generateDailyReportPDF(rep, false);
+          const res = await fetch("/api/drive-upload", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              type: "diario",
+              filename,
+              pdfBase64: base64,
+              reportId: rep.id,
+            }),
+          });
+          const dJson = await res.json();
+          if (dJson.success && dJson.uploaded) {
+            okCount++;
+            setUploadDriveSuccess((prev) => ({ ...prev, [rep.id]: dJson.driveFileUrl || dJson.folderUrl }));
+          }
+        } catch {}
+      }
+      alert(`✅ Sincronización completada: ${okCount} de ${reports.length} informes se subieron a tu carpeta de Google Drive.`);
+    } finally {
+      setIsBulkUploadingDrive(false);
     }
   };
 
@@ -880,6 +1139,7 @@ export default function AdminPage() {
       setIsAuthenticated(true);
       loadReports();
       checkEmailStatus();
+      checkDriveStatus();
 
       // Abrir pestaña directamente si viene por URL (ej. ?tab=recomendaciones)
       if (typeof window !== "undefined") {
@@ -904,6 +1164,8 @@ export default function AdminPage() {
       sessionStorage.setItem("vanilla_admin_auth", "true");
       setAuthError(false);
       loadReports();
+      checkEmailStatus();
+      checkDriveStatus();
     } else {
       setAuthError(true);
     }
@@ -1486,6 +1748,39 @@ export default function AdminPage() {
                           )}
                         </button>
 
+                        {/* Botón Subir a Google Drive */}
+                        {uploadDriveSuccess[report.id] ? (
+                          <a
+                            href={uploadDriveSuccess[report.id]}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center space-x-1.5 px-3 py-2 rounded-lg bg-emerald-100 hover:bg-emerald-200 text-emerald-900 text-xs font-semibold border border-emerald-300 transition-colors"
+                            title="Ver este informe en Google Drive"
+                          >
+                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-700" />
+                            <span>En Drive ↗</span>
+                          </a>
+                        ) : (
+                          <button
+                            onClick={() => handleUploadReportToDrive(report)}
+                            disabled={uploadingToDriveId === report.id}
+                            className="inline-flex items-center space-x-1.5 px-3 py-2 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border border-emerald-300 text-xs font-semibold transition-colors disabled:opacity-50"
+                            title="Subir PDF a la carpeta de Google Drive"
+                          >
+                            {uploadingToDriveId === report.id ? (
+                              <>
+                                <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-700" />
+                                <span>Subiendo...</span>
+                              </>
+                            ) : (
+                              <>
+                                <CloudUpload className="w-3.5 h-3.5 text-emerald-700" />
+                                <span>Subir a Drive</span>
+                              </>
+                            )}
+                          </button>
+                        )}
+
                         <button
                           onClick={() => {
                             const text = `Informe ${report.id} - Lote: ${report.lote} (${report.fechaReporte}).`;
@@ -1696,6 +1991,39 @@ export default function AdminPage() {
                             </>
                           )}
                         </button>
+
+                        {/* Botón Subir Protocolo a Google Drive */}
+                        {uploadDriveSuccess[protocol.id] ? (
+                          <a
+                            href={uploadDriveSuccess[protocol.id]}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center space-x-1 px-3 py-1.5 rounded-lg bg-emerald-100 hover:bg-emerald-200 text-emerald-900 text-xs font-semibold border border-emerald-300 transition-colors"
+                            title="Ver este protocolo en Google Drive"
+                          >
+                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-700" />
+                            <span>En Drive ↗</span>
+                          </a>
+                        ) : (
+                          <button
+                            onClick={() => handleUploadProtocolToDrive(protocol)}
+                            disabled={uploadingToDriveId === protocol.id}
+                            className="inline-flex items-center space-x-1 px-3 py-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border border-emerald-300 text-xs font-semibold transition-colors disabled:opacity-50"
+                            title="Subir Protocolo a la carpeta de Google Drive"
+                          >
+                            {uploadingToDriveId === protocol.id ? (
+                              <>
+                                <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-700" />
+                                <span>Subiendo...</span>
+                              </>
+                            ) : (
+                              <>
+                                <CloudUpload className="w-3.5 h-3.5 text-emerald-700" />
+                                <span>A Drive</span>
+                              </>
+                            )}
+                          </button>
+                        )}
 
                         {/* Eliminar */}
                         <button
@@ -2122,9 +2450,280 @@ export default function AdminPage() {
           </div>
         )}
 
-        {/* PESTAÑA 2: CONFIGURACIÓN DINÁMICA DEL FORMULARIO */}
+        {/* PESTAÑA 2: CONFIGURACIÓN DINÁMICA DEL FORMULARIO Y GOOGLE DRIVE */}
         {activeTab === "configuracion" && (
           <div className="bg-white rounded-2xl p-6 sm:p-8 border border-vanilla-200 shadow-sm space-y-8">
+            {/* CARD 1: CONEXIÓN AUTOMÁTICA CON GOOGLE DRIVE */}
+            <div className="p-6 rounded-2xl border-2 border-emerald-600/30 bg-gradient-to-br from-emerald-50/50 via-white to-vanilla-50 space-y-6 shadow-sm">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-emerald-200 pb-4">
+                <div className="flex items-center space-x-3">
+                  <div className="w-10 h-10 rounded-xl bg-emerald-700 text-white flex items-center justify-center shadow-md flex-shrink-0">
+                    <CloudUpload className="w-5 h-5 text-vanilla-300" />
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-serif font-bold text-forest-950 flex items-center space-x-2">
+                      <span>Sincronización Automática con Google Drive</span>
+                    </h2>
+                    <p className="text-xs text-forest-700">
+                      Envío instantáneo de PDFs generados (Informes Diarios y Protocolos de Actividades) a tus carpetas oficiales de Drive.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center space-x-2">
+                  <span
+                    className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-bold shadow-sm ${
+                      driveConnected
+                        ? "bg-emerald-100 text-emerald-800 border border-emerald-300"
+                        : "bg-amber-100 text-amber-900 border border-amber-300"
+                    }`}
+                  >
+                    <span
+                      className={`w-2 h-2 rounded-full mr-2 ${
+                        driveConnected ? "bg-emerald-600 animate-pulse" : "bg-amber-600"
+                      }`}
+                    />
+                    {driveConnected ? "Conectado y Activo" : "Pendiente de Vincular Webhook"}
+                  </span>
+                </div>
+              </div>
+
+              {/* Explicación y Carpetas Ancladas */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="p-4 bg-white rounded-xl border border-emerald-200 shadow-sm flex flex-col justify-between">
+                  <div>
+                    <div className="flex items-center space-x-2 text-forest-900 font-bold text-xs mb-1">
+                      <FolderOpen className="w-4 h-4 text-emerald-600" />
+                      <span>Carpeta Oficial: Informes Diarios</span>
+                    </div>
+                    <p className="text-[11px] text-forest-600 font-mono break-all mb-2">
+                      ID: 1gGdDnhpOOM0zhKGEGhTuvXmOfHRYwmpN
+                    </p>
+                    <p className="text-xs text-forest-700">
+                      Aquí se depositan automáticamente los PDFs de cada informe de campo con sus fotografías optimizadas.
+                    </p>
+                  </div>
+                  <div className="mt-3 pt-3 border-t border-vanilla-100">
+                    <a
+                      href="https://drive.google.com/drive/folders/1gGdDnhpOOM0zhKGEGhTuvXmOfHRYwmpN"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center space-x-1.5 text-xs font-semibold text-emerald-700 hover:text-emerald-900"
+                    >
+                      <ExternalLink className="w-3.5 h-3.5" />
+                      <span>Abrir carpeta en Google Drive ↗</span>
+                    </a>
+                  </div>
+                </div>
+
+                <div className="p-4 bg-white rounded-xl border border-emerald-200 shadow-sm flex flex-col justify-between">
+                  <div>
+                    <div className="flex items-center space-x-2 text-forest-900 font-bold text-xs mb-1">
+                      <FolderOpen className="w-4 h-4 text-emerald-600" />
+                      <span>Carpeta Oficial: Listado de Actividades</span>
+                    </div>
+                    <p className="text-[11px] text-forest-600 font-mono break-all mb-2">
+                      ID: 1lPouDSEyC3cWQwmDGDaygB_yfJF83qAY
+                    </p>
+                    <p className="text-xs text-forest-700">
+                      Aquí se respaldan los protocolos de trazabilidad agronómica completados por los técnicos.
+                    </p>
+                  </div>
+                  <div className="mt-3 pt-3 border-t border-vanilla-100">
+                    <a
+                      href="https://drive.google.com/drive/folders/1lPouDSEyC3cWQwmDGDaygB_yfJF83qAY"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center space-x-1.5 text-xs font-semibold text-emerald-700 hover:text-emerald-900"
+                    >
+                      <ExternalLink className="w-3.5 h-3.5" />
+                      <span>Abrir carpeta en Google Drive ↗</span>
+                    </a>
+                  </div>
+                </div>
+              </div>
+
+              {/* Guía Rápida de Activación en 3 Pasos */}
+              <div className="bg-forest-900 text-white p-5 rounded-xl border border-forest-800 space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-bold text-vanilla-300 flex items-center space-x-2">
+                    <span>⚡ ¿Cómo conectar Google Drive en 1 minuto? (Gratis y Oficial)</span>
+                  </h3>
+                  <a
+                    href="https://script.google.com"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center space-x-1 text-xs text-vanilla-400 hover:text-white underline"
+                  >
+                    <span>Abrir script.google.com ↗</span>
+                  </a>
+                </div>
+                <p className="text-xs text-forest-200 leading-relaxed">
+                  Por seguridad de Google, ningún sitio web externo puede guardar archivos en tu Drive personal sin tu autorización. Con este script oficial de Google Apps Script, tu cuenta autoriza a la plataforma a crear los PDFs directamente en tus dos carpetas:
+                </p>
+
+                <ol className="text-xs text-forest-200 space-y-2 list-decimal list-inside">
+                  <li>
+                    Abre <a href="https://script.google.com" target="_blank" rel="noopener noreferrer" className="text-vanilla-300 underline font-semibold">script.google.com</a> con tu cuenta de Google (<em>cristian.f.jaramillo@gmail.com</em>) y haz clic en <strong>"Nuevo proyecto"</strong>.
+                  </li>
+                  <li>
+                    Borra el código que aparezca y pega el siguiente script oficial:
+                  </li>
+                </ol>
+
+                {/* Código de Google Apps Script con botón de copiar */}
+                <div className="relative bg-forest-950 p-3 rounded-lg border border-forest-800 font-mono text-[11px] text-vanilla-200 max-h-48 overflow-y-auto">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      navigator.clipboard.writeText(GOOGLE_APPS_SCRIPT_TEMPLATE);
+                      setCopiedScript(true);
+                      setTimeout(() => setCopiedScript(false), 3000);
+                    }}
+                    className="absolute top-2 right-2 inline-flex items-center space-x-1 px-2.5 py-1 rounded bg-vanilla-500 hover:bg-vanilla-400 text-forest-950 font-bold text-[10px] shadow transition-colors"
+                  >
+                    {copiedScript ? (
+                      <>
+                        <Check className="w-3 h-3" />
+                        <span>¡Copiado!</span>
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="w-3 h-3" />
+                        <span>Copiar Código</span>
+                      </>
+                    )}
+                  </button>
+                  <pre>{GOOGLE_APPS_SCRIPT_TEMPLATE}</pre>
+                </div>
+
+                <ol start={3} className="text-xs text-forest-200 space-y-2 list-decimal list-inside">
+                  <li>
+                    Haz clic en el botón azul superior <strong>"Implementar"</strong> ➔ <strong>"Nueva implementación"</strong>:
+                    <ul className="list-disc list-inside ml-5 mt-1 space-y-0.5 text-forest-300">
+                      <li>Tipo: Haz clic en el engranaje ⚙️ y elige <strong>"Aplicación web"</strong>.</li>
+                      <li>Ejecutar como: <strong>"Yo"</strong> (tu cuenta de Google).</li>
+                      <li>Quién tiene acceso: <strong>"Cualquier usuario"</strong> (Anyone).</li>
+                      <li>Haz clic en <strong>"Implementar"</strong> y autoriza los permisos si Google te lo solicita.</li>
+                    </ul>
+                  </li>
+                  <li>
+                    Copia la <strong>URL de la aplicación web</strong> (termina en <code className="text-vanilla-300 font-bold">/exec</code>) y pégala en el campo aquí abajo:
+                  </li>
+                </ol>
+              </div>
+
+              {/* Formulario de Configuración del Webhook */}
+              <div className="p-4 bg-white rounded-xl border border-emerald-200 space-y-3">
+                <label className="block text-xs font-bold text-forest-900">
+                  URL del Webhook de Google Apps Script:
+                </label>
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <input
+                    type="url"
+                    value={driveWebhookUrl}
+                    onChange={(e) => setDriveWebhookUrl(e.target.value)}
+                    placeholder="https://script.google.com/macros/s/AKfycb.../exec"
+                    className="flex-1 text-xs px-3.5 py-2.5 rounded-lg border border-vanilla-300 bg-vanilla-50/50 focus:outline-none focus:ring-2 focus:ring-emerald-600 font-mono text-forest-950"
+                  />
+                  <div className="flex items-center space-x-2">
+                    <button
+                      type="button"
+                      onClick={handleSaveDriveWebhook}
+                      disabled={isSavingDriveWebhook || !driveWebhookUrl.trim()}
+                      className="inline-flex items-center space-x-1.5 px-4 py-2.5 rounded-lg bg-forest-900 hover:bg-forest-800 text-white font-bold text-xs transition-colors disabled:opacity-50 shadow-sm"
+                    >
+                      {isSavingDriveWebhook ? (
+                        <>
+                          <Loader2 className="w-3.5 h-3.5 animate-spin text-vanilla-300" />
+                          <span>Guardando...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Save className="w-3.5 h-3.5 text-vanilla-300" />
+                          <span>Guardar Webhook</span>
+                        </>
+                      )}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={handleTestDriveWebhook}
+                      disabled={isTestingDriveWebhook || !driveWebhookUrl.trim()}
+                      className="inline-flex items-center space-x-1.5 px-4 py-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs transition-colors disabled:opacity-50 shadow-sm"
+                    >
+                      {isTestingDriveWebhook ? (
+                        <>
+                          <Loader2 className="w-3.5 h-3.5 animate-spin text-white" />
+                          <span>Probando en Google...</span>
+                        </>
+                      ) : (
+                        <>
+                          <CloudUpload className="w-3.5 h-3.5 text-white" />
+                          <span>Probar Conexión Ahora</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Feedback del Test / Guardado */}
+                {driveFeedback && (
+                  <div
+                    className={`p-3 rounded-lg text-xs border ${
+                      driveFeedback.type === "success"
+                        ? "bg-emerald-50 border-emerald-300 text-emerald-900"
+                        : "bg-red-50 border-red-300 text-red-900"
+                    }`}
+                  >
+                    <p className="font-semibold">{driveFeedback.text}</p>
+                    {driveFeedback.fileUrl && (
+                      <a
+                        href={driveFeedback.fileUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center space-x-1 text-emerald-700 underline font-bold mt-1.5"
+                      >
+                        <ExternalLink className="w-3 h-3" />
+                        <span>Ver archivo de prueba creado en Google Drive ↗</span>
+                      </a>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Botón de Sincronización en Lote para Reportes ya Existentes */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 bg-vanilla-100/60 rounded-xl border border-vanilla-200">
+                <div>
+                  <h4 className="text-xs font-bold text-forest-900">
+                    ¿Tienes informes generados anteriormente que aún no están en Google Drive?
+                  </h4>
+                  <p className="text-[11px] text-forest-600">
+                    Hay {reports.length} informes en el sistema. Puedes subirlos todos a la carpeta con un solo clic.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleUploadAllPendingReportsToDrive}
+                  disabled={isBulkUploadingDrive || reports.length === 0}
+                  className="inline-flex items-center justify-center space-x-2 px-4 py-2 rounded-lg bg-forest-900 hover:bg-forest-800 text-white text-xs font-bold transition-all disabled:opacity-50 shadow-sm flex-shrink-0"
+                >
+                  {isBulkUploadingDrive ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin text-vanilla-300" />
+                      <span>Sincronizando {reports.length} informes...</span>
+                    </>
+                  ) : (
+                    <>
+                      <CloudUpload className="w-3.5 h-3.5 text-vanilla-300" />
+                      <span>Subir Todos los Informes a Drive</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+
+            {/* CARD 2: PERSONALIZACIÓN DE CAMPOS DEL FORMULARIO */}
             <div>
               <h2 className="text-lg font-serif font-bold text-forest-900 mb-1">
                 Personalización de Campos del Formulario
