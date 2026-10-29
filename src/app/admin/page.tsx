@@ -451,19 +451,40 @@ export default function AdminPage() {
       const combined = [...apiReminders, ...localReminders, ...extractedReminders];
       const map = new Map<string, ScheduledReminder>();
       for (const item of combined) {
-        if (deletedReminderIds.includes(item.id) || deletedReportIds.includes(item.reportId)) continue;
-        const existing = map.get(item.id);
+        const semKey = `${item.reportId}_${(item.actividadNombre || "").trim().toLowerCase()}_${item.fechaProgramada}`;
+        if (
+          deletedReminderIds.includes(item.id) ||
+          deletedReminderIds.includes(semKey) ||
+          deletedReportIds.includes(item.reportId)
+        ) {
+          continue;
+        }
+
+        const existing = map.get(semKey);
         if (!existing) {
-          map.set(item.id, item);
+          map.set(semKey, item);
         } else {
-          if ((item.recordatoriosEnviados || 0) > (existing.recordatoriosEnviados || 0)) {
-            map.set(item.id, item);
+          const itemEnviados = item.recordatoriosEnviados || 0;
+          const existEnviados = existing.recordatoriosEnviados || 0;
+          if (itemEnviados > existEnviados) {
+            map.set(semKey, item);
+          } else if (itemEnviados === existEnviados) {
+            if (item.id.startsWith("REM-REP-") && !existing.id.startsWith("REM-REP-")) {
+              map.set(semKey, item);
+            }
           }
         }
       }
 
       const mergedList = Array.from(map.values())
-        .filter((r) => !deletedReminderIds.includes(r.id) && !deletedReportIds.includes(r.reportId))
+        .filter((r) => {
+          const semKey = `${r.reportId}_${(r.actividadNombre || "").trim().toLowerCase()}_${r.fechaProgramada}`;
+          return (
+            !deletedReminderIds.includes(r.id) &&
+            !deletedReminderIds.includes(semKey) &&
+            !deletedReportIds.includes(r.reportId)
+          );
+        })
         .sort((a, b) => new Date(a.fechaProgramada).getTime() - new Date(b.fechaProgramada).getTime());
 
       setReminders(mergedList);
@@ -807,7 +828,19 @@ export default function AdminPage() {
   // Eliminar recordatorio
   const handleDeleteReminder = async (id: string) => {
     if (confirm("¿Estás seguro de eliminar esta labor programada del cronograma de forma permanente?")) {
-      const updated = reminders.filter((r) => r.id !== id);
+      const targetRem = reminders.find((r) => r.id === id);
+      const targetSemKey = targetRem
+        ? `${targetRem.reportId}_${(targetRem.actividadNombre || "").trim().toLowerCase()}_${targetRem.fechaProgramada}`
+        : null;
+
+      const updated = reminders.filter((r) => {
+        if (r.id === id) return false;
+        if (targetSemKey) {
+          const k = `${r.reportId}_${(r.actividadNombre || "").trim().toLowerCase()}_${r.fechaProgramada}`;
+          if (k === targetSemKey) return false;
+        }
+        return true;
+      });
       setReminders(updated);
       localStorage.setItem("vanilla_scheduled_reminders", JSON.stringify(updated));
 
@@ -816,8 +849,17 @@ export default function AdminPage() {
       );
       if (!deletedReminderIds.includes(id)) {
         deletedReminderIds.push(id);
-        localStorage.setItem("vanilla_deleted_reminder_ids", JSON.stringify(deletedReminderIds));
       }
+      if (targetSemKey && !deletedReminderIds.includes(targetSemKey)) {
+        deletedReminderIds.push(targetSemKey);
+      }
+      if (targetRem) {
+        const altId = `REM-${targetRem.reportId}-${targetRem.id.split("-").pop()}`;
+        if (!deletedReminderIds.includes(altId)) {
+          deletedReminderIds.push(altId);
+        }
+      }
+      localStorage.setItem("vanilla_deleted_reminder_ids", JSON.stringify(deletedReminderIds));
 
       try {
         await Promise.allSettled([
@@ -3544,6 +3586,15 @@ export default function AdminPage() {
                           if (filterReminderStatus === "pendientes") return (r.recordatoriosEnviados || 0) < 3;
                           if (filterReminderStatus === "completados") return (r.recordatoriosEnviados || 0) >= 3;
                           return true;
+                        })
+                        .filter((rem, index, arr) => {
+                          const semKey = `${rem.reportId}_${(rem.actividadNombre || "").trim().toLowerCase()}_${rem.fechaProgramada}`;
+                          return (
+                            arr.findIndex(
+                              (x) =>
+                                `${x.reportId}_${(x.actividadNombre || "").trim().toLowerCase()}_${x.fechaProgramada}` === semKey
+                            ) === index
+                          );
                         })
                         .map((rem) => {
                           const targetDate = new Date(`${rem.fechaProgramada}T08:00:00`);

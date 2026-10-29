@@ -49,7 +49,13 @@ export async function GET() {
           report.actividades.forEach((act: any) => {
             if (act.fechaProxima && act.fechaProxima.trim() !== "") {
               const remId = `REM-${report.id}-${act.id}`;
-              const exists = dbReminders.some((m) => m.id === remId);
+              const exists = dbReminders.some(
+                (m) =>
+                  m.id === remId ||
+                  (m.reportId === report.id &&
+                    (m.actividadNombre || "").trim().toLowerCase() === (act.nombre || "").trim().toLowerCase() &&
+                    m.fechaProgramada === act.fechaProxima)
+              );
               if (!exists && !deletedRemIds.includes(remId)) {
                 dbReminders.push({
                   id: remId,
@@ -70,14 +76,15 @@ export async function GET() {
       });
     }
 
-    // Unificar con caché, excluyendo eliminados
+    // Unificar con caché y eliminar duplicados semánticos
     const map = new Map<string, ScheduledReminder>();
     [...dbReminders, ...cachedReminders]
       .filter((r) => !deletedRemIds.includes(r.id))
       .forEach((r) => {
-        const existing = map.get(r.id);
+        const semKey = `${r.reportId}_${(r.actividadNombre || "").trim().toLowerCase()}_${r.fechaProgramada}`;
+        const existing = map.get(semKey);
         if (!existing || (r.recordatoriosEnviados || 0) > (existing.recordatoriosEnviados || 0)) {
-          map.set(r.id, r);
+          map.set(semKey, r);
         }
       });
 

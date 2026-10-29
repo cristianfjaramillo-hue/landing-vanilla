@@ -28,6 +28,10 @@ export async function DELETE(request: Request) {
           .from("reportes_diarios")
           .delete()
           .like("report_id", `REM-${id}%`);
+        await supabaseAdmin
+          .from("reportes_diarios")
+          .delete()
+          .eq("data->>reportId", id);
       } catch (childErr) {
         console.warn("Aviso eliminando recordatorios hijos:", childErr);
       }

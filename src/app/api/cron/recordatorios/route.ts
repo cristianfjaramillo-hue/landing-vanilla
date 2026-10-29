@@ -38,7 +38,13 @@ async function processReminders(options: { manualId?: string; force?: boolean } 
           report.actividades.forEach((act: any) => {
             if (act.fechaProxima && act.fechaProxima.trim() !== "") {
               const remId = `REM-${report.id}-${act.id}`;
-              const exists = reminders.some((m) => m.id === remId);
+              const exists = reminders.some(
+                (m) =>
+                  m.id === remId ||
+                  (m.reportId === report.id &&
+                    (m.actividadNombre || "").trim().toLowerCase() === (act.nombre || "").trim().toLowerCase() &&
+                    m.fechaProgramada === act.fechaProxima)
+              );
               if (!exists) {
                 reminders.push({
                   id: remId,
@@ -58,6 +64,17 @@ async function processReminders(options: { manualId?: string; force?: boolean } 
         }
       });
     }
+
+    // Deduplicación semántica para evitar duplicados en memoria
+    const semMap = new Map<string, ScheduledReminder>();
+    for (const rem of reminders) {
+      const semKey = `${rem.reportId}_${(rem.actividadNombre || "").trim().toLowerCase()}_${rem.fechaProgramada}`;
+      const existing = semMap.get(semKey);
+      if (!existing || (rem.recordatoriosEnviados || 0) > (existing.recordatoriosEnviados || 0)) {
+        semMap.set(semKey, rem);
+      }
+    }
+    reminders = Array.from(semMap.values());
   } catch (dbErr) {
     console.warn("Aviso al consultar Supabase en cron recordatorios:", dbErr);
   }

@@ -308,7 +308,7 @@ export default function NuevoReportePage() {
             localStorage.getItem("vanilla_scheduled_reminders") || "[]"
           );
           const newReminders: ScheduledReminder[] = tasksToRemind.map((task) => ({
-            id: `REM-${Date.now().toString().slice(-6)}-${task.id}`,
+            id: `REM-${newReport.id}-${task.id}`,
             reportId: newReport.id,
             actividadNombre: task.nombre,
             area: task.areaLote || "INVERNADERO N°1",
@@ -320,9 +320,18 @@ export default function NuevoReportePage() {
             created_at: new Date().toISOString(),
           }));
 
+          const combined = [...newReminders, ...existingReminders];
+          const deduped: ScheduledReminder[] = [];
+          for (const item of combined) {
+            const key = `${item.reportId}_${(item.actividadNombre || "").trim().toLowerCase()}_${item.fechaProgramada}`;
+            if (!deduped.some(d => `${d.reportId}_${(d.actividadNombre || "").trim().toLowerCase()}_${d.fechaProgramada}` === key)) {
+              deduped.push(item);
+            }
+          }
+
           localStorage.setItem(
             "vanilla_scheduled_reminders",
-            JSON.stringify([...newReminders, ...existingReminders])
+            JSON.stringify(deduped)
           );
 
           fetch("/api/recordatorios", {
