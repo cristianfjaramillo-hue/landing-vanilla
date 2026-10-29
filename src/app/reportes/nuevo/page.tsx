@@ -334,10 +334,17 @@ export default function NuevoReportePage() {
         }
       }
 
-      // 2. Sincronizar en segundo plano con Supabase (sin congelar la pantalla)
+      // 2. Guardar garantizado en la base de datos Supabase con Service Role
       try {
-        Promise.resolve(
-          supabase.from("reportes_diarios").insert([
+        const dbRes = await fetch("/api/reportes", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ report: newReport }),
+        });
+        const dbJson = await dbRes.json();
+        if (!dbRes.ok || !dbJson.success) {
+          console.warn("Aviso en API /api/reportes, intentando directo:", dbJson?.error);
+          await supabase.from("reportes_diarios").upsert([
             {
               report_id: newReport.id,
               lote: newReport.lote,
@@ -345,13 +352,31 @@ export default function NuevoReportePage() {
               fecha_reporte: newReport.fechaReporte,
               data: newReport,
             },
-          ])
-        ).catch((dbErr) => {
-          console.warn("Sincronización con Supabase:", dbErr);
-        });
-      } catch (e) {
-        console.warn("Supabase notice:", e);
+          ]);
+        }
+      } catch (dbErr) {
+        console.warn("Aviso al guardar en Supabase, reintentando directo:", dbErr);
+        try {
+          await supabase.from("reportes_diarios").upsert([
+            {
+              report_id: newReport.id,
+              lote: newReport.lote,
+              responsable: newReport.responsable,
+              fecha_reporte: newReport.fechaReporte,
+              data: newReport,
+            },
+          ]);
+        } catch (e2) {
+          console.error("Error definitivo al guardar en base de datos:", e2);
+        }
       }
+
+      // Notificar en tiempo real a otras ventanas (incluyendo Administrador)
+      try {
+        const bc = new BroadcastChannel("vanilla_reports_sync");
+        bc.postMessage({ type: "REPORT_SAVED", report: newReport });
+        bc.close();
+      } catch {}
 
       // 3. Generar archivo PDF en memoria y despachar correo (sin descarga automática al dispositivo)
       try {

@@ -202,13 +202,32 @@ export default function AdminPage() {
         setCustomCreated(extra.slice(0, 5));
       }
 
-      // 4. Intentar cargar desde Supabase si existen
+      // 4. Cargar desde la base de datos Supabase
       try {
-        const { data, error } = await supabase.from("reportes_diarios").select("*").order("created_at", { ascending: false });
-        if (data && data.length > 0) {
-          const dbReports: DailyReport[] = [];
-          const dbProtocols: ActivityProtocol[] = [];
+        let dbReports: DailyReport[] = [];
+        let dbProtocols: ActivityProtocol[] = [];
 
+        // 4a. Consultar primero endpoint API del servidor (rápido y con permisos Service Role)
+        try {
+          const apiRes = await fetch("/api/reportes");
+          if (apiRes.ok) {
+            const apiJson = await apiRes.json();
+            if (apiJson.success && Array.isArray(apiJson.reports)) {
+              dbReports = apiJson.reports.filter((r: DailyReport) => !deletedReportIds.includes(r.id));
+            }
+          }
+        } catch (apiErr) {
+          console.warn("Aviso fetch /api/reportes:", apiErr);
+        }
+
+        // 4b. Consultar Supabase directamente con límite para evitar saturación de memoria
+        const { data, error } = await supabase
+          .from("reportes_diarios")
+          .select("*")
+          .order("created_at", { ascending: false })
+          .limit(60);
+
+        if (data && data.length > 0) {
           data.forEach((row) => {
             const rowData = row.data as any;
             if (row.report_id === "CONFIG_RECOMENDACIONES" && rowData?.recomendaciones) {
@@ -984,7 +1003,7 @@ export default function AdminPage() {
       r.temperatura !== undefined ? r.temperatura : (r.tempMin || 26),
       r.humedad,
       r.alcalinidad ? `${r.alcalinidad}%` : "-",
-      `"${r.actividades.filter((a) => a.realizado).map((a) => a.nombre).join("; ")}"`,
+      `"${(r.actividades || []).filter((a) => a.realizado).map((a) => a.nombre).join("; ")}"`,
       `"${(r.observaciones || "").replace(/"/g, '""')}"`,
     ]);
 
@@ -1018,14 +1037,20 @@ export default function AdminPage() {
     setCustomActivities(customActivities.filter((a) => a.id !== id));
   };
 
-  // Filtrado de reportes
+  // Filtrado de reportes (blindado contra valores nulos o indefinidos)
   const filteredReports = reports.filter((r) => {
-    const matchesSearch =
-      r.lote.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      r.responsable.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      r.fechaReporte.includes(searchTerm);
+    if (!r) return false;
+    const rLote = r.lote || r.area || "";
+    const rResp = r.responsable || "";
+    const rFecha = r.fechaReporte || "";
+    const term = searchTerm.toLowerCase();
 
-    const matchesLote = filterLote === "todos" || r.lote === filterLote;
+    const matchesSearch =
+      rLote.toLowerCase().includes(term) ||
+      rResp.toLowerCase().includes(term) ||
+      rFecha.includes(term);
+
+    const matchesLote = filterLote === "todos" || rLote === filterLote;
 
     return matchesSearch && matchesLote;
   });
@@ -1340,7 +1365,7 @@ export default function AdminPage() {
             ) : (
               <div className="grid grid-cols-1 gap-4">
                 {filteredReports.map((report) => {
-                  const actRealizadasCount = report.actividades.filter((a) => a.realizado).length;
+                  const actRealizadasCount = (report.actividades || []).filter((a) => a.realizado).length;
                   return (
                     <div
                       key={report.id}
@@ -3108,7 +3133,7 @@ export default function AdminPage() {
                   <h3 className="font-bold uppercase tracking-wider text-forest-900 mb-2.5 flex items-center justify-between">
                     <span>Actividades Realizadas:</span>
                     <span className="text-[11px] text-forest-600 font-medium">
-                      {previewReport.actividades.filter((a) => a.realizado).length} ejecutadas
+                      {(previewReport.actividades || []).filter((a) => a.realizado).length} ejecutadas
                     </span>
                   </h3>
                   <div className="overflow-x-auto border border-vanilla-200 rounded-xl">
@@ -3124,7 +3149,7 @@ export default function AdminPage() {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-vanilla-100 bg-white">
-                        {previewReport.actividades.map((act) => (
+                        {(previewReport.actividades || []).map((act) => (
                           <tr
                             key={act.id}
                             className={act.realizado ? "bg-vanilla-50/70" : "hover:bg-vanilla-50/20"}
