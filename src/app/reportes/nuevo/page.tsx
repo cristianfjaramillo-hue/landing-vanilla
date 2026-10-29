@@ -353,9 +353,9 @@ export default function NuevoReportePage() {
         console.warn("Supabase notice:", e);
       }
 
-      // 3. Generar y guardar/descargar el archivo PDF automáticamente en el dispositivo y despachar correo electrónico
+      // 3. Generar archivo PDF en memoria y despachar correo (sin descarga automática al dispositivo)
       try {
-        const { base64, filename } = await generateDailyReportPDF(newReport, true);
+        const { base64, filename } = await generateDailyReportPDF(newReport, false);
 
         await fetch("/api/enviar-email", {
           method: "POST",
@@ -404,7 +404,7 @@ export default function NuevoReportePage() {
               <CheckCircle2 className="w-8 h-8 text-vanilla-400 flex-shrink-0 mt-0.5" />
               <div className="flex-1">
                 <h3 className="text-xl font-serif font-bold text-vanilla-300">
-                  ¡Informe Diario Guardado, Descargado y Enviado!
+                  ¡Informe Diario Guardado Exitosamente!
                 </h3>
                 <p className="text-sm text-forest-200 mt-1">
                   Código: <span className="font-mono font-bold text-white">{successReport.id}</span> para el{" "}
@@ -413,7 +413,7 @@ export default function NuevoReportePage() {
                 <div className="mt-2.5 flex items-center space-x-2 text-xs text-vanilla-300 bg-forest-950/70 py-1.5 px-3 rounded-lg border border-forest-800">
                   <Mail className="w-4 h-4 text-vanilla-400 flex-shrink-0" />
                   <span>
-                    El documento PDF se descargó a tu dispositivo y fue notificado por correo. El formulario se ha reiniciado y está listo para ingresar un nuevo informe.
+                    El informe quedó guardado en la base de datos y actualizado en el panel Administrador. El formulario se ha reiniciado y está listo para ingresar otro informe.
                   </span>
                 </div>
                 <div className="mt-5 flex flex-wrap gap-3">
@@ -422,7 +422,7 @@ export default function NuevoReportePage() {
                     className="inline-flex items-center space-x-2 px-4 py-2.5 rounded-lg bg-vanilla-500 hover:bg-vanilla-600 text-forest-950 font-bold text-xs shadow-md transition-transform active:scale-95"
                   >
                     <Download className="w-4 h-4" />
-                    <span>Descargar PDF Oficial</span>
+                    <span>Descargar PDF (Opcional)</span>
                   </button>
 
                   <button
@@ -431,6 +431,13 @@ export default function NuevoReportePage() {
                   >
                     Llenar Otro Informe
                   </button>
+
+                  <Link
+                    href="/admin"
+                    className="px-4 py-2.5 rounded-lg border border-vanilla-300/40 hover:bg-forest-800 text-forest-200 text-xs font-medium transition-colors inline-flex items-center space-x-1"
+                  >
+                    <span>Ver en Administrador</span>
+                  </Link>
                 </div>
               </div>
             </div>
@@ -1094,7 +1101,7 @@ export default function NuevoReportePage() {
             {/* BOTONES DE ACCIÓN */}
             <div className="pt-6 border-t border-vanilla-200 flex flex-col sm:flex-row items-center justify-between gap-4">
               <div className="text-xs text-forest-600">
-                Al guardar, se registrará el informe en el sistema y se enviará automáticamente un correo electrónico con el PDF oficial adjunto.
+                Al guardar, el informe se registrará en la base de datos y se actualizará en el Administrador (puedes descargarlo después si lo necesitas).
               </div>
 
               <div className="flex items-center space-x-3 w-full sm:w-auto">
