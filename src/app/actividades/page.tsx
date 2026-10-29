@@ -26,18 +26,39 @@ import {
   Check,
   Edit3,
   ClipboardList,
-  ArrowRight
+  ArrowRight,
+  ChevronDown,
+  MapPin,
 } from "lucide-react";
 import { SECTIONS_DATA, TOTAL_ACTIVIDADES_COUNT, RECOMENDACIONES_DATA, ActivitySection } from "@/lib/actividades-data";
 import { ActivityProtocol } from "@/lib/types";
 import { generateActivityProtocolPDF } from "@/lib/pdf-generator";
 import { supabase } from "@/lib/supabase";
 
+const RESPONSABLES_AUTORIZADOS = [
+  "GUIMARE",
+  "FELIPE",
+  "PEGO",
+  "DORE",
+  "CINDY",
+  "GEMENCA",
+] as const;
+
+const AREAS_DISPONIBLES = [
+  "INVERNADERO N°1",
+  "INVERNADERO N°2",
+  "INVERNADERO N°3",
+  "INVERNADERO N°4",
+  "INVERNADERO N°5",
+  "CHACRA CACAO",
+  "CHACRA VAINILLA",
+] as const;
+
 export default function ActividadesPage() {
   const [checkedItems, setCheckedItems] = useState<Record<string, boolean>>({});
-  const [responsable, setResponsable] = useState("");
+  const [responsable, setResponsable] = useState<string>("GUIMARE");
   const [fecha, setFecha] = useState("");
-  const [lote, setLote] = useState("");
+  const [lote, setLote] = useState<string>("INVERNADERO N°1");
   const [observaciones, setObservaciones] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [savedSuccessProtocol, setSavedSuccessProtocol] = useState<ActivityProtocol | null>(null);
@@ -196,11 +217,13 @@ export default function ActividadesPage() {
       }
       const savedResp = localStorage.getItem("vanilla_actividades_responsable");
       if (savedResp) setResponsable(savedResp);
+      else setResponsable("GUIMARE");
       const savedFecha = localStorage.getItem("vanilla_actividades_fecha");
       if (savedFecha) setFecha(savedFecha);
       else setFecha(new Date().toISOString().split("T")[0]);
       const savedLote = localStorage.getItem("vanilla_actividades_lote");
       if (savedLote) setLote(savedLote);
+      else setLote("INVERNADERO N°1");
       const savedObs = localStorage.getItem("vanilla_actividades_obs");
       if (savedObs) setObservaciones(savedObs);
     } catch {
@@ -256,8 +279,8 @@ export default function ActividadesPage() {
         id: protocolId,
         created_at: now.toISOString(),
         fecha: fecha || now.toISOString().split("T")[0],
-        lote: lote.trim() || "Invernadero Principal",
-        responsable: responsable.trim() || "Técnico Agrónomo",
+        lote: lote.trim() || "INVERNADERO N°1",
+        responsable: responsable.trim() || "GUIMARE",
         observaciones: observaciones.trim(),
         checkedItems: { ...checkedItems },
         totalActividades: totalItemsCount,
@@ -301,8 +324,8 @@ export default function ActividadesPage() {
 
       // 3. REINICIAR Y LIMPIAR INMEDIATAMENTE TODO EL FORMULARIO (0 casillas marcadas)
       setCheckedItems({});
-      setResponsable("");
-      setLote("");
+      setResponsable("GUIMARE");
+      setLote("INVERNADERO N°1");
       setObservaciones("");
       setFecha(now.toISOString().split("T")[0]);
 
@@ -548,33 +571,42 @@ export default function ActividadesPage() {
               </div>
             </div>
 
-            {/* Metadatos Rápidos de Campo (Responsable, Fecha, Lote) */}
+            {/* Metadatos Rápidos de Campo (Responsable, Fecha, Área) */}
             <div className="mt-5 grid grid-cols-1 sm:grid-cols-3 gap-3 bg-vanilla-50/80 p-3.5 rounded-xl border border-vanilla-200 text-xs">
+              {/* Selector de Responsable */}
               <div className="flex items-center space-x-2">
                 <User className="w-4 h-4 text-forest-700 flex-shrink-0" />
                 <div className="flex-1">
-                  <label className="block text-[10px] font-bold uppercase text-forest-600">
+                  <label className="block text-[10px] font-bold uppercase text-forest-600 mb-0.5">
                     Responsable de Registro:
                   </label>
-                  <input
-                    type="text"
-                    value={responsable}
-                    onChange={(e) => {
-                      setResponsable(e.target.value);
-                      try {
-                        localStorage.setItem("vanilla_actividades_responsable", e.target.value);
-                      } catch {}
-                    }}
-                    placeholder="Ej. Ing. Agrónomo / Técnico Waorani"
-                    className="w-full bg-white border border-vanilla-300 rounded px-2 py-1 text-xs text-forest-900 font-medium focus:outline-none focus:border-forest-700"
-                  />
+                  <div className="relative">
+                    <select
+                      value={responsable}
+                      onChange={(e) => {
+                        setResponsable(e.target.value);
+                        try {
+                          localStorage.setItem("vanilla_actividades_responsable", e.target.value);
+                        } catch {}
+                      }}
+                      className="w-full appearance-none bg-white border border-vanilla-300 rounded-lg px-2.5 py-1.5 pr-8 text-xs text-forest-900 font-semibold focus:outline-none focus:border-forest-700 cursor-pointer shadow-xs transition-colors"
+                    >
+                      {RESPONSABLES_AUTORIZADOS.map((resp) => (
+                        <option key={resp} value={resp}>
+                          {resp}
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDown className="w-3.5 h-3.5 text-forest-500 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  </div>
                 </div>
               </div>
 
+              {/* Selector de Fecha */}
               <div className="flex items-center space-x-2">
                 <Calendar className="w-4 h-4 text-forest-700 flex-shrink-0" />
                 <div className="flex-1">
-                  <label className="block text-[10px] font-bold uppercase text-forest-600">
+                  <label className="block text-[10px] font-bold uppercase text-forest-600 mb-0.5">
                     Fecha de Verificación:
                   </label>
                   <input
@@ -586,29 +618,37 @@ export default function ActividadesPage() {
                         localStorage.setItem("vanilla_actividades_fecha", e.target.value);
                       } catch {}
                     }}
-                    className="w-full bg-white border border-vanilla-300 rounded px-2 py-1 text-xs text-forest-900 font-medium focus:outline-none focus:border-forest-700"
+                    className="w-full bg-white border border-vanilla-300 rounded-lg px-2.5 py-1.5 text-xs text-forest-900 font-semibold focus:outline-none focus:border-forest-700 shadow-xs"
                   />
                 </div>
               </div>
 
+              {/* Selector de Área */}
               <div className="flex items-center space-x-2">
-                <Warehouse className="w-4 h-4 text-forest-700 flex-shrink-0" />
+                <MapPin className="w-4 h-4 text-forest-700 flex-shrink-0" />
                 <div className="flex-1">
-                  <label className="block text-[10px] font-bold uppercase text-forest-600">
-                    Invernadero / Lote:
+                  <label className="block text-[10px] font-bold uppercase text-forest-600 mb-0.5">
+                    Área:
                   </label>
-                  <input
-                    type="text"
-                    value={lote}
-                    onChange={(e) => {
-                      setLote(e.target.value);
-                      try {
-                        localStorage.setItem("vanilla_actividades_lote", e.target.value);
-                      } catch {}
-                    }}
-                    placeholder="Ej. Invernadero N° 1 - Chakra Dikapare"
-                    className="w-full bg-white border border-vanilla-300 rounded px-2 py-1 text-xs text-forest-900 font-medium focus:outline-none focus:border-forest-700"
-                  />
+                  <div className="relative">
+                    <select
+                      value={lote}
+                      onChange={(e) => {
+                        setLote(e.target.value);
+                        try {
+                          localStorage.setItem("vanilla_actividades_lote", e.target.value);
+                        } catch {}
+                      }}
+                      className="w-full appearance-none bg-white border border-vanilla-300 rounded-lg px-2.5 py-1.5 pr-8 text-xs text-forest-900 font-semibold focus:outline-none focus:border-forest-700 cursor-pointer shadow-xs transition-colors"
+                    >
+                      {AREAS_DISPONIBLES.map((area) => (
+                        <option key={area} value={area}>
+                          {area}
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDown className="w-3.5 h-3.5 text-forest-500 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  </div>
                 </div>
               </div>
             </div>
@@ -907,7 +947,7 @@ export default function ActividadesPage() {
                 <span className="font-bold text-forest-900">{savedSuccessProtocol.fecha}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-forest-600">Invernadero / Lote:</span>
+                <span className="text-forest-600">Área:</span>
                 <span className="font-bold text-forest-900">{savedSuccessProtocol.lote}</span>
               </div>
               <div className="flex justify-between">

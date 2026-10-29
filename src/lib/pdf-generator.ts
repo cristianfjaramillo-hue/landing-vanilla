@@ -291,7 +291,7 @@ export async function generateActivityProtocolPDF(
     head: [["DATOS DEL PROTOCOLO", "ESTADO DE EJECUCIÓN"]],
     body: [
       [
-        `Código: ${protocol.id}\nFecha: ${protocol.fecha}\nInvernadero / Lote: ${protocol.lote || "No especificado"}\nResponsable: ${protocol.responsable || "No especificado"}`,
+        `Código: ${protocol.id}\nFecha: ${protocol.fecha}\nÁrea: ${protocol.lote || "No especificado"}\nResponsable: ${protocol.responsable || "No especificado"}`,
         `Actividades Completadas: ${protocol.completadas} de ${protocol.totalActividades}\nPorcentaje de Avance: ${protocol.porcentaje}%\nEstado: ${protocol.porcentaje >= 80 ? "Alto Cumplimiento" : protocol.porcentaje >= 50 ? "En Progreso" : "Inicial"}`,
       ],
     ],

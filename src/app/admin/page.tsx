@@ -3393,7 +3393,7 @@ export default function AdminPage() {
                     <p className="font-bold text-sm text-forest-950 mt-0.5">{previewProtocol.fecha}</p>
                   </div>
                   <div>
-                    <span className="font-bold text-forest-700 block uppercase text-[10px]">Invernadero / Lote:</span>
+                    <span className="font-bold text-forest-700 block uppercase text-[10px]">Área:</span>
                     <p className="font-bold text-sm text-forest-950 mt-0.5">{previewProtocol.lote}</p>
                   </div>
                   <div>
