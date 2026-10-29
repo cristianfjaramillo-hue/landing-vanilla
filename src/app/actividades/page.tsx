@@ -322,6 +322,23 @@ export default function ActividadesPage() {
         console.warn("Supabase launch notice:", e);
       }
 
+      // 2b. Generar PDF y respaldar automáticamente en la carpeta de Google Drive de Actividades
+      try {
+        const pdfInfo = await generateActivityProtocolPDF(newProtocol, sections, false);
+        fetch("/api/drive-upload", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            type: "actividades",
+            filename: pdfInfo.filename,
+            pdfBase64: pdfInfo.base64,
+            reportId: newProtocol.id,
+          }),
+        }).catch((dErr) => console.warn("Aviso Drive Upload Actividades:", dErr));
+      } catch (pdfErr) {
+        console.warn("Aviso generando PDF para Google Drive:", pdfErr);
+      }
+
       // 3. REINICIAR Y LIMPIAR INMEDIATAMENTE TODO EL FORMULARIO (0 casillas marcadas)
       setCheckedItems({});
       setResponsable("GUIMARE");
@@ -963,6 +980,17 @@ export default function ActividadesPage() {
             </div>
 
             <div className="flex flex-col sm:flex-row items-center justify-center gap-2 pt-2">
+              <a
+                href="https://drive.google.com/drive/folders/1lPouDSEyC3cWQwmDGDaygB_yfJF83qAY"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full sm:w-auto inline-flex items-center justify-center space-x-1.5 px-4 py-2.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold shadow transition-colors"
+                title="Abrir carpeta compartida en Google Drive"
+              >
+                <ExternalLink className="w-4 h-4 text-vanilla-300" />
+                <span>Abrir en Google Drive (Actividades)</span>
+              </a>
+
               <button
                 onClick={() => handleDownloadPdf(savedSuccessProtocol)}
                 className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-forest-900 hover:bg-forest-800 text-white text-xs font-bold shadow flex items-center justify-center space-x-1.5 transition-colors"

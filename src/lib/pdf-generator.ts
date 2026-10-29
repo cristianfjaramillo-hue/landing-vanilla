@@ -259,8 +259,9 @@ export async function generateDailyReportPDF(
 
 export async function generateActivityProtocolPDF(
   protocol: ActivityProtocol,
-  customSections?: ActivitySection[]
-) {
+  customSections?: ActivitySection[],
+  autoDownload: boolean = true
+): Promise<{ base64: string; filename: string }> {
   const doc = new jsPDF({
     orientation: "portrait",
     unit: "mm",
@@ -444,5 +445,11 @@ export async function generateActivityProtocolPDF(
   }
 
   const cleanLote = (protocol.lote || "Invernadero").replace(/\s+/g, "_");
-  doc.save(`Protocolo_Actividades_Vainilla_${cleanLote}_${protocol.fecha || "registro"}.pdf`);
+  const filename = `Protocolo_Actividades_Vainilla_${cleanLote}_${protocol.fecha || "registro"}.pdf`;
+  if (autoDownload) {
+    doc.save(filename);
+  }
+  const dataUri = doc.output("datauristring");
+  const base64 = dataUri.split(",")[1] || dataUri;
+  return { base64, filename };
 }

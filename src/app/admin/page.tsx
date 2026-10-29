@@ -1334,6 +1334,17 @@ export default function AdminPage() {
                   ))}
                 </select>
 
+                <a
+                  href="https://drive.google.com/drive/folders/1gGdDnhpOOM0zhKGEGhTuvXmOfHRYwmpN"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center space-x-1 px-3 py-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 text-xs font-semibold transition-colors"
+                  title="Abrir carpeta de Informes Diarios en Google Drive"
+                >
+                  <ExternalLink className="w-3.5 h-3.5" />
+                  <span>Carpeta Drive (Informes)</span>
+                </a>
+
                 <button
                   onClick={loadReports}
                   className="p-2 rounded-lg text-forest-600 hover:bg-vanilla-100 transition-colors"
@@ -1557,6 +1568,17 @@ export default function AdminPage() {
                   <span>Nuevo Protocolo</span>
                   <ExternalLink className="w-3 h-3 text-vanilla-300 ml-0.5" />
                 </Link>
+
+                <a
+                  href="https://drive.google.com/drive/folders/1lPouDSEyC3cWQwmDGDaygB_yfJF83qAY"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center space-x-1 px-3 py-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 text-xs font-semibold transition-colors"
+                  title="Abrir carpeta de Actividades en Google Drive"
+                >
+                  <ExternalLink className="w-3.5 h-3.5" />
+                  <span>Carpeta Drive (Actividades)</span>
+                </a>
 
                 <button
                   onClick={loadReports}

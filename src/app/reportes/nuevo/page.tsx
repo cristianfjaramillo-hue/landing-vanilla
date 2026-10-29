@@ -28,6 +28,7 @@ import {
   Clock,
   FolderOpen,
   UploadCloud,
+  ExternalLink,
 } from "lucide-react";
 import { DEFAULT_ACTIVITIES, DEFAULT_TOOLS } from "@/lib/constants";
 import { ActivityItem, ToolItem, AppliedInput, DailyReport, ScheduledReminder } from "@/lib/types";
@@ -172,8 +173,8 @@ export default function NuevoReportePage() {
         const img = new window.Image();
         img.src = event.target?.result as string;
         img.onload = () => {
-          const maxWidth = 1280;
-          const maxHeight = 1280;
+          const maxWidth = 800;
+          const maxHeight = 800;
           let width = img.width;
           let height = img.height;
 
@@ -196,7 +197,7 @@ export default function NuevoReportePage() {
             return;
           }
           ctx.drawImage(img, 0, 0, width, height);
-          const dataUrl = canvas.toDataURL("image/jpeg", 0.85);
+          const dataUrl = canvas.toDataURL("image/jpeg", 0.65);
           resolve(dataUrl);
         };
         img.onerror = () => resolve(event.target?.result as string);
@@ -378,10 +379,11 @@ export default function NuevoReportePage() {
         bc.close();
       } catch {}
 
-      // 3. Generar archivo PDF en memoria y despachar correo (sin descarga automática al dispositivo)
+      // 3. Generar archivo PDF en memoria y despachar correo y Google Drive
       try {
         const { base64, filename } = await generateDailyReportPDF(newReport, false);
 
+        // 3a. Enviar por correo con PDF adjunto
         await fetch("/api/enviar-email", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -391,8 +393,20 @@ export default function NuevoReportePage() {
             filename: filename,
           }),
         });
+
+        // 3b. Guardar y registrar automáticamente en la carpeta de Google Drive de Informes Diarios
+        fetch("/api/drive-upload", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            type: "diario",
+            filename: filename,
+            pdfBase64: base64,
+            reportId: newReport.id,
+          }),
+        }).catch((dErr) => console.warn("Aviso Drive Upload:", dErr));
       } catch (emailErr) {
-        console.warn("Aviso en despacho de correo:", emailErr);
+        console.warn("Aviso en despacho de correo y Drive:", emailErr);
       }
 
       // 4. Reiniciar automáticamente el formulario borrando los datos ingresados para dejarlo listo para el próximo informe
@@ -442,6 +456,17 @@ export default function NuevoReportePage() {
                   </span>
                 </div>
                 <div className="mt-5 flex flex-wrap gap-3">
+                  <a
+                    href="https://drive.google.com/drive/folders/1gGdDnhpOOM0zhKGEGhTuvXmOfHRYwmpN"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center space-x-2 px-4 py-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-md transition-transform active:scale-95"
+                    title="Abrir carpeta compartida en Google Drive"
+                  >
+                    <ExternalLink className="w-4 h-4" />
+                    <span>Abrir en Google Drive (Informes)</span>
+                  </a>
+
                   <button
                     onClick={async () => await generateDailyReportPDF(successReport)}
                     className="inline-flex items-center space-x-2 px-4 py-2.5 rounded-lg bg-vanilla-500 hover:bg-vanilla-600 text-forest-950 font-bold text-xs shadow-md transition-transform active:scale-95"
