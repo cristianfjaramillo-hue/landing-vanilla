@@ -333,6 +333,7 @@ export default function ActividadesPage() {
             filename: pdfInfo.filename,
             pdfBase64: pdfInfo.base64,
             reportId: newProtocol.id,
+            fecha: newProtocol.fecha,
           }),
         }).catch((dErr) => console.warn("Aviso Drive Upload Actividades:", dErr));
       } catch (pdfErr) {

@@ -18,7 +18,7 @@ const DRIVE_FOLDERS = {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { type, filename, pdfBase64, reportId, action, webhookUrl: newWebhook } = body;
+    const { type, filename, pdfBase64, reportId, action, webhookUrl: newWebhook, fecha } = body;
 
     // Acción para guardar la configuración del Webhook desde el panel Admin
     if (action === "save_webhook") {
@@ -122,6 +122,7 @@ export async function POST(request: Request) {
             filename: filename || `Documento_${Date.now()}.pdf`,
             base64: pdfBase64,
             reportId,
+            fecha: fecha || new Date().toISOString().split("T")[0],
           }),
         });
 

@@ -403,6 +403,7 @@ export default function NuevoReportePage() {
             filename: filename,
             pdfBase64: base64,
             reportId: newReport.id,
+            fecha: newReport.fechaReporte,
           }),
         }).catch((dErr) => console.warn("Aviso Drive Upload:", dErr));
       } catch (emailErr) {

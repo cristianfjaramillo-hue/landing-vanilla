@@ -60,9 +60,10 @@ const GOOGLE_APPS_SCRIPT_TEMPLATE = `function doPost(e) {
   try {
     var raw = e.postData.contents;
     var data = JSON.parse(raw);
-    var folderId = data.folderId;
+    var parentFolderId = data.folderId;
     var filename = data.filename || ("Documento_" + Utilities.formatDate(new Date(), "GMT-5", "yyyyMMdd_HHmmss") + ".pdf");
     var base64 = data.base64 || "";
+    var fechaStr = data.fecha || "";
 
     if (base64.indexOf(",") > -1) {
       base64 = base64.split(",")[1];
@@ -71,16 +72,47 @@ const GOOGLE_APPS_SCRIPT_TEMPLATE = `function doPost(e) {
     var decoded = Utilities.base64Decode(base64);
     var blob = Utilities.newBlob(decoded, "application/pdf", filename);
 
-    var folder = DriveApp.getFolderById(folderId);
-    var file = folder.createFile(blob);
-    file.setDescription("Subido automáticamente por el Sistema Amazon Vanilla / ITEC Ecuador");
+    // 1. Carpeta raíz en Drive (Informes Diarios o Listado de Actividades)
+    var parentFolder = DriveApp.getFolderById(parentFolderId);
+
+    // 2. Determinar Año y Mes para organizar la subcarpeta mensual automática
+    var year, monthIndex;
+    if (fechaStr && typeof fechaStr === "string" && fechaStr.indexOf("-") > -1) {
+      var parts = fechaStr.split("-");
+      year = parseInt(parts[0], 10);
+      monthIndex = parseInt(parts[1], 10) - 1;
+    } else {
+      var now = new Date();
+      year = now.getFullYear();
+      monthIndex = now.getMonth();
+    }
+
+    var monthNames = [
+      "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
+      "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
+    ];
+    var monthNum = (monthIndex + 1 < 10 ? "0" : "") + (monthIndex + 1);
+    var monthName = (monthIndex >= 0 && monthIndex < 12) ? monthNames[monthIndex] : "General";
+
+    // Nombre de la carpeta mensual: ej. "2026-10 (Octubre)", "2026-11 (Noviembre)"
+    var monthlyFolderName = year + "-" + monthNum + " (" + monthName + ")";
+
+    // 3. Buscar si la carpeta del mes ya existe; si no existe, la crea automáticamente
+    var subfolders = parentFolder.getFoldersByName(monthlyFolderName);
+    var targetFolder = subfolders.hasNext() ? subfolders.next() : parentFolder.createFolder(monthlyFolderName);
+
+    // 4. Guardar el archivo PDF dentro de la carpeta del mes
+    var file = targetFolder.createFile(blob);
+    file.setDescription("Subido automáticamente por el Sistema Amazon Vanilla / ITEC Ecuador (" + monthlyFolderName + ")");
 
     var result = {
       success: true,
       fileId: file.getId(),
       fileUrl: file.getUrl(),
       filename: filename,
-      folderId: folderId
+      parentFolderId: parentFolderId,
+      monthlyFolderId: targetFolder.getId(),
+      monthlyFolderName: monthlyFolderName
     };
 
     return ContentService.createTextOutput(JSON.stringify(result))
@@ -96,7 +128,7 @@ const GOOGLE_APPS_SCRIPT_TEMPLATE = `function doPost(e) {
 function doGet(e) {
   return ContentService.createTextOutput(JSON.stringify({
     success: true,
-    message: "Webhook Google Drive Amazon Vanilla activo y listo para recibir archivos"
+    message: "Webhook Google Drive Amazon Vanilla activo. Creación automática de carpetas mensuales habilitada."
   })).setMimeType(ContentService.MimeType.JSON);
 }`;
 
@@ -627,6 +659,7 @@ export default function AdminPage() {
           filename,
           pdfBase64: base64,
           reportId: report.id,
+          fecha: report.fechaReporte,
         }),
       });
       const data = await res.json();
@@ -660,6 +693,7 @@ export default function AdminPage() {
           filename,
           pdfBase64: base64,
           reportId: protocol.id,
+          fecha: protocol.fecha,
         }),
       });
       const data = await res.json();
@@ -705,6 +739,7 @@ export default function AdminPage() {
               filename,
               pdfBase64: base64,
               reportId: rep.id,
+              fecha: rep.fechaReporte,
             }),
           });
           const dJson = await res.json();
@@ -2465,7 +2500,7 @@ export default function AdminPage() {
                       <span>Sincronización Automática con Google Drive</span>
                     </h2>
                     <p className="text-xs text-forest-700">
-                      Envío instantáneo de PDFs generados (Informes Diarios y Protocolos de Actividades) a tus carpetas oficiales de Drive.
+                      Envío instantáneo de PDFs a tus carpetas de Drive, <strong>organizados automáticamente en subcarpetas mensuales (ej. 2026-10 Octubre, 2026-11 Noviembre)</strong>.
                     </p>
                   </div>
                 </div>
