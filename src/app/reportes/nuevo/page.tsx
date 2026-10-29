@@ -26,6 +26,8 @@ import {
   Layers,
   Bell,
   Clock,
+  FolderOpen,
+  UploadCloud,
 } from "lucide-react";
 import { DEFAULT_ACTIVITIES, DEFAULT_TOOLS } from "@/lib/constants";
 import { ActivityItem, ToolItem, AppliedInput, DailyReport, ScheduledReminder } from "@/lib/types";
@@ -161,17 +163,69 @@ export default function NuevoReportePage() {
     }
   };
 
-  // Fotos
-  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>, slot: 1 | 2 | 3) => {
+  // Compresión optimizada para imágenes de la memoria del celular o de cámara
+  const compressImage = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = (event) => {
+        const img = new window.Image();
+        img.src = event.target?.result as string;
+        img.onload = () => {
+          const maxWidth = 1280;
+          const maxHeight = 1280;
+          let width = img.width;
+          let height = img.height;
+
+          if (width > maxWidth || height > maxHeight) {
+            if (width > height) {
+              height = Math.round((height * maxWidth) / width);
+              width = maxWidth;
+            } else {
+              width = Math.round((width * maxHeight) / height);
+              height = maxHeight;
+            }
+          }
+
+          const canvas = document.createElement("canvas");
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext("2d");
+          if (!ctx) {
+            resolve(event.target?.result as string);
+            return;
+          }
+          ctx.drawImage(img, 0, 0, width, height);
+          const dataUrl = canvas.toDataURL("image/jpeg", 0.85);
+          resolve(dataUrl);
+        };
+        img.onerror = () => resolve(event.target?.result as string);
+      };
+      reader.onerror = (error) => reject(error);
+    });
+  };
+
+  // Fotos (permite navegar en la memoria del celular o usar la cámara)
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>, slot: 1 | 2 | 3) => {
     const file = e.target.files?.[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        if (slot === 1) setFoto1(reader.result as string);
-        if (slot === 2) setFoto2(reader.result as string);
-        if (slot === 3) setFoto3(reader.result as string);
-      };
-      reader.readAsDataURL(file);
+      try {
+        const compressedBase64 = await compressImage(file);
+        if (slot === 1) setFoto1(compressedBase64);
+        if (slot === 2) setFoto2(compressedBase64);
+        if (slot === 3) setFoto3(compressedBase64);
+      } catch (err) {
+        console.warn("Aviso procesando imagen:", err);
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          if (slot === 1) setFoto1(reader.result as string);
+          if (slot === 2) setFoto2(reader.result as string);
+          if (slot === 3) setFoto3(reader.result as string);
+        };
+        reader.readAsDataURL(file);
+      } finally {
+        e.target.value = "";
+      }
     }
   };
 
@@ -946,10 +1000,15 @@ export default function NuevoReportePage() {
 
             {/* SECCIÓN 7: REGISTRO FOTOGRÁFICO (Foto 1, Foto 2, Foto 3) */}
             <div>
-              <h2 className="text-xs font-bold uppercase tracking-wider text-forest-900 mb-3 flex items-center space-x-2">
-                <Camera className="w-4 h-4 text-vanilla-600" />
-                <span>7. Registro Fotográfico de Campo</span>
-              </h2>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-3 gap-1">
+                <h2 className="text-xs font-bold uppercase tracking-wider text-forest-900 flex items-center space-x-2">
+                  <Camera className="w-4 h-4 text-vanilla-600" />
+                  <span>7. Registro Fotográfico de Campo</span>
+                </h2>
+                <span className="text-[11px] text-forest-600">
+                  Elige imágenes de la galería/memoria de tu celular o toma fotos en vivo
+                </span>
+              </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 {[1, 2, 3].map((slot) => {
@@ -957,44 +1016,74 @@ export default function NuevoReportePage() {
                   return (
                     <div
                       key={slot}
-                      className="border-2 border-dashed border-vanilla-300 rounded-xl p-4 text-center hover:border-forest-600 transition-colors bg-vanilla-50/30 flex flex-col items-center justify-center min-h-[160px] relative overflow-hidden"
+                      className="border-2 border-dashed border-vanilla-300 rounded-xl p-4 text-center hover:border-forest-600 transition-colors bg-vanilla-50/30 flex flex-col items-center justify-center min-h-[175px] relative overflow-hidden"
                     >
                       {currentPhoto ? (
-                        <div className="relative w-full h-32">
+                        <div className="relative w-full h-36 rounded-lg overflow-hidden group">
                           <img
                             src={currentPhoto}
                             alt={`Foto ${slot}`}
                             className="w-full h-full object-cover rounded-lg"
                           />
-                          <button
-                            type="button"
-                            onClick={() => {
-                              if (slot === 1) setFoto1(null);
-                              if (slot === 2) setFoto2(null);
-                              if (slot === 3) setFoto3(null);
-                            }}
-                            className="absolute top-1 right-1 p-1 bg-red-600 text-white rounded-full text-xs shadow"
-                          >
-                            ×
-                          </button>
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent flex items-end justify-between p-2">
+                            <span className="text-[10px] font-bold text-white bg-forest-900/80 px-2 py-0.5 rounded backdrop-blur-xs">
+                              Foto {slot} adjunta
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (slot === 1) setFoto1(null);
+                                if (slot === 2) setFoto2(null);
+                                if (slot === 3) setFoto3(null);
+                              }}
+                              className="inline-flex items-center space-x-1 px-2 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-xs font-semibold shadow transition-colors"
+                              title="Eliminar foto"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                              <span>Quitar</span>
+                            </button>
+                          </div>
                         </div>
                       ) : (
-                        <label className="cursor-pointer flex flex-col items-center justify-center w-full h-full">
-                          <Camera className="w-7 h-7 text-forest-400 mb-2" />
-                          <span className="text-xs font-semibold text-forest-800">
+                        <div className="flex flex-col items-center justify-center w-full h-full py-1">
+                          <div className="w-10 h-10 rounded-full bg-forest-50 border border-forest-100 flex items-center justify-center text-forest-700 mb-2">
+                            <FolderOpen className="w-5 h-5 text-forest-600" />
+                          </div>
+
+                          <span className="text-xs font-bold text-forest-900">
                             Foto {slot}
                           </span>
-                          <span className="text-[10px] text-forest-500 mt-0.5">
-                            Subir o tomar foto
+                          <span className="text-[10px] text-forest-500 mb-3 text-center">
+                            Navega en tu memoria o usa la cámara
                           </span>
-                          <input
-                            type="file"
-                            accept="image/*"
-                            capture="environment"
-                            onChange={(e) => handlePhotoUpload(e, slot as any)}
-                            className="hidden"
-                          />
-                        </label>
+
+                          <div className="flex flex-col sm:flex-row gap-2 w-full">
+                            {/* Opción 1: Galería / Memoria interna del celular (SIN capture, permite navegar todos los archivos) */}
+                            <label className="flex-1 cursor-pointer inline-flex items-center justify-center space-x-1.5 px-2.5 py-2 rounded-lg bg-forest-900 hover:bg-forest-800 text-white text-[11px] font-semibold shadow-xs transition-transform active:scale-95 text-center">
+                              <FolderOpen className="w-3.5 h-3.5 text-vanilla-300 shrink-0" />
+                              <span>Galería / Archivos</span>
+                              <input
+                                type="file"
+                                accept="image/*"
+                                onChange={(e) => handlePhotoUpload(e, slot as any)}
+                                className="hidden"
+                              />
+                            </label>
+
+                            {/* Opción 2: Cámara en vivo (con capture="environment") */}
+                            <label className="flex-1 cursor-pointer inline-flex items-center justify-center space-x-1.5 px-2.5 py-2 rounded-lg bg-white hover:bg-vanilla-100 text-forest-900 border border-vanilla-300 text-[11px] font-semibold transition-transform active:scale-95 text-center">
+                              <Camera className="w-3.5 h-3.5 text-forest-700 shrink-0" />
+                              <span>Cámara</span>
+                              <input
+                                type="file"
+                                accept="image/*"
+                                capture="environment"
+                                onChange={(e) => handlePhotoUpload(e, slot as any)}
+                                className="hidden"
+                              />
+                            </label>
+                          </div>
+                        </div>
                       )}
                     </div>
                   );
