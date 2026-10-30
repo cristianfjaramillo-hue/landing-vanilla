@@ -2060,7 +2060,7 @@ export default function AdminPage() {
                   className="text-xs px-3 py-2 bg-white rounded-lg border border-vanilla-200 focus:outline-none"
                 >
                   <option value="todos">Todos los Responsables</option>
-                  {["GUIMARE", "FELIPE", "PEGO", "DORE", "CINDY", "GEMENCA", "Henry Cabrera"].map((resp) => (
+                  {["GUIMARE", "FELIPE", "PEGO", "DORE", "CINDY", "GEMENCA", "HENRY CABRERA"].map((resp) => (
                     <option key={resp} value={resp}>
                       {resp}
                     </option>

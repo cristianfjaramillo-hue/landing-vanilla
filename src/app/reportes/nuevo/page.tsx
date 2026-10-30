@@ -55,7 +55,7 @@ const RESPONSABLES_AUTORIZADOS = [
   "DORE",
   "CINDY",
   "GEMENCA",
-  "Henry Cabrera",
+  "HENRY CABRERA",
 ] as const;
 
 const INSUMOS_DISPONIBLES = [
