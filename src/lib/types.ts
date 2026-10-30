@@ -35,6 +35,8 @@ export interface AppliedInput {
 export interface DailyReport {
   id: string;
   created_at: string;
+  tipoReporte?: "diario" | "general";
+  titulo?: string;
   // Encabezado
   proyecto?: string;
   area?: string;

@@ -45,7 +45,9 @@ export async function generateDailyReportPDF(
   doc.setTextColor(255, 255, 255);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(16);
-  doc.text("INFORME DIARIO - CULTIVO DE VAINILLA", 105, 11, { align: "center" });
+  const isGeneral = report.tipoReporte === "general" || report.id?.startsWith("GEN-");
+  const titlePdf = isGeneral ? "INFORME GENERAL - CULTIVO DE VAINILLA" : "INFORME DIARIO - CULTIVO DE VAINILLA";
+  doc.text(titlePdf, 105, 11, { align: "center" });
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(10);
@@ -244,7 +246,7 @@ export async function generateDailyReportPDF(
     );
   }
 
-  const filename = `Informe_Vainilla_${fechaDisplay}.pdf`;
+  const filename = isGeneral ? `Informe_General_Vainilla_${fechaDisplay}.pdf` : `Informe_Diario_Vainilla_${fechaDisplay}.pdf`;
   if (autoDownload) {
     doc.save(filename);
   }

@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { FileText, ShieldCheck, ClipboardList, ExternalLink, ArrowLeft } from "lucide-react";
+import { FileText, FileSpreadsheet, ShieldCheck, ClipboardList, ExternalLink, ArrowLeft } from "lucide-react";
 import { RECOMENDACIONES_DATA } from "@/lib/actividades-data";
 
 export default function Navbar() {
@@ -76,14 +76,15 @@ export default function Navbar() {
     };
   }, []);
 
-  const isReportesActive = pathname === "/reportes/nuevo" || pathname?.startsWith("/reportes");
+  const isReportesActive = pathname === "/reportes/nuevo";
+  const isGeneralActive = pathname === "/reportes/general";
   const isActividadesActive = pathname === "/actividades" || pathname?.startsWith("/actividades");
   const isAdminActive = pathname === "/admin" || pathname?.startsWith("/admin");
 
   return (
     <header className="sticky top-0 z-50 bg-[#FBF8F1]/95 backdrop-blur-md border-b border-vanilla-200">
       <div className="max-w-7xl mx-auto px-2 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16 sm:h-20">
+        <div className="flex items-center justify-between min-h-16 py-2 sm:py-0 sm:h-20">
           {isAdmin ? (
             <div className="w-full flex items-center justify-end">
               <Link
@@ -96,12 +97,12 @@ export default function Navbar() {
               </Link>
             </div>
           ) : (
-            /* Los 3 botones distribuidos de manera exacta (1/3 exacto cada uno) en todo el espacio del menú, con el logo oculto */
-            <div className="w-full grid grid-cols-3 gap-1.5 sm:gap-4 md:gap-6 items-center">
+            /* Los 4 botones distribuidos armónicamente en todo el espacio del menú */
+            <div className="w-full grid grid-cols-2 sm:grid-cols-4 gap-1.5 sm:gap-2.5 md:gap-4 items-center">
               {/* Botón 1: Generar Informe Diario */}
               <Link
                 href="/reportes/nuevo"
-                className={`w-full inline-flex items-center justify-center space-x-1 sm:space-x-2 px-1 sm:px-4 py-2 sm:py-2.5 rounded-lg sm:rounded-xl text-[10px] sm:text-xs md:text-sm font-semibold tracking-tighter sm:tracking-wide transition-all shadow-sm text-center whitespace-nowrap group border ${
+                className={`w-full inline-flex items-center justify-center space-x-1 sm:space-x-1.5 px-1 sm:px-2.5 py-2 sm:py-2.5 rounded-lg sm:rounded-xl text-[10px] sm:text-xs md:text-sm font-semibold tracking-tighter sm:tracking-normal transition-all shadow-sm text-center whitespace-nowrap group border ${
                   isReportesActive
                     ? "bg-forest-900 text-white border-forest-900 shadow-md ring-1 ring-forest-800"
                     : "bg-[#F2E9D7] hover:bg-forest-900 text-forest-950 hover:text-white border-vanilla-300 hover:border-forest-900"
@@ -112,15 +113,34 @@ export default function Navbar() {
                     isReportesActive ? "text-vanilla-400" : "text-forest-800 group-hover:text-vanilla-400"
                   }`}
                 />
-                <span className="whitespace-nowrap">Generar Informe Diario</span>
+                <span className="hidden sm:inline whitespace-nowrap">Informe Diario</span>
+                <span className="sm:hidden whitespace-nowrap">Inf. Diario</span>
               </Link>
 
-              {/* Botón 2: Listado de Actividades */}
+              {/* Botón 2: Informe General */}
+              <Link
+                href="/reportes/general"
+                className={`w-full inline-flex items-center justify-center space-x-1 sm:space-x-1.5 px-1 sm:px-2.5 py-2 sm:py-2.5 rounded-lg sm:rounded-xl text-[10px] sm:text-xs md:text-sm font-semibold tracking-tighter sm:tracking-normal transition-all shadow-sm text-center whitespace-nowrap group border ${
+                  isGeneralActive
+                    ? "bg-forest-900 text-white border-forest-900 shadow-md ring-1 ring-forest-800"
+                    : "bg-[#F2E9D7] hover:bg-forest-900 text-forest-950 hover:text-white border-vanilla-300 hover:border-forest-900"
+                }`}
+              >
+                <FileSpreadsheet
+                  className={`w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0 transition-colors ${
+                    isGeneralActive ? "text-vanilla-400" : "text-forest-800 group-hover:text-vanilla-400"
+                  }`}
+                />
+                <span className="hidden sm:inline whitespace-nowrap">Informe General</span>
+                <span className="sm:hidden whitespace-nowrap">Inf. General</span>
+              </Link>
+
+              {/* Botón 3: Listado de Actividades */}
               <Link
                 href="/actividades"
                 target="_blank"
                 rel="noopener noreferrer"
-                className={`w-full inline-flex items-center justify-center space-x-1 sm:space-x-2 px-1 sm:px-4 py-2 sm:py-2.5 rounded-lg sm:rounded-xl text-[10px] sm:text-xs md:text-sm font-semibold transition-all shadow-sm text-center whitespace-nowrap group border ${
+                className={`w-full inline-flex items-center justify-center space-x-1 sm:space-x-1.5 px-1 sm:px-2.5 py-2 sm:py-2.5 rounded-lg sm:rounded-xl text-[10px] sm:text-xs md:text-sm font-semibold transition-all shadow-sm text-center whitespace-nowrap group border ${
                   isActividadesActive
                     ? "bg-forest-900 text-white border-forest-900 shadow-md ring-1 ring-forest-800"
                     : "bg-[#F2E9D7] hover:bg-forest-900 text-forest-950 hover:text-white border-vanilla-300 hover:border-forest-900"
@@ -132,19 +152,19 @@ export default function Navbar() {
                     isActividadesActive ? "text-vanilla-400" : "text-forest-800 group-hover:text-vanilla-400"
                   }`}
                 />
-                <span className="hidden sm:inline whitespace-nowrap">Listado de Actividades ({recsCount})</span>
-                <span className="sm:hidden whitespace-nowrap">Actividades ({recsCount})</span>
+                <span className="hidden md:inline whitespace-nowrap">Actividades ({recsCount})</span>
+                <span className="md:hidden whitespace-nowrap">Actividades</span>
                 <ExternalLink
-                  className={`w-2.5 h-2.5 sm:w-3.5 sm:h-3.5 ml-0.5 flex-shrink-0 transition-colors ${
+                  className={`w-2.5 h-2.5 sm:w-3 sm:h-3 ml-0.5 flex-shrink-0 transition-colors ${
                     isActividadesActive ? "text-vanilla-400" : "text-forest-600 group-hover:text-vanilla-400"
                   }`}
                 />
               </Link>
 
-              {/* Botón 3: Admin */}
+              {/* Botón 4: Admin */}
               <Link
                 href="/admin"
-                className={`w-full inline-flex items-center justify-center space-x-1 sm:space-x-2 px-1 sm:px-4 py-2 sm:py-2.5 rounded-lg sm:rounded-xl text-[10px] sm:text-xs md:text-sm font-semibold transition-all shadow-sm text-center whitespace-nowrap group border ${
+                className={`w-full inline-flex items-center justify-center space-x-1 sm:space-x-1.5 px-1 sm:px-2.5 py-2 sm:py-2.5 rounded-lg sm:rounded-xl text-[10px] sm:text-xs md:text-sm font-semibold transition-all shadow-sm text-center whitespace-nowrap group border ${
                   isAdminActive
                     ? "bg-forest-900 text-white border-forest-900 shadow-md ring-1 ring-forest-800"
                     : "bg-[#F2E9D7] hover:bg-forest-900 text-forest-950 hover:text-white border-vanilla-300 hover:border-forest-900"
@@ -155,8 +175,8 @@ export default function Navbar() {
                     isAdminActive ? "text-vanilla-400" : "text-forest-700 group-hover:text-vanilla-400"
                   }`}
                 />
-                <span className="hidden sm:inline whitespace-nowrap">Panel Administrador</span>
-                <span className="sm:hidden whitespace-nowrap">Admin</span>
+                <span className="hidden md:inline whitespace-nowrap">Administrador</span>
+                <span className="md:hidden whitespace-nowrap">Admin</span>
               </Link>
             </div>
           )}

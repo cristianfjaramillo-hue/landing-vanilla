@@ -53,6 +53,11 @@ export default function Footer() {
                 </Link>
               </li>
               <li>
+                <Link href="/reportes/general" className="hover:text-white transition-colors">
+                  Informe General
+                </Link>
+              </li>
+              <li>
                 <Link
                   href="/actividades"
                   target="_blank"

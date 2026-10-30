@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import {
   FileText,
+  FileSpreadsheet,
   Sparkles,
   ClipboardList,
   ExternalLink,
@@ -155,6 +156,14 @@ export default function HomePage() {
             >
               <FileText className="w-4 h-4 text-forest-800 group-hover:text-vanilla-400 transition-colors" />
               <span>Generar Informe Diario</span>
+            </Link>
+
+            <Link
+              href="/reportes/general"
+              className="w-full sm:w-auto px-7 py-4 rounded-xl bg-[#F2E9D7] hover:bg-forest-900 text-forest-950 hover:text-white font-bold text-sm tracking-wider uppercase border border-vanilla-300 hover:border-forest-700 shadow-md transition-all hover:scale-105 active:scale-95 flex items-center justify-center space-x-2 group"
+            >
+              <FileSpreadsheet className="w-4 h-4 text-forest-800 group-hover:text-vanilla-400 transition-colors" />
+              <span>Informe General</span>
             </Link>
 
             <Link

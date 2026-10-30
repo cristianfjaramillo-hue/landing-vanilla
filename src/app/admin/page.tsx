@@ -6,6 +6,7 @@ import Image from "next/image";
 import {
   ShieldCheck,
   FileText,
+  FileSpreadsheet,
   Download,
   Trash2,
   Calendar,
@@ -156,7 +157,14 @@ export default function AdminPage() {
   const [previewReport, setPreviewReport] = useState<DailyReport | null>(null);
 
   // Pestañas (Repositorio vs Actividades vs Configuración vs Recomendaciones vs Cronograma)
-  const [activeTab, setActiveTab] = useState<"repositorio" | "actividades" | "editor-actividades" | "cronograma" | "configuracion" | "recomendaciones">("repositorio");
+  // Informes Generales (Área Separada e Independiente)
+  const [generalReports, setGeneralReports] = useState<DailyReport[]>([]);
+  const [searchGeneralTerm, setSearchGeneralTerm] = useState("");
+  const [filterGeneralDate, setFilterGeneralDate] = useState("");
+  const [filterGeneralResponsible, setFilterGeneralResponsible] = useState("todos");
+
+  // Pestañas (Repositorio vs Generales vs Actividades vs Configuración vs Recomendaciones vs Cronograma)
+  const [activeTab, setActiveTab] = useState<"repositorio" | "generales" | "actividades" | "editor-actividades" | "cronograma" | "configuracion" | "recomendaciones">("repositorio");
 
   // Cronograma y Recordatorios Programados (24h antes)
   const [reminders, setReminders] = useState<ScheduledReminder[]>([]);
@@ -234,18 +242,25 @@ export default function AdminPage() {
         localStorage.getItem("vanilla_deleted_protocol_ids") || "[]"
       );
 
-      // 1. Cargar desde localStorage respetando eliminaciones
+      // 1a. Cargar Informes Diarios desde localStorage (excluyendo generales)
       const localData: DailyReport[] = JSON.parse(localStorage.getItem("vanilla_daily_reports") || "[]");
-      const filteredLocal = localData.filter((r) => !deletedReportIds.includes(r.id));
+      const filteredLocal = localData.filter((r) => !deletedReportIds.includes(r.id) && r.tipoReporte !== "general" && !r.id.startsWith("GEN-"));
       const filteredMock = INITIAL_MOCK_REPORTS.filter((r) => !deletedReportIds.includes(r.id));
       const combined = [...filteredLocal, ...filteredMock];
-      // Eliminar duplicados por ID
       const unique = Array.from(new Map(combined.map((item) => [item.id, item])).values());
-      // Ordenar por fecha de más reciente a más antiguo
       unique.sort(
         (a, b) => new Date(b.created_at || b.fechaReporte).getTime() - new Date(a.created_at || a.fechaReporte).getTime()
       );
       setReports(unique);
+
+      // 1b. Cargar Informes Generales desde localStorage (área totalmente independiente)
+      const localGeneralData: DailyReport[] = JSON.parse(localStorage.getItem("vanilla_general_reports") || "[]");
+      const filteredGeneralLocal = localGeneralData.filter((r) => !deletedReportIds.includes(r.id) && (r.tipoReporte === "general" || r.id.startsWith("GEN-")));
+      const uniqueGeneral = Array.from(new Map(filteredGeneralLocal.map((item) => [item.id, item])).values());
+      uniqueGeneral.sort(
+        (a, b) => new Date(b.created_at || b.fechaReporte).getTime() - new Date(a.created_at || a.fechaReporte).getTime()
+      );
+      setGeneralReports(uniqueGeneral);
 
       // 2. Cargar Protocolos de Actividades desde localStorage respetando eliminaciones
       const localProtocols: ActivityProtocol[] = (
@@ -365,13 +380,25 @@ export default function AdminPage() {
             }
           });
 
-          if (dbReports.length > 0) {
-            const allTogether = Array.from(new Map([...dbReports, ...unique].map((item) => [item.id, item])).values())
-              .filter((r) => !deletedReportIds.includes(r.id));
+          const dbDaily = dbReports.filter((r) => r.tipoReporte !== "general" && !r.id.startsWith("GEN-"));
+          const dbGeneral = dbReports.filter((r) => r.tipoReporte === "general" || r.id.startsWith("GEN-"));
+
+          if (dbDaily.length > 0 || unique.length > 0) {
+            const allTogether = Array.from(new Map([...dbDaily, ...unique].map((item) => [item.id, item])).values())
+              .filter((r) => !deletedReportIds.includes(r.id) && r.tipoReporte !== "general" && !r.id.startsWith("GEN-"));
             allTogether.sort(
               (a, b) => new Date(b.created_at || b.fechaReporte).getTime() - new Date(a.created_at || a.fechaReporte).getTime()
             );
             setReports(allTogether);
+          }
+
+          if (dbGeneral.length > 0 || uniqueGeneral.length > 0) {
+            const allGeneralTogether = Array.from(new Map([...dbGeneral, ...uniqueGeneral].map((item) => [item.id, item])).values())
+              .filter((r) => !deletedReportIds.includes(r.id) && (r.tipoReporte === "general" || r.id.startsWith("GEN-")));
+            allGeneralTogether.sort(
+              (a, b) => new Date(b.created_at || b.fechaReporte).getTime() - new Date(a.created_at || a.fechaReporte).getTime()
+            );
+            setGeneralReports(allGeneralTogether);
           }
 
           if (dbProtocols.length > 0) {
@@ -1394,6 +1421,98 @@ export default function AdminPage() {
     return matchesSearch && matchesLote;
   });
 
+  // Eliminar informe general
+  const handleDeleteGeneralReport = async (id: string) => {
+    if (confirm("¿Estás seguro de eliminar este Informe General permanentemente?")) {
+      const updated = generalReports.filter((r) => r.id !== id);
+      setGeneralReports(updated);
+      localStorage.setItem("vanilla_general_reports", JSON.stringify(updated));
+
+      const deletedReportIds: string[] = JSON.parse(
+        localStorage.getItem("vanilla_deleted_report_ids") || "[]"
+      );
+      if (!deletedReportIds.includes(id)) {
+        deletedReportIds.push(id);
+        localStorage.setItem("vanilla_deleted_report_ids", JSON.stringify(deletedReportIds));
+      }
+
+      try {
+        await fetch(`/api/admin/eliminar?id=${encodeURIComponent(id)}&type=reporte`, {
+          method: "DELETE",
+        });
+      } catch (e) {
+        console.warn("Aviso eliminando informe general:", e);
+      }
+    }
+  };
+
+  // Exportar Informes Generales a CSV
+  const exportAllGeneralToCSV = () => {
+    if (generalReports.length === 0) return alert("No hay informes generales para exportar.");
+
+    const headers = [
+      "ID",
+      "Tipo",
+      "Fecha",
+      "Período Desde",
+      "Período Hasta",
+      "Responsable",
+      "Proyecto",
+      "Temperatura",
+      "Humedad",
+      "Clima",
+      "Alcalinidad (%)",
+      "Actividades Realizadas",
+      "Observaciones",
+    ];
+    const rows = generalReports.map((r) => [
+      `"${r.id}"`,
+      `"Informe General"`,
+      `"${r.fechaReporte}"`,
+      `"${r.fechaDesde || r.fechaReporte}"`,
+      `"${r.fechaHasta || r.fechaReporte}"`,
+      `"${r.responsable}"`,
+      `"${r.proyecto || "Proyecto Vainilla"}"`,
+      r.temperatura !== undefined ? r.temperatura : (r.tempMin || 26),
+      r.humedad,
+      `"${r.clima}"`,
+      r.alcalinidad ? `${r.alcalinidad}%` : "-",
+      `"${(r.actividades || []).filter((a) => a.realizado || (a.areaLote && a.areaLote.trim() !== "")).map((a) => `${a.nombre} [${a.areaLote || "Sin área"}]`).join("; ")}"`,
+      `"${(r.observaciones || "").replace(/"/g, '""')}"`,
+    ]);
+
+    const csvContent = "\uFEFF" + [headers.join(","), ...rows.map((e) => e.join(","))].join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `Informes_Generales_Vainilla_${new Date().toISOString().split("T")[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  // Filtrado de Informes Generales
+  const filteredGeneralReports = generalReports.filter((r) => {
+    if (!r) return false;
+    const rLote = r.lote || r.area || "";
+    const rResp = r.responsable || "";
+    const rFecha = r.fechaReporte || "";
+    const term = searchGeneralTerm.toLowerCase();
+
+    const matchesSearch =
+      r.id.toLowerCase().includes(term) ||
+      rLote.toLowerCase().includes(term) ||
+      rResp.toLowerCase().includes(term) ||
+      rFecha.includes(term) ||
+      (r.observaciones && r.observaciones.toLowerCase().includes(term));
+
+    const matchesResp = filterGeneralResponsible === "todos" || rResp === filterGeneralResponsible;
+    const matchesFecha = filterGeneralDate ? rFecha === filterGeneralDate : true;
+
+    return matchesSearch && matchesResp && matchesFecha;
+  });
+
   // Filtrado de protocolos de actividades (organizados con el más reciente primero)
   const filteredProtocols = protocols.filter((p) => {
     const term = searchProtocolTerm.toLowerCase();
@@ -1556,7 +1675,19 @@ export default function AdminPage() {
             }`}
           >
             <Sprout className="w-4 h-4 text-vanilla-400" />
-            <span>Trazabilidad & Informes ({reports.length})</span>
+            <span>Informes Diarios ({reports.length})</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab("generales")}
+            className={`px-4 py-2 rounded-lg text-xs font-bold flex items-center space-x-2 transition-all ${
+              activeTab === "generales"
+                ? "bg-forest-900 text-white shadow-sm"
+                : "bg-white text-forest-800 border border-vanilla-200 hover:bg-vanilla-100"
+            }`}
+          >
+            <FileSpreadsheet className="w-4 h-4 text-vanilla-400" />
+            <span>Informes Generales ({generalReports.length})</span>
           </button>
 
           <button
@@ -1886,6 +2017,232 @@ export default function AdminPage() {
         )}
 
         {/* PESTAÑA 2: LISTADOS DE ACTIVIDADES GUARDADOS */}
+        {/* PESTAÑA 2: INFORMES GENERALES (ÁREA EXCLUSIVA Y SEPARADA) */}
+        {activeTab === "generales" && (
+          <div className="space-y-6">
+            {/* Resumen de Métricas de Informes Generales */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              <div className="bg-white p-4 rounded-xl border border-vanilla-200 shadow-sm text-center">
+                <span className="text-xs text-forest-600 font-medium">Informes Generales</span>
+                <p className="text-2xl font-serif font-bold text-forest-900 mt-1">{generalReports.length}</p>
+                <span className="text-[10px] text-forest-400">Total registrados</span>
+              </div>
+              <div className="bg-white p-4 rounded-xl border border-vanilla-200 shadow-sm text-center">
+                <span className="text-xs text-forest-600 font-medium">Áreas Registradas</span>
+                <p className="text-2xl font-serif font-bold text-vanilla-600 mt-1">
+                  {Array.from(new Set(generalReports.flatMap(r => (r.actividades || []).map(a => a.areaLote).filter(Boolean)))).length || 1}
+                </p>
+                <span className="text-[10px] text-forest-400">En control agronómico</span>
+              </div>
+              <div className="bg-white p-4 rounded-xl border border-vanilla-200 shadow-sm text-center">
+                <span className="text-xs text-forest-600 font-medium">Temp. Promedio</span>
+                <p className="text-2xl font-serif font-bold text-forest-900 mt-1">
+                  {generalReports.length > 0
+                    ? Math.round(generalReports.reduce((acc, r) => acc + (r.temperatura ?? r.tempMax ?? 26), 0) / generalReports.length)
+                    : 26}
+                  °C
+                </p>
+                <span className="text-[10px] text-forest-400">Promedio térmico</span>
+              </div>
+              <div className="bg-white p-4 rounded-xl border border-vanilla-200 shadow-sm text-center">
+                <span className="text-xs text-forest-600 font-medium">Humedad Promedio</span>
+                <p className="text-2xl font-serif font-bold text-blue-600 mt-1">
+                  {generalReports.length > 0
+                    ? Math.round(generalReports.reduce((acc, r) => acc + (r.humedad || 85), 0) / generalReports.length)
+                    : 85}
+                  %
+                </p>
+                <span className="text-[10px] text-forest-400">Humedad de chakra</span>
+              </div>
+            </div>
+
+            {/* Barra de Filtros y Búsqueda para Informes Generales */}
+            <div className="bg-white p-4 rounded-xl border border-vanilla-200 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div className="relative w-full sm:w-80">
+                <Search className="w-4 h-4 text-forest-400 absolute left-3 top-2.5" />
+                <input
+                  type="text"
+                  value={searchGeneralTerm}
+                  onChange={(e) => setSearchGeneralTerm(e.target.value)}
+                  placeholder="Buscar en Informes Generales..."
+                  className="w-full text-xs pl-9 pr-3 py-2 bg-vanilla-50/50 rounded-lg border border-vanilla-200 focus:outline-none focus:ring-2 focus:ring-forest-600"
+                />
+              </div>
+
+              <div className="flex flex-wrap items-center space-x-3 w-full sm:w-auto">
+                <Filter className="w-4 h-4 text-forest-600" />
+                <select
+                  value={filterGeneralResponsible}
+                  onChange={(e) => setFilterGeneralResponsible(e.target.value)}
+                  className="text-xs px-3 py-2 bg-white rounded-lg border border-vanilla-200 focus:outline-none"
+                >
+                  <option value="todos">Todos los Responsables</option>
+                  {["GUIMARE", "FELIPE", "PEGO", "DORE", "CINDY", "GEMENCA"].map((resp) => (
+                    <option key={resp} value={resp}>
+                      {resp}
+                    </option>
+                  ))}
+                </select>
+
+                <input
+                  type="date"
+                  value={filterGeneralDate}
+                  onChange={(e) => setFilterGeneralDate(e.target.value)}
+                  className="text-xs px-2.5 py-1.5 bg-white rounded-lg border border-vanilla-200 text-forest-800"
+                  title="Filtrar por fecha específica"
+                />
+
+                <button
+                  type="button"
+                  onClick={exportAllGeneralToCSV}
+                  className="inline-flex items-center space-x-1.5 px-3 py-2 rounded-lg bg-forest-900 text-white text-xs font-semibold hover:bg-forest-800 transition-colors shadow-xs"
+                >
+                  <Download className="w-3.5 h-3.5 text-vanilla-400" />
+                  <span>Exportar CSV</span>
+                </button>
+
+                <Link
+                  href="/reportes/general"
+                  className="inline-flex items-center space-x-1.5 px-3 py-2 rounded-lg bg-emerald-700 text-white text-xs font-bold hover:bg-emerald-600 transition-colors shadow-xs"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Nuevo Informe General</span>
+                </Link>
+
+                <button
+                  onClick={loadReports}
+                  className="p-2 rounded-lg text-forest-600 hover:bg-vanilla-100 transition-colors"
+                  title="Actualizar listado"
+                >
+                  <RefreshCw className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+
+            {/* Listado de Informes Generales */}
+            {filteredGeneralReports.length === 0 ? (
+              <div className="bg-white rounded-2xl p-12 text-center border border-vanilla-200">
+                <FileSpreadsheet className="w-12 h-12 text-forest-300 mx-auto mb-3" />
+                <h3 className="text-base font-semibold text-forest-900">
+                  No se encontraron Informes Generales
+                </h3>
+                <p className="text-xs text-forest-600 mt-1 mb-4">
+                  Esta sección almacena exclusivamente los informes generales creados desde el botón "Informe General".
+                </p>
+                <Link
+                  href="/reportes/general"
+                  className="inline-flex items-center space-x-2 px-4 py-2.5 rounded-lg bg-forest-900 text-white text-xs font-bold hover:bg-forest-800 transition-colors shadow"
+                >
+                  <Plus className="w-4 h-4 text-vanilla-400" />
+                  <span>Crear Primer Informe General</span>
+                </Link>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 gap-4">
+                {filteredGeneralReports.map((report) => {
+                  const actRealizadasCount = (report.actividades || []).filter(
+                    (a) => (a.areaLote && a.areaLote.trim() !== "") || (a.descripcion && a.descripcion.trim() !== "") || a.realizado
+                  ).length;
+
+                  return (
+                    <div
+                      key={report.id}
+                      className="bg-white rounded-xl p-5 border border-vanilla-200 shadow-sm hover:shadow-md transition-shadow flex flex-col md:flex-row md:items-center justify-between gap-4"
+                    >
+                      <div className="space-y-1.5 flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="font-mono text-xs font-bold px-2 py-0.5 rounded bg-forest-900 text-vanilla-300">
+                            {report.id}
+                          </span>
+                          <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-300">
+                            INFORME GENERAL
+                          </span>
+                          <span className="text-xs font-semibold text-forest-700 flex items-center space-x-1">
+                            <Calendar className="w-3.5 h-3.5 text-vanilla-600" />
+                            <span>{report.fechaReporte}</span>
+                          </span>
+                          <span className="text-xs px-2 py-0.5 rounded-full bg-vanilla-100 text-vanilla-800 font-medium">
+                            {report.clima} ({report.temperatura !== undefined ? `${report.temperatura}°C` : `${report.tempMin}°C - ${report.tempMax}°C`})
+                          </span>
+                        </div>
+
+                        <h3 className="text-base font-bold text-forest-900">
+                          {report.titulo || "Informe General de Actividades"} - {report.proyecto || "Proyecto Vainilla"}
+                        </h3>
+                        <p className="text-xs text-forest-600">
+                          Responsable: <strong>{report.responsable}</strong>
+                        </p>
+
+                        <div className="pt-2 flex flex-wrap gap-1.5 text-[11px]">
+                          <span className="px-2 py-0.5 rounded bg-forest-50 text-forest-800 border border-forest-200">
+                            Actividades: <strong>{actRealizadasCount}</strong> registradas
+                          </span>
+                          {report.insumos && report.insumos.length > 0 && (
+                            <span className="px-2 py-0.5 rounded bg-emerald-50 text-emerald-800 border border-emerald-200">
+                              Insumos: <strong>{report.insumos.length}</strong> aplicados
+                            </span>
+                          )}
+                          {(report.foto1Url || report.foto2Url || report.foto3Url) && (
+                            <span className="px-2 py-0.5 rounded bg-amber-50 text-amber-900 border border-amber-200 font-semibold">
+                              📷 Fotos adjuntas
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Botones de Acción */}
+                      <div className="flex flex-wrap items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setPreviewReport(report)}
+                          className="inline-flex items-center space-x-1.5 px-3 py-2 rounded-lg bg-vanilla-100 hover:bg-vanilla-200 text-forest-950 font-semibold text-xs border border-vanilla-300 transition-colors"
+                        >
+                          <FileText className="w-3.5 h-3.5 text-forest-700" />
+                          <span>Previsualizar</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            setGeneratingPdfId(report.id);
+                            await generateDailyReportPDF(report, true);
+                            setGeneratingPdfId(null);
+                          }}
+                          disabled={generatingPdfId === report.id}
+                          className="inline-flex items-center space-x-1.5 px-3 py-2 rounded-lg bg-forest-900 hover:bg-forest-800 text-white font-semibold text-xs transition-colors shadow-xs disabled:opacity-50"
+                        >
+                          <Download className="w-3.5 h-3.5 text-vanilla-400" />
+                          <span>{generatingPdfId === report.id ? "Generando..." : "Descargar PDF"}</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => handleUploadReportToDrive(report)}
+                          disabled={uploadingToDriveId === report.id}
+                          className="inline-flex items-center space-x-1.5 px-3 py-2 rounded-lg bg-emerald-700 hover:bg-emerald-600 text-white font-semibold text-xs transition-colors shadow-xs disabled:opacity-50"
+                          title="Subir informe a Google Drive"
+                        >
+                          <CloudUpload className="w-3.5 h-3.5 text-vanilla-300" />
+                          <span>{uploadingToDriveId === report.id ? "Subiendo..." : "Subir a Drive"}</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteGeneralReport(report.id)}
+                          className="p-2 rounded-lg border border-red-200 hover:bg-red-50 text-red-600 transition-colors"
+                          title="Eliminar Informe General permanentemente"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
         {activeTab === "actividades" && (
           <div className="space-y-6">
             {/* Métricas de Protocolos */}
@@ -3760,7 +4117,9 @@ export default function AdminPage() {
                         {previewReport.id}
                       </span>
                       <h2 className="text-base sm:text-lg font-serif font-bold text-vanilla-200">
-                        INFORME DIARIO - CULTIVO DE VAINILLA
+                        {previewReport.tipoReporte === "general" || previewReport.id?.startsWith("GEN-")
+                          ? "INFORME GENERAL - CULTIVO DE VAINILLA"
+                          : "INFORME DIARIO - CULTIVO DE VAINILLA"}
                       </h2>
                     </div>
                     <p className="text-[11px] text-forest-200 uppercase tracking-wider">
