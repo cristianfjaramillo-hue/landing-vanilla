@@ -500,21 +500,21 @@ export default function InformeGeneralPage() {
         ]);
       }
 
-      // 3. Generar y descargar el PDF Oficial de Informe General
+      // 3. Generar el PDF Oficial de Informe General (sin descarga automática)
       let pdfBase64 = "";
       let pdfFilename = `Informe_General_${newReport.id}_${todayStr}.pdf`;
       try {
-        const pdfResult = await generateDailyReportPDF(newReport, true);
+        const pdfResult = await generateDailyReportPDF(newReport, false); // FALSE: NO descarga automática
         pdfBase64 = pdfResult.base64;
         pdfFilename = pdfResult.filename;
       } catch (pdfErr) {
         console.error("Error al generar PDF:", pdfErr);
       }
 
-      // 4. Subida automática a Google Drive
+      // 4. Subida inmediata a Google Drive en la carpeta seleccionada de Informes Generales (con subcarpetas mensuales)
       if (pdfBase64) {
         try {
-          fetch("/api/drive-upload", {
+          await fetch("/api/drive-upload", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -524,9 +524,9 @@ export default function InformeGeneralPage() {
               reportId: newReport.id,
               fecha: newReport.fechaReporte,
             }),
-          }).catch((driveErr) => console.warn("Aviso subiendo a Drive en segundo plano:", driveErr));
+          });
         } catch (uploadErr) {
-          console.warn("Aviso petición Drive:", uploadErr);
+          console.warn("Aviso subiendo a Drive:", uploadErr);
         }
       }
 
@@ -541,6 +541,8 @@ export default function InformeGeneralPage() {
         console.warn("Aviso petición Email:", emailErr);
       }
 
+      // 6. Limpiar formulario y desplegar confirmación
+      resetForm();
       setSuccessReport(newReport);
     } catch (err: any) {
       console.error("Error al guardar informe general:", err);
@@ -569,7 +571,7 @@ export default function InformeGeneralPage() {
             </h3>
 
             <p className="text-xs text-forest-700 mb-6 leading-relaxed">
-              El <strong>Informe General oficial</strong> ha sido registrado en la base de datos, descargado en formato PDF en tu dispositivo y enviado a la carpeta de Google Drive.
+              El <strong>Informe General oficial</strong> ha sido registrado en la base de datos y enviado directamente a la carpeta de Google Drive.
             </p>
 
             <div className="space-y-2">
