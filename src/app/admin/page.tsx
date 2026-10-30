@@ -3838,9 +3838,9 @@ export default function AdminPage() {
                 {/* 3. Actividades Realizadas */}
                 <div>
                   <h3 className="font-bold uppercase tracking-wider text-forest-900 mb-2.5 flex items-center justify-between">
-                    <span>Actividades Realizadas:</span>
+                    <span>Actividades del Informe:</span>
                     <span className="text-[11px] text-forest-600 font-medium">
-                      {(previewReport.actividades || []).filter((a) => a.realizado).length} ejecutadas
+                      {(previewReport.actividades || []).filter((a) => (a.areaLote && a.areaLote.trim() !== "") || (a.descripcion && a.descripcion.trim() !== "") || a.realizado).length} con labor registrada
                     </span>
                   </h3>
                   <div className="overflow-x-auto border border-vanilla-200 rounded-xl">
@@ -3851,51 +3851,62 @@ export default function AdminPage() {
                           <th className="py-2 px-3 w-48">Actividad</th>
                           <th className="py-2 px-3">Observaciones</th>
                           <th className="py-2 px-3 w-28 text-center">Fecha Próx.</th>
-                          <th className="py-2 px-3 w-32">Área</th>
-                          <th className="py-2 px-3 w-20 text-center">Realizado</th>
+                          <th className="py-2 px-3 w-48">Área(s) de Trabajo</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-vanilla-100 bg-white">
-                        {(previewReport.actividades || []).map((act) => (
-                          <tr
-                            key={act.id}
-                            className={act.realizado ? "bg-vanilla-50/70" : "hover:bg-vanilla-50/20"}
-                          >
-                            <td className="py-2 px-3 text-center font-mono text-forest-600 font-bold">
-                              {act.id}
-                            </td>
-                            <td className="py-2 px-3 font-semibold text-forest-950">
-                              {act.nombre}
-                            </td>
-                            <td className="py-2 px-3 text-forest-700">
-                              {act.descripcion || "-"}
-                            </td>
-                            <td className="py-2 px-3 text-center">
-                              {act.fechaProxima ? (
-                                <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded bg-amber-100 text-amber-900 font-bold text-[11px] border border-amber-300">
-                                  <Clock className="w-3 h-3 text-amber-700 mr-1" />
-                                  {act.fechaProxima}
-                                </span>
-                              ) : (
-                                <span className="text-forest-400 text-xs">-</span>
-                              )}
-                            </td>
-                            <td className="py-2 px-3 text-forest-600">
-                              {act.areaLote || "-"}
-                            </td>
-                            <td className="py-2 px-3 text-center">
-                              {act.realizado ? (
-                                <span className="inline-flex items-center px-2 py-0.5 rounded bg-green-100 text-green-800 font-bold text-[10px]">
-                                  SÍ [✓]
-                                </span>
-                              ) : (
-                                <span className="inline-flex items-center px-2 py-0.5 rounded bg-vanilla-100 text-forest-400 text-[10px]">
-                                  NO
-                                </span>
-                              )}
-                            </td>
-                          </tr>
-                        ))}
+                        {(previewReport.actividades || []).map((act) => {
+                          const hasWork =
+                            (act.areaLote && act.areaLote.trim() !== "") ||
+                            (act.descripcion && act.descripcion.trim() !== "") ||
+                            act.realizado;
+                          return (
+                            <tr
+                              key={act.id}
+                              className={hasWork ? "bg-vanilla-50/70" : "hover:bg-vanilla-50/20"}
+                            >
+                              <td className="py-2 px-3 text-center font-mono text-forest-600 font-bold">
+                                {act.id}
+                              </td>
+                              <td className="py-2 px-3 font-semibold text-forest-950">
+                                {act.nombre}
+                              </td>
+                              <td className="py-2 px-3 text-forest-700">
+                                {act.descripcion || "-"}
+                              </td>
+                              <td className="py-2 px-3 text-center">
+                                {act.fechaProxima ? (
+                                  <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded bg-amber-100 text-amber-900 font-bold text-[11px] border border-amber-300">
+                                    <Clock className="w-3 h-3 text-amber-700 mr-1" />
+                                    {act.fechaProxima}
+                                  </span>
+                                ) : (
+                                  <span className="text-forest-400 text-xs">-</span>
+                                )}
+                              </td>
+                              <td className="py-2 px-3 text-forest-700 font-medium">
+                                {act.areaLote ? (
+                                  <div className="flex flex-wrap gap-1">
+                                    {act.areaLote
+                                      .split(",")
+                                      .map((a) => a.trim())
+                                      .filter(Boolean)
+                                      .map((a) => (
+                                        <span
+                                          key={a}
+                                          className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-forest-100 text-forest-900 border border-forest-300"
+                                        >
+                                          {a}
+                                        </span>
+                                      ))}
+                                  </div>
+                                ) : (
+                                  <span className="text-forest-400 text-xs">-</span>
+                                )}
+                              </td>
+                            </tr>
+                          );
+                        })}
                       </tbody>
                     </table>
                   </div>

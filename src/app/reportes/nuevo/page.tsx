@@ -29,6 +29,9 @@ import {
   FolderOpen,
   UploadCloud,
   ExternalLink,
+  Check,
+  X,
+  MapPin,
 } from "lucide-react";
 import { DEFAULT_ACTIVITIES, DEFAULT_TOOLS } from "@/lib/constants";
 import { ActivityItem, ToolItem, AppliedInput, DailyReport, ScheduledReminder } from "@/lib/types";
@@ -111,29 +114,102 @@ export default function NuevoReportePage() {
   // Estados de interfaz
   const [saving, setSaving] = useState(false);
   const [successReport, setSuccessReport] = useState<DailyReport | null>(null);
+  const [openAreaDropdownId, setOpenAreaDropdownId] = useState<number | null>(null);
 
   // Controladores de Actividades
-  const toggleActividad = (id: number) => {
+  const toggleActividadArea = (actId: number, areaName: string) => {
     setActividades((prev) =>
-      prev.map((act) => (act.id === id ? { ...act, realizado: !act.realizado } : act))
+      prev.map((act) => {
+        if (act.id !== actId) return act;
+        const currentList = act.areaLote
+          ? act.areaLote.split(",").map((s) => s.trim()).filter(Boolean)
+          : [];
+        const exists = currentList.includes(areaName);
+        const nextList = exists
+          ? currentList.filter((a) => a !== areaName)
+          : [...currentList, areaName];
+        const newAreaStr = nextList.join(", ");
+        return {
+          ...act,
+          areaLote: newAreaStr,
+          realizado: Boolean(
+            nextList.length > 0 ||
+            (act.descripcion && act.descripcion.trim() !== "") ||
+            act.fechaProxima
+          ),
+        };
+      })
+    );
+  };
+
+  const clearActividadAreas = (actId: number) => {
+    setActividades((prev) =>
+      prev.map((act) =>
+        act.id === actId
+          ? {
+              ...act,
+              areaLote: "",
+              realizado: Boolean(
+                (act.descripcion && act.descripcion.trim() !== "") ||
+                act.fechaProxima
+              ),
+            }
+          : act
+      )
     );
   };
 
   const updateActividadDesc = (id: number, descripcion: string) => {
     setActividades((prev) =>
-      prev.map((act) => (act.id === id ? { ...act, descripcion } : act))
+      prev.map((act) =>
+        act.id === id
+          ? {
+              ...act,
+              descripcion,
+              realizado: Boolean(
+                (descripcion && descripcion.trim() !== "") ||
+                (act.areaLote && act.areaLote.trim() !== "") ||
+                act.fechaProxima
+              ),
+            }
+          : act
+      )
     );
   };
 
   const updateActividadArea = (id: number, areaLote: string) => {
     setActividades((prev) =>
-      prev.map((act) => (act.id === id ? { ...act, areaLote } : act))
+      prev.map((act) =>
+        act.id === id
+          ? {
+              ...act,
+              areaLote,
+              realizado: Boolean(
+                (areaLote && areaLote.trim() !== "") ||
+                (act.descripcion && act.descripcion.trim() !== "") ||
+                act.fechaProxima
+              ),
+            }
+          : act
+      )
     );
   };
 
   const updateActividadFechaProx = (id: number, fechaProxima: string) => {
     setActividades((prev) =>
-      prev.map((act) => (act.id === id ? { ...act, fechaProxima } : act))
+      prev.map((act) =>
+        act.id === id
+          ? {
+              ...act,
+              fechaProxima,
+              realizado: Boolean(
+                fechaProxima ||
+                (act.areaLote && act.areaLote.trim() !== "") ||
+                (act.descripcion && act.descripcion.trim() !== "")
+              ),
+            }
+          : act
+      )
     );
   };
 
@@ -246,6 +322,7 @@ export default function NuevoReportePage() {
     setFoto1(null);
     setFoto2(null);
     setFoto3(null);
+    setOpenAreaDropdownId(null);
   };
 
   // Compilar el objeto de reporte
@@ -268,7 +345,15 @@ export default function NuevoReportePage() {
       clima,
       climaOtro: clima === "Otro" ? climaOtro : undefined,
       alcalinidad: alcalinidad !== "" ? alcalinidad : undefined,
-      actividades,
+      actividades: actividades.map((act) => ({
+        ...act,
+        realizado: Boolean(
+          (act.areaLote && act.areaLote.trim() !== "") ||
+          (act.descripcion && act.descripcion.trim() !== "") ||
+          Boolean(act.fechaProxima) ||
+          act.realizado
+        ),
+      })),
       herramientas: herramientas.map((h) =>
         h.id === "otra" && otraHerramienta ? { ...h, nombre: `Otra: ${otraHerramienta}` } : h
       ),
@@ -749,7 +834,7 @@ export default function NuevoReportePage() {
                   <span>3. Actividades Realizadas (Selección y notas cortas)</span>
                 </h2>
                 <span className="text-[11px] text-forest-600 font-medium">
-                  {actividades.filter((a) => a.realizado).length} de {actividades.length} realizadas
+                  {actividades.filter((a) => (a.areaLote && a.areaLote.trim() !== "") || (a.descripcion && a.descripcion.trim() !== "") || a.realizado).length} de {actividades.length} con labor registrada
                 </span>
               </div>
 
@@ -779,88 +864,272 @@ export default function NuevoReportePage() {
                           <span>Fecha Próx.</span>
                         </div>
                       </th>
-                      <th className="py-2 sm:py-2.5 px-1.5 sm:px-3 w-24 sm:w-36 font-bold text-[11px] sm:text-xs">
-                        <span>Área</span>
-                      </th>
-                      <th className="py-2 sm:py-2.5 pr-3 sm:pr-3 pl-1 sm:px-3 w-10 sm:w-20 text-center font-bold text-[10px] sm:text-xs">
-                        <span className="sm:hidden">✓</span>
-                        <span className="hidden sm:inline">Realizado</span>
+                      <th className="py-2 sm:py-2.5 px-1.5 sm:px-3 w-36 sm:w-56 font-bold text-[11px] sm:text-xs">
+                        <div className="flex items-center space-x-1">
+                          <MapPin className="w-3.5 h-3.5 text-vanilla-300" />
+                          <span>Área(s) de Trabajo</span>
+                        </div>
                       </th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-vanilla-100 bg-white">
-                    {actividades.map((act) => (
-                      <tr
-                        key={act.id}
-                        className={`transition-colors ${
-                          act.realizado ? "bg-vanilla-50/70" : "hover:bg-vanilla-50/30"
-                        }`}
-                      >
-                        <td className="hidden sm:table-cell py-1.5 sm:py-2 px-1 sm:px-3 text-center font-mono text-forest-600 font-bold text-[11px] sm:text-xs">
-                          {act.id}
-                        </td>
-                        <td className="py-1.5 sm:py-2 pl-3 sm:pl-3 pr-2 sm:pr-3 font-semibold text-forest-900 text-[11px] sm:text-xs leading-snug text-left">
-                          {act.nombre}
-                        </td>
-                        <td className="py-1.5 sm:py-2 px-1.5 sm:px-3">
-                          <input
-                            type="text"
-                            value={act.descripcion}
-                            onChange={(e) => updateActividadDesc(act.id, e.target.value)}
-                            onFocus={() => updateActividadDesc(act.id, "")}
-                            placeholder="Detalle..."
-                            className="w-full px-1 sm:px-2 py-1 bg-transparent border-b border-dashed border-vanilla-300 focus:border-forest-600 focus:outline-none text-[11px] sm:text-xs"
-                          />
-                        </td>
-                        <td className="py-1.5 sm:py-2 px-1 sm:px-2">
-                          <input
-                            type="date"
-                            min={todayStr}
-                            value={act.fechaProxima || ""}
-                            onChange={(e) => updateActividadFechaProx(act.id, e.target.value)}
-                            className="w-full text-[11px] sm:text-xs font-semibold px-2 py-1 bg-white rounded-md border border-vanilla-300 text-forest-950 focus:outline-none focus:ring-1 focus:ring-forest-600 shadow-sm cursor-pointer hover:border-forest-400 transition-colors"
-                            title="Selecciona la fecha para la próxima labor"
-                          />
-                        </td>
-                        <td className="py-1.5 sm:py-2 px-1.5 sm:px-3">
-                          <div className="relative">
-                            <select
-                              value={act.areaLote}
-                              onChange={(e) => updateActividadArea(act.id, e.target.value)}
-                              className="w-full text-[11px] sm:text-xs font-semibold px-2 py-1 bg-white rounded-md border border-vanilla-300 text-forest-950 focus:outline-none focus:ring-1 focus:ring-forest-600 shadow-sm cursor-pointer appearance-none pr-6 hover:border-forest-400 transition-colors"
-                            >
-                              <option value="">Seleccione Área...</option>
-                              {AREAS_DISPONIBLES.map((ar) => (
-                                <option key={ar} value={ar} className="font-semibold text-forest-950 py-0.5">
-                                  {ar}
-                                </option>
-                              ))}
-                            </select>
-                            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-1.5 text-forest-700">
-                              <ChevronDown className="w-3 h-3" />
+                    {actividades.map((act) => {
+                      const selectedAreas = act.areaLote
+                        ? act.areaLote.split(",").map((s) => s.trim()).filter(Boolean)
+                        : [];
+                      const isDropdownOpen = openAreaDropdownId === act.id;
+                      const hasWork =
+                        selectedAreas.length > 0 ||
+                        (act.descripcion && act.descripcion.trim() !== "") ||
+                        Boolean(act.fechaProxima);
+
+                      return (
+                        <tr
+                          key={act.id}
+                          className={`transition-colors ${
+                            hasWork
+                              ? "bg-forest-50/40 border-l-4 border-l-forest-700"
+                              : "hover:bg-vanilla-50/30"
+                          }`}
+                        >
+                          <td className="hidden sm:table-cell py-1.5 sm:py-2 px-1 sm:px-3 text-center font-mono text-forest-600 font-bold text-[11px] sm:text-xs">
+                            {act.id}
+                          </td>
+                          <td className="py-1.5 sm:py-2 pl-3 sm:pl-3 pr-2 sm:pr-3 font-semibold text-forest-900 text-[11px] sm:text-xs leading-snug text-left">
+                            <span className={hasWork ? "text-forest-950 font-bold" : "text-forest-800"}>
+                              {act.nombre}
+                            </span>
+                          </td>
+                          <td className="py-1.5 sm:py-2 px-1.5 sm:px-3">
+                            <input
+                              type="text"
+                              value={act.descripcion}
+                              onChange={(e) => updateActividadDesc(act.id, e.target.value)}
+                              onFocus={() => {
+                                if (act.descripcion === "") updateActividadDesc(act.id, "");
+                              }}
+                              placeholder="Detalle u observación..."
+                              className="w-full px-1 sm:px-2 py-1 bg-transparent border-b border-dashed border-vanilla-300 focus:border-forest-600 focus:outline-none text-[11px] sm:text-xs text-forest-900"
+                            />
+                          </td>
+                          <td className="py-1.5 sm:py-2 px-1 sm:px-2">
+                            <input
+                              type="date"
+                              min={todayStr}
+                              value={act.fechaProxima || ""}
+                              onChange={(e) => updateActividadFechaProx(act.id, e.target.value)}
+                              className="w-full text-[11px] sm:text-xs font-semibold px-2 py-1 bg-white rounded-md border border-vanilla-300 text-forest-950 focus:outline-none focus:ring-1 focus:ring-forest-600 shadow-xs cursor-pointer hover:border-forest-400 transition-colors"
+                              title="Selecciona la fecha para la próxima labor"
+                            />
+                          </td>
+                          <td className="py-1.5 sm:py-2 px-1.5 sm:px-3">
+                            <div className="relative">
+                              <button
+                                type="button"
+                                onClick={() => setOpenAreaDropdownId(isDropdownOpen ? null : act.id)}
+                                className={`w-full text-left text-[11px] sm:text-xs font-semibold px-2 py-1.5 rounded-lg border transition-all flex items-center justify-between shadow-xs ${
+                                  selectedAreas.length > 0
+                                    ? "bg-white border-forest-600 text-forest-950 ring-1 ring-forest-600/30 font-bold"
+                                    : "bg-white border-vanilla-300 text-forest-500 hover:border-forest-400"
+                                }`}
+                                title={
+                                  selectedAreas.length > 0
+                                    ? `Áreas: ${selectedAreas.join(", ")}`
+                                    : "Clic para seleccionar áreas de trabajo"
+                                }
+                              >
+                                <div className="flex items-center space-x-1 min-w-0 pr-1 flex-1">
+                                  <MapPin
+                                    className={`w-3.5 h-3.5 flex-shrink-0 ${
+                                      selectedAreas.length > 0 ? "text-forest-700" : "text-forest-400"
+                                    }`}
+                                  />
+                                  <span className="truncate">
+                                    {selectedAreas.length === 0
+                                      ? "Seleccionar áreas..."
+                                      : selectedAreas.length === 1
+                                      ? selectedAreas[0]
+                                      : `${selectedAreas.length} áreas (${selectedAreas
+                                          .map((a) => a.replace("INVERNADERO ", "INV. "))
+                                          .join(", ")})`}
+                                  </span>
+                                </div>
+                                <div className="flex items-center space-x-1 flex-shrink-0">
+                                  {selectedAreas.length > 1 && (
+                                    <span className="px-1.5 py-0.2 rounded-full text-[9px] bg-forest-800 text-white font-bold leading-none">
+                                      {selectedAreas.length}
+                                    </span>
+                                  )}
+                                  <ChevronDown
+                                    className={`w-3.5 h-3.5 text-forest-700 transition-transform ${
+                                      isDropdownOpen ? "rotate-180" : ""
+                                    }`}
+                                  />
+                                </div>
+                              </button>
+
+                              {/* MENÚ DESPLEGABLE DESKTOP (sm:) */}
+                              {isDropdownOpen && (
+                                <>
+                                  <div
+                                    className="fixed inset-0 z-30"
+                                    onClick={() => setOpenAreaDropdownId(null)}
+                                  />
+
+                                  <div
+                                    className={`hidden sm:block absolute z-40 w-64 bg-white rounded-xl shadow-2xl border border-vanilla-300 p-2.5 text-xs ${
+                                      act.id > 10 ? "bottom-full mb-1.5" : "top-full mt-1.5"
+                                    } right-0`}
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    <div className="flex items-center justify-between pb-1.5 mb-2 border-b border-vanilla-200">
+                                      <span className="text-[11px] font-bold text-forest-950 uppercase tracking-wider">
+                                        Áreas de trabajo ({selectedAreas.length})
+                                      </span>
+                                      {selectedAreas.length > 0 && (
+                                        <button
+                                          type="button"
+                                          onClick={() => clearActividadAreas(act.id)}
+                                          className="text-[10px] text-red-600 hover:underline font-semibold"
+                                        >
+                                          Limpiar
+                                        </button>
+                                      )}
+                                    </div>
+
+                                    <div className="space-y-1 max-h-56 overflow-y-auto pr-0.5">
+                                      {AREAS_DISPONIBLES.map((area) => {
+                                        const isSelected = selectedAreas.includes(area);
+                                        return (
+                                          <div
+                                            key={area}
+                                            onClick={() => toggleActividadArea(act.id, area)}
+                                            className={`flex items-center space-x-2 px-2 py-1.5 rounded-lg cursor-pointer transition-colors ${
+                                              isSelected
+                                                ? "bg-forest-100 text-forest-950 font-bold"
+                                                : "hover:bg-vanilla-100/60 text-forest-800 font-medium"
+                                            }`}
+                                          >
+                                            <div
+                                              className={`w-4 h-4 rounded flex items-center justify-center border transition-colors ${
+                                                isSelected
+                                                  ? "bg-forest-900 text-white border-forest-900"
+                                                  : "border-vanilla-400 bg-white"
+                                              }`}
+                                            >
+                                              {isSelected && <Check className="w-3 h-3 stroke-[3]" />}
+                                            </div>
+                                            <span className="text-[11px] flex-1">{area}</span>
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+
+                                    <div className="mt-2 pt-2 border-t border-vanilla-200 flex justify-end">
+                                      <button
+                                        type="button"
+                                        onClick={() => setOpenAreaDropdownId(null)}
+                                        className="px-3 py-1 bg-forest-900 hover:bg-forest-800 text-white text-[11px] font-bold rounded-lg transition-colors shadow-xs"
+                                      >
+                                        Listo
+                                      </button>
+                                    </div>
+                                  </div>
+                                </>
+                              )}
+
+                              {/* MODAL / BOTTOM SHEET MOBILE (< sm) */}
+                              {isDropdownOpen && (
+                                <div
+                                  className="sm:hidden fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-end justify-center animate-in fade-in duration-150"
+                                  onClick={() => setOpenAreaDropdownId(null)}
+                                >
+                                  <div
+                                    className="bg-white w-full rounded-t-2xl p-4 shadow-2xl max-h-[85vh] overflow-y-auto animate-in slide-in-from-bottom duration-200"
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    <div className="flex items-center justify-between pb-2 mb-3 border-b border-vanilla-200">
+                                      <div>
+                                        <span className="text-[10px] font-bold uppercase tracking-wider text-forest-600 block">
+                                          Actividad N°{act.id}
+                                        </span>
+                                        <h4 className="text-sm font-bold text-forest-950">
+                                          {act.nombre}
+                                        </h4>
+                                      </div>
+                                      <button
+                                        type="button"
+                                        onClick={() => setOpenAreaDropdownId(null)}
+                                        className="p-1 rounded-full text-gray-500 hover:bg-gray-100"
+                                      >
+                                        <X className="w-5 h-5" />
+                                      </button>
+                                    </div>
+
+                                    <p className="text-xs text-forest-700 mb-2.5 font-medium">
+                                      Selecciona una o varias áreas donde se realizó este trabajo:
+                                    </p>
+
+                                    <div className="space-y-1.5 mb-4">
+                                      {AREAS_DISPONIBLES.map((area) => {
+                                        const isSelected = selectedAreas.includes(area);
+                                        return (
+                                          <div
+                                            key={area}
+                                            onClick={() => toggleActividadArea(act.id, area)}
+                                            className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-all active:scale-[0.99] ${
+                                              isSelected
+                                                ? "bg-forest-900 text-white border-forest-900 shadow-sm"
+                                                : "bg-white hover:bg-vanilla-50 text-forest-900 border-vanilla-300"
+                                            }`}
+                                          >
+                                            <div className="flex items-center space-x-3">
+                                              <div
+                                                className={`w-5 h-5 rounded flex items-center justify-center border transition-colors ${
+                                                  isSelected
+                                                    ? "bg-white text-forest-900 border-white"
+                                                    : "border-vanilla-400 bg-white"
+                                                }`}
+                                              >
+                                                {isSelected && <Check className="w-3.5 h-3.5 stroke-[3]" />}
+                                              </div>
+                                              <span className="text-xs font-bold">{area}</span>
+                                            </div>
+                                            {isSelected && (
+                                              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-forest-800 text-vanilla-200">
+                                                Seleccionada
+                                              </span>
+                                            )}
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+
+                                    <div className="flex items-center justify-between pt-2 border-t border-vanilla-200">
+                                      <button
+                                        type="button"
+                                        onClick={() => clearActividadAreas(act.id)}
+                                        disabled={selectedAreas.length === 0}
+                                        className="text-xs font-semibold text-red-600 hover:text-red-700 disabled:opacity-40 px-2 py-1"
+                                      >
+                                        Limpiar todas
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => setOpenAreaDropdownId(null)}
+                                        className="px-5 py-2.5 rounded-xl bg-forest-900 text-white text-xs font-bold shadow-md hover:bg-forest-800 transition-colors"
+                                      >
+                                        Listo ({selectedAreas.length} seleccionada{selectedAreas.length === 1 ? "" : "s"})
+                                      </button>
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
                             </div>
-                          </div>
-                        </td>
-                        <td className="py-1.5 sm:py-2 pr-3 sm:pr-3 pl-1 sm:px-3 text-center">
-                          <button
-                            type="button"
-                            onClick={() => toggleActividad(act.id)}
-                            className={`p-1 sm:p-1.5 rounded-md transition-colors ${
-                              act.realizado
-                                ? "bg-forest-900 text-vanilla-400"
-                                : "bg-vanilla-100 text-forest-400 hover:text-forest-800"
-                            }`}
-                            aria-label={`Marcar actividad ${act.nombre}`}
-                          >
-                            {act.realizado ? (
-                              <CheckSquare className="w-4 h-4 sm:w-5 sm:h-5" />
-                            ) : (
-                              <Square className="w-4 h-4 sm:w-5 sm:h-5" />
-                            )}
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
