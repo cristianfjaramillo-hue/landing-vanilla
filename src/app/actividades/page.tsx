@@ -42,6 +42,7 @@ const RESPONSABLES_AUTORIZADOS = [
   "DORE",
   "CINDY",
   "GEMENCA",
+  "Henry Cabrera",
 ] as const;
 
 const AREAS_DISPONIBLES = [

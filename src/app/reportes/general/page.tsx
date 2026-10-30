@@ -55,6 +55,7 @@ const RESPONSABLES_AUTORIZADOS = [
   "DORE",
   "CINDY",
   "GEMENCA",
+  "Henry Cabrera",
 ] as const;
 
 const INSUMOS_DISPONIBLES = [
@@ -715,6 +716,7 @@ export default function InformeGeneralPage() {
                       {RESPONSABLES_AUTORIZADOS.map((resp) => (
                         <option key={resp} value={resp} />
                       ))}
+                      <option value="HENRY CABRERA" />
                     </datalist>
                   </div>
                 </div>
