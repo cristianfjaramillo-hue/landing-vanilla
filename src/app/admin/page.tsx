@@ -3848,10 +3848,10 @@ export default function AdminPage() {
                       <thead className="bg-forest-900 text-white text-[11px]">
                         <tr>
                           <th className="py-2 px-3 w-10 text-center">N°</th>
-                          <th className="py-2 px-3 w-48">Actividad</th>
-                          <th className="py-2 px-3">Observaciones</th>
+                          <th className="py-2 px-3 w-44">Actividad</th>
+                          <th className="py-2 px-3 w-48">Observaciones</th>
                           <th className="py-2 px-3 w-28 text-center">Fecha Próx.</th>
-                          <th className="py-2 px-3 w-48">Área(s) de Trabajo</th>
+                          <th className="py-2 px-3 w-64">Área(s) de Trabajo</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-vanilla-100 bg-white">

@@ -855,7 +855,7 @@ export default function NuevoReportePage() {
                       <th className="py-2 sm:py-2.5 pl-3 sm:pl-3 pr-2 sm:pr-3 w-28 sm:w-44 font-bold text-[11px] sm:text-xs text-left">
                         Actividad
                       </th>
-                      <th className="py-2 sm:py-2.5 px-1.5 sm:px-3 font-bold text-[11px] sm:text-xs">
+                      <th className="py-2 sm:py-2.5 px-1.5 sm:px-3 w-36 sm:w-56 font-bold text-[11px] sm:text-xs">
                         <span>Observaciones</span>
                       </th>
                       <th className="py-2 sm:py-2.5 px-1 sm:px-2 w-28 sm:w-36 font-bold text-[11px] sm:text-xs text-center">
@@ -864,7 +864,7 @@ export default function NuevoReportePage() {
                           <span>Fecha Próx.</span>
                         </div>
                       </th>
-                      <th className="py-2 sm:py-2.5 px-1.5 sm:px-3 w-36 sm:w-56 font-bold text-[11px] sm:text-xs">
+                      <th className="py-2 sm:py-2.5 px-1.5 sm:px-3 w-48 sm:w-72 font-bold text-[11px] sm:text-xs">
                         <div className="flex items-center space-x-1">
                           <MapPin className="w-3.5 h-3.5 text-vanilla-300" />
                           <span>Área(s) de Trabajo</span>
@@ -900,7 +900,7 @@ export default function NuevoReportePage() {
                               {act.nombre}
                             </span>
                           </td>
-                          <td className="py-1.5 sm:py-2 px-1.5 sm:px-3">
+                          <td className="py-1.5 sm:py-2 px-1.5 sm:px-3 w-36 sm:w-56">
                             <input
                               type="text"
                               value={act.descripcion}
@@ -912,7 +912,7 @@ export default function NuevoReportePage() {
                               className="w-full px-1 sm:px-2 py-1 bg-transparent border-b border-dashed border-vanilla-300 focus:border-forest-600 focus:outline-none text-[11px] sm:text-xs text-forest-900"
                             />
                           </td>
-                          <td className="py-1.5 sm:py-2 px-1 sm:px-2">
+                          <td className="py-1.5 sm:py-2 px-1 sm:px-2 w-28 sm:w-36 text-center">
                             <input
                               type="date"
                               min={todayStr}
@@ -922,7 +922,7 @@ export default function NuevoReportePage() {
                               title="Selecciona la fecha para la próxima labor"
                             />
                           </td>
-                          <td className="py-1.5 sm:py-2 px-1.5 sm:px-3">
+                          <td className="py-1.5 sm:py-2 px-1.5 sm:px-3 w-48 sm:w-72">
                             <div className="relative">
                               <button
                                 type="button"

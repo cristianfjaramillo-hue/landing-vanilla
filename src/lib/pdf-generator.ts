@@ -114,9 +114,9 @@ export async function generateDailyReportPDF(
     columnStyles: {
       0: { cellWidth: 8, halign: "center" },
       1: { cellWidth: 52 },
-      2: { cellWidth: 62 },
+      2: { cellWidth: 50 },
       3: { cellWidth: 24, halign: "center" },
-      4: { cellWidth: 38 },
+      4: { cellWidth: 50 },
     },
     styles: { fontSize: 7.5, cellPadding: 1.5 },
   });
