@@ -31,6 +31,7 @@ import {
   Check,
   X,
   MapPin,
+  Warehouse,
 } from "lucide-react";
 import { DEFAULT_ACTIVITIES, DEFAULT_TOOLS } from "@/lib/constants";
 import { ActivityItem, ToolItem, AppliedInput, DailyReport, ScheduledReminder } from "@/lib/types";
@@ -79,21 +80,12 @@ const METODOS_APLICACION = [
 export default function InformeGeneralPage() {
   const todayStr = new Date().toISOString().split("T")[0];
 
-  // 1. Cabecera (Proyecto fijo y Responsable seleccionable)
-  const [proyecto] = useState<string>("Proyecto Vainilla");
+  // 1. Cabecera (Proyecto y Responsable editables libremente)
+  const [proyecto, setProyecto] = useState<string>("Proyecto Vainilla");
   const [responsable, setResponsable] = useState<string>("GUIMARE");
 
-  // 2. Fechas & Condiciones
-  const [fechaReporte, setFechaReporte] = useState<string>(todayStr);
-  const [fechaDesde, setFechaDesde] = useState<string>(todayStr);
-  const [fechaHasta, setFechaHasta] = useState<string>(todayStr);
-  const [temperatura, setTemperatura] = useState<number | string>(26);
-  const [humedad, setHumedad] = useState<number | string>(85);
-  const [clima, setClima] = useState<"Soleado" | "Nublado" | "Lluvia" | "Otro">("Soleado");
-  const [climaOtro, setClimaOtro] = useState("");
-
-  // Condiciones del Terreno
-  const [alcalinidad, setAlcalinidad] = useState<number | string>("");
+  // Fecha (inicia con hoy, editable hacia fechas anteriores o posteriores)
+  const [fecha, setFecha] = useState<string>(todayStr);
 
   // 3. Actividades (19 items con notas cortas y selección de áreas múltiples)
   const [actividades, setActividades] = useState<ActivityItem[]>(DEFAULT_ACTIVITIES);
@@ -307,15 +299,9 @@ export default function InformeGeneralPage() {
 
   // Reiniciar formulario
   const resetForm = () => {
+    setFecha(todayStr);
+    setProyecto("Proyecto Vainilla");
     setResponsable("GUIMARE");
-    setFechaReporte(todayStr);
-    setFechaDesde(todayStr);
-    setFechaHasta(todayStr);
-    setTemperatura(26);
-    setHumedad(85);
-    setClima("Soleado");
-    setClimaOtro("");
-    setAlcalinidad("");
     setActividades(DEFAULT_ACTIVITIES);
     setHerramientas(DEFAULT_TOOLS);
     setOtraHerramienta("");
@@ -329,26 +315,25 @@ export default function InformeGeneralPage() {
 
   // Compilar el objeto de reporte general
   const buildReportObject = (): DailyReport => {
-    const tempVal = temperatura !== "" && !isNaN(Number(temperatura)) ? Number(temperatura) : 26;
     return {
       id: "GEN-" + Date.now().toString().slice(-6),
       created_at: new Date().toISOString(),
       tipoReporte: "general",
       titulo: "Informe General",
-      proyecto: "Proyecto Vainilla",
+      proyecto: proyecto.trim() || "Proyecto Vainilla",
       area: "Proyecto Vainilla",
       lote: "Proyecto Vainilla",
       responsable: responsable.trim() || "GUIMARE",
-      fechaReporte,
-      fechaDesde,
-      fechaHasta,
-      temperatura: tempVal,
-      tempMin: tempVal,
-      tempMax: tempVal,
-      humedad: humedad !== "" && !isNaN(Number(humedad)) ? Number(humedad) : 85,
-      clima,
-      climaOtro: clima === "Otro" ? climaOtro : undefined,
-      alcalinidad: alcalinidad !== "" ? alcalinidad : undefined,
+      fechaReporte: fecha,
+      fechaDesde: fecha,
+      fechaHasta: fecha,
+      temperatura: undefined,
+      tempMin: undefined,
+      tempMax: undefined,
+      humedad: undefined,
+      clima: undefined,
+      climaOtro: undefined,
+      alcalinidad: undefined,
       actividades: actividades.map((act) => ({
         ...act,
         realizado: Boolean(
@@ -574,7 +559,7 @@ export default function InformeGeneralPage() {
                   <span>INFORME GENERAL</span>
                 </span>
                 <span className="text-xs text-forest-500 font-mono">
-                  {fechaReporte}
+                  {fecha}
                 </span>
               </div>
               <h1 className="text-xl sm:text-2xl font-serif font-bold text-forest-950 mt-1">
@@ -600,190 +585,66 @@ export default function InformeGeneralPage() {
         {/* FORMULARIO */}
         <form onSubmit={handleSubmit} className="bg-white rounded-2xl border border-vanilla-200 shadow-sm p-6 sm:p-8">
           <div className="space-y-8">
-            {/* SECCIÓN 1: DATOS DE IDENTIFICACIÓN */}
+            {/* SECCIÓN 1: DATOS DE IDENTIFICACIÓN Y RESPONSABLE */}
             <div>
               <h2 className="text-xs font-bold uppercase tracking-wider text-forest-900 mb-4 flex items-center space-x-2">
                 <span className="w-2 h-2 rounded-full bg-forest-700" />
                 <span>1. Datos de Identificación y Responsable</span>
               </h2>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {/* Proyecto */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                {/* Fecha (inicia con hoy, editable hacia fechas anteriores o posteriores) */}
                 <div>
-                  <label className="block text-xs font-bold text-forest-900 mb-1">
-                    Proyecto:
+                  <label className="block text-xs font-bold text-forest-900 mb-1 flex items-center space-x-1">
+                    <Calendar className="w-3.5 h-3.5 text-forest-600" />
+                    <span>Fecha:</span>
+                  </label>
+                  <input
+                    type="date"
+                    value={fecha}
+                    onChange={(e) => setFecha(e.target.value)}
+                    className="w-full text-xs font-semibold px-3.5 py-2.5 bg-white rounded-lg border border-vanilla-300 text-forest-950 focus:outline-none focus:ring-2 focus:ring-forest-600 shadow-sm transition-colors"
+                  />
+                </div>
+
+                {/* Proyecto (Editable) */}
+                <div>
+                  <label className="block text-xs font-bold text-forest-900 mb-1 flex items-center space-x-1">
+                    <Warehouse className="w-3.5 h-3.5 text-forest-600" />
+                    <span>Proyecto:</span>
                   </label>
                   <input
                     type="text"
                     value={proyecto}
-                    disabled
-                    className="w-full text-xs font-semibold px-3.5 py-2.5 bg-vanilla-50/80 rounded-lg border border-vanilla-300 text-forest-800 cursor-not-allowed"
+                    onChange={(e) => setProyecto(e.target.value)}
+                    placeholder="Escribe el proyecto..."
+                    className="w-full text-xs font-semibold px-3.5 py-2.5 bg-white rounded-lg border border-vanilla-300 text-forest-950 focus:outline-none focus:ring-2 focus:ring-forest-600 shadow-sm transition-colors"
                   />
                 </div>
 
-                {/* Responsable */}
+                {/* Responsable Oficial (Editable con sugerencias) */}
                 <div>
-                  <label className="block text-xs font-bold text-forest-900 mb-1">
-                    Responsable Oficial:
+                  <label className="block text-xs font-bold text-forest-900 mb-1 flex items-center space-x-1">
+                    <CheckSquare className="w-3.5 h-3.5 text-forest-600" />
+                    <span>Responsable Oficial:</span>
                   </label>
                   <div className="relative">
-                    <select
+                    <input
+                      type="text"
+                      list="responsables-sugeridos"
                       value={responsable}
                       onChange={(e) => setResponsable(e.target.value)}
-                      className="w-full text-xs font-semibold px-3.5 py-2.5 bg-white rounded-lg border border-vanilla-300 text-forest-950 focus:outline-none focus:ring-2 focus:ring-forest-600 shadow-sm cursor-pointer appearance-none pr-8 hover:border-forest-400 transition-colors"
-                    >
+                      placeholder="Escribe o selecciona responsable..."
+                      className="w-full text-xs font-semibold px-3.5 py-2.5 bg-white rounded-lg border border-vanilla-300 text-forest-950 focus:outline-none focus:ring-2 focus:ring-forest-600 shadow-sm transition-colors"
+                    />
+                    <datalist id="responsables-sugeridos">
                       {RESPONSABLES_AUTORIZADOS.map((resp) => (
-                        <option key={resp} value={resp} className="font-semibold text-forest-950 py-1">
-                          {resp}
-                        </option>
+                        <option key={resp} value={resp} />
                       ))}
-                    </select>
-                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2.5 text-forest-700">
-                      <ChevronDown className="w-4 h-4" />
-                    </div>
+                    </datalist>
                   </div>
                 </div>
               </div>
-            </div>
-
-            {/* SECCIÓN 2: FECHAS Y CONDICIONES CLIMÁTICAS */}
-            <div>
-              <h2 className="text-xs font-bold uppercase tracking-wider text-forest-900 mb-4 flex items-center space-x-2">
-                <span className="w-2 h-2 rounded-full bg-forest-700" />
-                <span>2. Período y Condiciones Agroclimáticas</span>
-              </h2>
-
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
-                <div>
-                  <label className="block text-xs font-bold text-forest-900 mb-1 flex items-center space-x-1">
-                    <Calendar className="w-3.5 h-3.5 text-forest-600" />
-                    <span>Fecha del Informe:</span>
-                  </label>
-                  <input
-                    type="date"
-                    value={fechaReporte}
-                    onChange={(e) => setFechaReporte(e.target.value)}
-                    className="w-full text-xs font-semibold px-3 py-2 bg-white rounded-lg border border-vanilla-300 text-forest-950 focus:outline-none focus:ring-2 focus:ring-forest-600"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-forest-900 mb-1 flex items-center space-x-1">
-                    <Calendar className="w-3.5 h-3.5 text-forest-600" />
-                    <span>Período Desde:</span>
-                  </label>
-                  <input
-                    type="date"
-                    value={fechaDesde}
-                    onChange={(e) => setFechaDesde(e.target.value)}
-                    className="w-full text-xs font-semibold px-3 py-2 bg-white rounded-lg border border-vanilla-300 text-forest-950 focus:outline-none focus:ring-2 focus:ring-forest-600"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-forest-900 mb-1 flex items-center space-x-1">
-                    <Calendar className="w-3.5 h-3.5 text-forest-600" />
-                    <span>Período Hasta:</span>
-                  </label>
-                  <input
-                    type="date"
-                    value={fechaHasta}
-                    onChange={(e) => setFechaHasta(e.target.value)}
-                    className="w-full text-xs font-semibold px-3 py-2 bg-white rounded-lg border border-vanilla-300 text-forest-950 focus:outline-none focus:ring-2 focus:ring-forest-600"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                {/* Temperatura */}
-                <div>
-                  <label className="block text-xs font-bold text-forest-900 mb-1 flex items-center space-x-1">
-                    <Thermometer className="w-3.5 h-3.5 text-amber-600" />
-                    <span>Temperatura:</span>
-                  </label>
-                  <div className="relative">
-                    <input
-                      type="number"
-                      step="any"
-                      value={temperatura}
-                      onChange={(e) => setTemperatura(e.target.value)}
-                      className="w-full text-xs font-semibold px-3 py-2 bg-white rounded-lg border border-vanilla-300 text-forest-950 focus:outline-none focus:ring-2 focus:ring-forest-600 pr-8"
-                    />
-                    <span className="absolute right-2.5 top-2 text-xs text-forest-500 font-bold">°C</span>
-                  </div>
-                </div>
-
-                {/* Humedad */}
-                <div>
-                  <label className="block text-xs font-bold text-forest-900 mb-1 flex items-center space-x-1">
-                    <Droplets className="w-3.5 h-3.5 text-blue-600" />
-                    <span>Humedad:</span>
-                  </label>
-                  <div className="relative">
-                    <input
-                      type="number"
-                      step="any"
-                      value={humedad}
-                      onChange={(e) => setHumedad(e.target.value)}
-                      className="w-full text-xs font-semibold px-3 py-2 bg-white rounded-lg border border-vanilla-300 text-forest-950 focus:outline-none focus:ring-2 focus:ring-forest-600 pr-8"
-                    />
-                    <span className="absolute right-2.5 top-2 text-xs text-forest-500 font-bold">%</span>
-                  </div>
-                </div>
-
-                {/* Clima */}
-                <div>
-                  <label className="block text-xs font-bold text-forest-900 mb-1 flex items-center space-x-1">
-                    <Sun className="w-3.5 h-3.5 text-amber-500" />
-                    <span>Clima:</span>
-                  </label>
-                  <div className="relative">
-                    <select
-                      value={clima}
-                      onChange={(e) => setClima(e.target.value as any)}
-                      className="w-full text-xs font-semibold px-3 py-2 bg-white rounded-lg border border-vanilla-300 text-forest-950 focus:outline-none focus:ring-2 focus:ring-forest-600 appearance-none pr-8 cursor-pointer"
-                    >
-                      <option value="Soleado">Soleado</option>
-                      <option value="Nublado">Nublado</option>
-                      <option value="Lluvia">Lluvia</option>
-                      <option value="Otro">Otro</option>
-                    </select>
-                    <ChevronDown className="w-3.5 h-3.5 text-forest-600 absolute right-2.5 top-2.5 pointer-events-none" />
-                  </div>
-                </div>
-
-                {/* Alcalinidad */}
-                <div>
-                  <label className="block text-xs font-bold text-forest-900 mb-1">
-                    Alcalinidad:
-                  </label>
-                  <div className="relative">
-                    <input
-                      type="number"
-                      step="any"
-                      min="0"
-                      max="100"
-                      value={alcalinidad}
-                      onChange={(e) => setAlcalinidad(e.target.value)}
-                      placeholder="%"
-                      className="w-full text-xs font-semibold px-3 py-2 bg-white rounded-lg border border-vanilla-300 text-forest-950 focus:outline-none focus:ring-2 focus:ring-forest-600 pr-8"
-                    />
-                    <span className="absolute right-2.5 top-2 text-xs text-forest-500 font-bold">%</span>
-                  </div>
-                </div>
-              </div>
-
-              {clima === "Otro" && (
-                <div className="mt-3">
-                  <input
-                    type="text"
-                    value={climaOtro}
-                    onChange={(e) => setClimaOtro(e.target.value)}
-                    placeholder="Especifique el clima observado..."
-                    className="w-full text-xs px-3 py-2 bg-white rounded-lg border border-vanilla-300"
-                  />
-                </div>
-              )}
             </div>
 
             {/* SECCIÓN 3: INFORME GENERAL (TABLA DE ACTIVIDADES) */}

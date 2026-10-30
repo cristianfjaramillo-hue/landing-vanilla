@@ -49,8 +49,8 @@ export interface DailyReport {
   temperatura?: number;
   tempMin?: number;
   tempMax?: number;
-  humedad: number;
-  clima: "Soleado" | "Nublado" | "Lluvia" | "Otro";
+  humedad?: number;
+  clima?: "Soleado" | "Nublado" | "Lluvia" | "Otro" | string;
   climaOtro?: string;
   // Condiciones del Terreno
   alcalinidad?: number | string;

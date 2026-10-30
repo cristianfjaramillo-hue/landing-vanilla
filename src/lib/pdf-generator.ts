@@ -71,31 +71,33 @@ export async function generateDailyReportPDF(
     styles: { fontSize: 9, cellPadding: 2.5 },
   });
 
-  // 3. Condiciones del Día y Terreno
-  const condY = (doc as any).lastAutoTable.finalY + 4;
-  const tempDisplay = report.temperatura !== undefined
-    ? `${report.temperatura}°C`
-    : report.tempMin !== undefined && report.tempMax !== undefined
-      ? `${report.tempMin}°C - ${report.tempMax}°C`
-      : report.tempMin !== undefined
-        ? `${report.tempMin}°C`
-        : "26°C";
+  // 3. Condiciones del Día y Terreno (Solo para Informes Diarios, omitido en Informe General)
+  if (!isGeneral) {
+    const condY = (doc as any).lastAutoTable.finalY + 4;
+    const tempDisplay = report.temperatura !== undefined
+      ? `${report.temperatura}°C`
+      : report.tempMin !== undefined && report.tempMax !== undefined
+        ? `${report.tempMin}°C - ${report.tempMax}°C`
+        : report.tempMin !== undefined
+          ? `${report.tempMin}°C`
+          : "26°C";
 
-  const alcalinidadDisplay = report.alcalinidad ? `${report.alcalinidad}%` : "No registrada";
+    const alcalinidadDisplay = report.alcalinidad ? `${report.alcalinidad}%` : "No registrada";
 
-  autoTable(doc, {
-    startY: condY,
-    theme: "grid",
-    head: [["CONDICIONES DEL DÍA", "CONDICIONES DEL TERRENO"]],
-    body: [
-      [
-        `Temperatura: ${tempDisplay}   |   Humedad: ${report.humedad}%   |   Clima: ${report.clima} ${report.climaOtro ? `(${report.climaOtro})` : ""}`,
-        `Alcalinidad: ${alcalinidadDisplay}`,
+    autoTable(doc, {
+      startY: condY,
+      theme: "grid",
+      head: [["CONDICIONES DEL DÍA", "CONDICIONES DEL TERRENO"]],
+      body: [
+        [
+          `Temperatura: ${tempDisplay}   |   Humedad: ${report.humedad || "-"}%   |   Clima: ${report.clima || "-"} ${report.climaOtro ? `(${report.climaOtro})` : ""}`,
+          `Alcalinidad: ${alcalinidadDisplay}`,
+        ],
       ],
-    ],
-    headStyles: { fillColor: [42, 86, 55], textColor: 255, fontStyle: "bold" },
-    styles: { fontSize: 9, cellPadding: 2.5 },
-  });
+      headStyles: { fillColor: [42, 86, 55], textColor: 255, fontStyle: "bold" },
+      styles: { fontSize: 9, cellPadding: 2.5 },
+    });
+  }
 
   // 4. Actividades Realizadas
   const actY = (doc as any).lastAutoTable.finalY + 4;

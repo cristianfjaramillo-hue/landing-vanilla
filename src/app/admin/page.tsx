@@ -1454,14 +1454,8 @@ export default function AdminPage() {
       "ID",
       "Tipo",
       "Fecha",
-      "Período Desde",
-      "Período Hasta",
-      "Responsable",
       "Proyecto",
-      "Temperatura",
-      "Humedad",
-      "Clima",
-      "Alcalinidad (%)",
+      "Responsable",
       "Actividades Realizadas",
       "Observaciones",
     ];
@@ -1469,14 +1463,8 @@ export default function AdminPage() {
       `"${r.id}"`,
       `"Informe General"`,
       `"${r.fechaReporte}"`,
-      `"${r.fechaDesde || r.fechaReporte}"`,
-      `"${r.fechaHasta || r.fechaReporte}"`,
-      `"${r.responsable}"`,
       `"${r.proyecto || "Proyecto Vainilla"}"`,
-      r.temperatura !== undefined ? r.temperatura : (r.tempMin || 26),
-      r.humedad,
-      `"${r.clima}"`,
-      r.alcalinidad ? `${r.alcalinidad}%` : "-",
+      `"${r.responsable}"`,
       `"${(r.actividades || []).filter((a) => a.realizado || (a.areaLote && a.areaLote.trim() !== "")).map((a) => `${a.nombre} [${a.areaLote || "Sin área"}]`).join("; ")}"`,
       `"${(r.observaciones || "").replace(/"/g, '""')}"`,
     ]);
@@ -1862,8 +1850,8 @@ export default function AdminPage() {
                             <Calendar className="w-3.5 h-3.5 text-vanilla-600" />
                             <span>{report.fechaReporte}</span>
                           </span>
-                          <span className="text-xs px-2 py-0.5 rounded-full bg-vanilla-100 text-vanilla-800 font-medium">
-                            {report.clima} ({report.temperatura !== undefined ? `${report.temperatura}°C` : `${report.tempMin}°C - ${report.tempMax}°C`})
+                          <span className="text-xs px-2.5 py-0.5 rounded-full bg-forest-50 text-forest-800 font-bold border border-forest-200">
+                            {report.proyecto || "Proyecto Vainilla"}
                           </span>
                         </div>
 
@@ -2035,24 +2023,18 @@ export default function AdminPage() {
                 <span className="text-[10px] text-forest-400">En control agronómico</span>
               </div>
               <div className="bg-white p-4 rounded-xl border border-vanilla-200 shadow-sm text-center">
-                <span className="text-xs text-forest-600 font-medium">Temp. Promedio</span>
+                <span className="text-xs text-forest-600 font-medium">Actividades Totales</span>
                 <p className="text-2xl font-serif font-bold text-forest-900 mt-1">
-                  {generalReports.length > 0
-                    ? Math.round(generalReports.reduce((acc, r) => acc + (r.temperatura ?? r.tempMax ?? 26), 0) / generalReports.length)
-                    : 26}
-                  °C
+                  {generalReports.reduce((acc, r) => acc + (r.actividades || []).filter(a => a.realizado || (a.areaLote && a.areaLote.trim() !== "")).length, 0)}
                 </p>
-                <span className="text-[10px] text-forest-400">Promedio térmico</span>
+                <span className="text-[10px] text-forest-400">Labores registradas</span>
               </div>
               <div className="bg-white p-4 rounded-xl border border-vanilla-200 shadow-sm text-center">
-                <span className="text-xs text-forest-600 font-medium">Humedad Promedio</span>
-                <p className="text-2xl font-serif font-bold text-blue-600 mt-1">
-                  {generalReports.length > 0
-                    ? Math.round(generalReports.reduce((acc, r) => acc + (r.humedad || 85), 0) / generalReports.length)
-                    : 85}
-                  %
+                <span className="text-xs text-forest-600 font-medium">Fotos Adjuntas</span>
+                <p className="text-2xl font-serif font-bold text-amber-700 mt-1">
+                  {generalReports.reduce((acc, r) => acc + (r.foto1Url ? 1 : 0) + (r.foto2Url ? 1 : 0) + (r.foto3Url ? 1 : 0), 0)}
                 </p>
-                <span className="text-[10px] text-forest-400">Humedad de chakra</span>
+                <span className="text-[10px] text-forest-400">En archivo fotográfico</span>
               </div>
             </div>
 
@@ -4169,7 +4151,8 @@ export default function AdminPage() {
                   </div>
                 </div>
 
-                {/* 2. Condiciones Diarias y Terreno */}
+                {/* 2. Condiciones Diarias y Terreno (Solo para informes diarios) */}
+                {previewReport.tipoReporte !== "general" && !previewReport.id?.startsWith("GEN-") && (
                 <div className="bg-forest-50/60 p-4 rounded-xl border border-forest-100 flex flex-wrap items-center justify-between gap-4">
                   <div className="flex items-center space-x-2">
                     <Thermometer className="w-4 h-4 text-forest-700" />
@@ -4193,6 +4176,8 @@ export default function AdminPage() {
                     <span><strong>{previewReport.alcalinidad ? `${previewReport.alcalinidad}%` : "No registrada"}</strong></span>
                   </div>
                 </div>
+
+                )}
 
                 {/* 3. Actividades Realizadas */}
                 <div>
