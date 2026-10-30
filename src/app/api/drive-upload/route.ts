@@ -12,6 +12,11 @@ const DRIVE_FOLDERS = {
     url: "https://drive.google.com/drive/folders/1lPouDSEyC3cWQwmDGDaygB_yfJF83qAY",
     name: "Listado de Actividades",
   },
+  general: {
+    id: "1xs7qOWiu5O1U0QzxGtQw2jkmWxw4IszM",
+    url: "https://drive.google.com/drive/folders/1xs7qOWiu5O1U0QzxGtQw2jkmWxw4IszM",
+    name: "Informes Generales",
+  },
 };
 
 // POST: Despachar archivo PDF a la carpeta de Google Drive correspondiente
@@ -108,7 +113,12 @@ export async function POST(request: Request) {
       }
     }
 
-    const folderConfig = type === "actividades" ? DRIVE_FOLDERS.actividades : DRIVE_FOLDERS.diario;
+    const folderConfig =
+      type === "general"
+        ? DRIVE_FOLDERS.general
+        : type === "actividades"
+        ? DRIVE_FOLDERS.actividades
+        : DRIVE_FOLDERS.diario;
 
     // 1. Obtener webhook configurado de Google Apps Script (desde Supabase o env)
     let webhookUrl = process.env.GOOGLE_DRIVE_WEBHOOK_URL || "";
@@ -183,7 +193,12 @@ export async function POST(request: Request) {
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const type = searchParams.get("type") || "diario";
-  const folderConfig = type === "actividades" ? DRIVE_FOLDERS.actividades : DRIVE_FOLDERS.diario;
+  const folderConfig =
+    type === "general"
+      ? DRIVE_FOLDERS.general
+      : type === "actividades"
+      ? DRIVE_FOLDERS.actividades
+      : DRIVE_FOLDERS.diario;
 
   let webhookUrl = process.env.GOOGLE_DRIVE_WEBHOOK_URL || "";
   try {

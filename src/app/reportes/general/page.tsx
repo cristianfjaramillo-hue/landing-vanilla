@@ -87,8 +87,17 @@ export default function InformeGeneralPage() {
   // Fecha (inicia con hoy, editable hacia fechas anteriores o posteriores)
   const [fecha, setFecha] = useState<string>(todayStr);
 
-  // 3. Actividades (19 items con notas cortas y selección de áreas múltiples)
-  const [actividades, setActividades] = useState<ActivityItem[]>(DEFAULT_ACTIVITIES);
+  // Actividades en Blanco (Mínimo 6 espacios editables y dinámicos)
+  const createInitialGeneralActivities = (): ActivityItem[] => [
+    { id: 1, nombre: "", descripcion: "", areaLote: "", fechaProxima: "", realizado: false },
+    { id: 2, nombre: "", descripcion: "", areaLote: "", fechaProxima: "", realizado: false },
+    { id: 3, nombre: "", descripcion: "", areaLote: "", fechaProxima: "", realizado: false },
+    { id: 4, nombre: "", descripcion: "", areaLote: "", fechaProxima: "", realizado: false },
+    { id: 5, nombre: "", descripcion: "", areaLote: "", fechaProxima: "", realizado: false },
+    { id: 6, nombre: "", descripcion: "", areaLote: "", fechaProxima: "", realizado: false },
+  ];
+
+  const [actividades, setActividades] = useState<ActivityItem[]>(createInitialGeneralActivities);
 
   // 4. Herramientas
   const [herramientas, setHerramientas] = useState<ToolItem[]>(DEFAULT_TOOLS);
@@ -134,6 +143,52 @@ export default function InformeGeneralPage() {
         };
       })
     );
+  };
+
+  const updateActividadNombre = (id: number, nombre: string) => {
+    setActividades((prev) =>
+      prev.map((act) =>
+        act.id === id
+          ? {
+              ...act,
+              nombre,
+              realizado: Boolean(
+                (nombre && nombre.trim() !== "") ||
+                (act.descripcion && act.descripcion.trim() !== "") ||
+                (act.areaLote && act.areaLote.trim() !== "") ||
+                act.fechaProxima
+              ),
+            }
+          : act
+      )
+    );
+  };
+
+  const addActividadRow = () => {
+    setActividades((prev) => [
+      ...prev,
+      {
+        id: prev.length > 0 ? Math.max(...prev.map((a) => a.id)) + 1 : 1,
+        nombre: "",
+        descripcion: "",
+        areaLote: "",
+        fechaProxima: "",
+        realizado: false,
+      },
+    ]);
+  };
+
+  const removeActividadRow = (id: number) => {
+    setActividades((prev) => {
+      if (prev.length <= 6) {
+        return prev.map((act) =>
+          act.id === id
+            ? { ...act, nombre: "", descripcion: "", areaLote: "", fechaProxima: "", realizado: false }
+            : act
+        );
+      }
+      return prev.filter((act) => act.id !== id);
+    });
   };
 
   const clearActividadAreas = (actId: number) => {
@@ -302,7 +357,7 @@ export default function InformeGeneralPage() {
     setFecha(todayStr);
     setProyecto("Proyecto Vainilla");
     setResponsable("GUIMARE");
-    setActividades(DEFAULT_ACTIVITIES);
+    setActividades(createInitialGeneralActivities());
     setHerramientas(DEFAULT_TOOLS);
     setOtraHerramienta("");
     setInsumos([{ id: "1", insumo: "", dosis: "", metodo: "", areaLote: "" }]);
@@ -334,15 +389,22 @@ export default function InformeGeneralPage() {
       clima: undefined,
       climaOtro: undefined,
       alcalinidad: undefined,
-      actividades: actividades.map((act) => ({
-        ...act,
-        realizado: Boolean(
-          (act.areaLote && act.areaLote.trim() !== "") ||
-          (act.descripcion && act.descripcion.trim() !== "") ||
-          Boolean(act.fechaProxima) ||
-          act.realizado
-        ),
-      })),
+      actividades: (() => {
+        const filled = actividades.filter(
+          (act) =>
+            (act.nombre && act.nombre.trim() !== "") ||
+            (act.descripcion && act.descripcion.trim() !== "") ||
+            (act.areaLote && act.areaLote.trim() !== "") ||
+            Boolean(act.fechaProxima)
+        );
+        const listToUse = filled.length > 0 ? filled : actividades.slice(0, 1);
+        return listToUse.map((act, idx) => ({
+          ...act,
+          id: idx + 1,
+          nombre: act.nombre.trim() || `Labor General ${idx + 1}`,
+          realizado: true,
+        }));
+      })(),
       herramientas: herramientas.map((h) =>
         h.id === "otra" && otraHerramienta ? { ...h, nombre: `Otra: ${otraHerramienta}` } : h
       ),
@@ -511,9 +573,19 @@ export default function InformeGeneralPage() {
             </p>
 
             <div className="space-y-2">
+              <a
+                href="https://drive.google.com/drive/folders/1xs7qOWiu5O1U0QzxGtQw2jkmWxw4IszM"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full inline-flex items-center justify-center space-x-2 py-3 px-4 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs shadow-md transition-transform active:scale-95"
+              >
+                <FolderOpen className="w-4 h-4 text-vanilla-300" />
+                <span>Abrir Carpeta Oficial en Google Drive</span>
+              </a>
+
               <Link
                 href="/admin"
-                className="w-full inline-flex items-center justify-center space-x-2 py-3 px-4 rounded-xl bg-forest-900 hover:bg-forest-800 text-white font-bold text-xs shadow-md transition-transform active:scale-95"
+                className="w-full inline-flex items-center justify-center space-x-2 py-2.5 px-4 rounded-xl bg-forest-900 hover:bg-forest-800 text-white font-bold text-xs shadow-md transition-transform active:scale-95"
               >
                 <FileSpreadsheet className="w-4 h-4 text-vanilla-400" />
                 <span>Ver en Panel Administrador (Área General)</span>
@@ -647,61 +719,83 @@ export default function InformeGeneralPage() {
               </div>
             </div>
 
-            {/* SECCIÓN 3: INFORME GENERAL (TABLA DE ACTIVIDADES) */}
+            {/* SECCIÓN 2: INFORME GENERAL (TABLA DE ACTIVIDADES EN BLANCO) */}
             <div>
-              <div className="flex items-center justify-between mb-3">
-                <h2 className="text-sm font-bold uppercase tracking-wider text-forest-900 flex items-center space-x-2">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
+                <div className="flex items-center space-x-2">
                   <span className="p-1.5 rounded-lg bg-forest-900 text-vanilla-300">
                     <FileSpreadsheet className="w-4 h-4" />
                   </span>
-                  <span>Informe General</span>
-                </h2>
-                <span className="text-[11px] text-forest-600 font-medium">
-                  {actividades.filter((a) => (a.areaLote && a.areaLote.trim() !== "") || (a.descripcion && a.descripcion.trim() !== "") || a.realizado).length} de {actividades.length} con labor registrada
-                </span>
+                  <h2 className="text-sm font-bold uppercase tracking-wider text-forest-900">
+                    2. Informe General de Actividades
+                  </h2>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <span className="text-[11px] text-forest-700 font-semibold bg-forest-50 px-3 py-1 rounded-full border border-forest-200">
+                    {actividades.filter((a) => (a.nombre && a.nombre.trim() !== "") || (a.areaLote && a.areaLote.trim() !== "")).length} de {actividades.length} espacios registrados
+                  </span>
+                </div>
               </div>
 
-              <div className="mb-2.5 flex items-center space-x-2 text-[11px] text-forest-800 bg-forest-50 py-1.5 px-3 rounded-lg border border-forest-200">
-                <Bell className="w-3.5 h-3.5 text-vanilla-600 flex-shrink-0" />
+              <div className="mb-3 flex items-center space-x-2 text-[11px] text-forest-800 bg-forest-50 py-2 px-3.5 rounded-xl border border-forest-200">
+                <Bell className="w-4 h-4 text-vanilla-600 flex-shrink-0" />
                 <span>
-                  <strong>Informe General Agronómico:</strong> Registra las labores realizadas con sus áreas múltiples, observaciones y fecha programada para la siguiente jornada.
+                  <strong>Espacios en Blanco para Actividades:</strong> Ingresa el nombre de cada labor en los campos en blanco, tus observaciones, fecha próxima y selecciona las áreas de trabajo.
                 </span>
               </div>
 
-              <div className="overflow-x-auto border border-vanilla-200 rounded-xl">
+              <datalist id="actividades-comunes">
+                <option value="Riego de orquídeas y tutores" />
+                <option value="Fertilización foliar / edáfica" />
+                <option value="Control manual de malezas" />
+                <option value="Poda y manejo de guías" />
+                <option value="Polinización manual de orquídeas" />
+                <option value="Monitoreo y control de plagas" />
+                <option value="Control de enfermedades fungosas" />
+                <option value="Mantenimiento de tutores vivos" />
+                <option value="Revisión de brotes y conteo de vainas" />
+                <option value="Cosecha de vainas maduras" />
+                <option value="Mantenimiento de cobertura y humedad" />
+              </datalist>
+
+              <div className="overflow-x-auto border border-vanilla-200 rounded-xl shadow-xs">
                 <table className="w-full text-left text-xs">
                   <thead className="bg-forest-900 text-white">
                     <tr>
-                      <th className="hidden sm:table-cell py-2 sm:py-2.5 px-1 sm:px-3 w-7 sm:w-10 text-center font-bold text-[11px] sm:text-xs">
+                      <th className="py-2.5 px-2 w-9 sm:w-11 text-center font-bold text-[11px] sm:text-xs">
                         N°
                       </th>
-                      <th className="py-2 sm:py-2.5 pl-3 sm:pl-3 pr-2 sm:pr-3 w-28 sm:w-44 font-bold text-[11px] sm:text-xs text-left">
-                        Actividad
+                      <th className="py-2.5 px-3 min-w-[160px] sm:w-60 font-bold text-[11px] sm:text-xs text-left">
+                        Actividad Realizada
                       </th>
-                      <th className="py-2 sm:py-2.5 px-1.5 sm:px-3 w-36 sm:w-56 font-bold text-[11px] sm:text-xs">
-                        <span>Observaciones</span>
+                      <th className="py-2.5 px-3 min-w-[150px] sm:w-56 font-bold text-[11px] sm:text-xs">
+                        Observaciones
                       </th>
-                      <th className="py-2 sm:py-2.5 px-1 sm:px-2 w-28 sm:w-36 font-bold text-[11px] sm:text-xs text-center">
+                      <th className="py-2.5 px-2 w-32 sm:w-36 font-bold text-[11px] sm:text-xs text-center">
                         <div className="flex items-center justify-center space-x-1">
                           <Clock className="w-3.5 h-3.5 text-vanilla-300" />
                           <span>Fecha Próx.</span>
                         </div>
                       </th>
-                      <th className="py-2 sm:py-2.5 px-1.5 sm:px-3 w-48 sm:w-72 font-bold text-[11px] sm:text-xs">
+                      <th className="py-2.5 px-3 min-w-[160px] sm:w-64 font-bold text-[11px] sm:text-xs">
                         <div className="flex items-center space-x-1">
                           <MapPin className="w-3.5 h-3.5 text-vanilla-300" />
                           <span>Área(s) de Trabajo</span>
                         </div>
                       </th>
+                      <th className="py-2.5 px-2 w-10 text-center font-bold text-[11px]">
+                        
+                      </th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-vanilla-100 bg-white">
-                    {actividades.map((act) => {
+                    {actividades.map((act, index) => {
                       const selectedAreas = act.areaLote
                         ? act.areaLote.split(",").map((s) => s.trim()).filter(Boolean)
                         : [];
                       const isDropdownOpen = openAreaDropdownId === act.id;
                       const hasWork =
+                        (act.nombre && act.nombre.trim() !== "") ||
                         selectedAreas.length > 0 ||
                         (act.descripcion && act.descripcion.trim() !== "") ||
                         Boolean(act.fechaProxima);
@@ -712,54 +806,58 @@ export default function InformeGeneralPage() {
                           className={`transition-colors ${
                             hasWork
                               ? "bg-forest-50/40 border-l-4 border-l-forest-700"
-                              : "hover:bg-vanilla-50/30"
+                              : "hover:bg-vanilla-50/40"
                           }`}
                         >
-                          <td className="hidden sm:table-cell py-1.5 sm:py-2 px-1 sm:px-3 text-center font-mono text-forest-600 font-bold text-[11px] sm:text-xs">
-                            {act.id}
+                          <td className="py-2 px-2 text-center font-mono text-forest-700 font-bold text-[11px] sm:text-xs">
+                            {index + 1}
                           </td>
-                          <td className="py-1.5 sm:py-2 pl-3 sm:pl-3 pr-2 sm:pr-3 font-semibold text-forest-900 text-[11px] sm:text-xs leading-snug text-left">
-                            <span className={hasWork ? "text-forest-950 font-bold" : "text-forest-800"}>
-                              {act.nombre}
-                            </span>
+
+                          {/* Actividad en blanco (editable libremente con sugerencias) */}
+                          <td className="py-2 px-3">
+                            <input
+                              type="text"
+                              list="actividades-comunes"
+                              value={act.nombre}
+                              onChange={(e) => updateActividadNombre(act.id, e.target.value)}
+                              placeholder={`Escriba la labor #${index + 1}...`}
+                              className="w-full px-2.5 py-1.5 bg-white border border-vanilla-300 rounded-lg text-forest-950 font-semibold text-[11px] sm:text-xs focus:ring-2 focus:ring-forest-600 focus:outline-none placeholder:text-forest-300 shadow-2xs"
+                            />
                           </td>
-                          <td className="py-1.5 sm:py-2 px-1.5 sm:px-3 w-36 sm:w-56">
+
+                          {/* Observaciones */}
+                          <td className="py-2 px-3">
                             <input
                               type="text"
                               value={act.descripcion}
                               onChange={(e) => updateActividadDesc(act.id, e.target.value)}
-                              onFocus={() => {
-                                if (act.descripcion === "") updateActividadDesc(act.id, "");
-                              }}
                               placeholder="Detalle u observación..."
-                              className="w-full px-1 sm:px-2 py-1 bg-transparent border-b border-dashed border-vanilla-300 focus:border-forest-600 focus:outline-none text-[11px] sm:text-xs text-forest-900"
+                              className="w-full px-2 py-1.5 bg-transparent border-b border-dashed border-vanilla-300 focus:border-forest-600 focus:outline-none text-[11px] sm:text-xs text-forest-900 placeholder:text-forest-300"
                             />
                           </td>
-                          <td className="py-1.5 sm:py-2 px-1 sm:px-2 w-28 sm:w-36 text-center">
+
+                          {/* Fecha Próxima */}
+                          <td className="py-2 px-2 text-center">
                             <input
                               type="date"
-                              min={todayStr}
                               value={act.fechaProxima || ""}
                               onChange={(e) => updateActividadFechaProx(act.id, e.target.value)}
-                              className="w-full text-[11px] sm:text-xs font-semibold px-2 py-1 bg-white rounded-md border border-vanilla-300 text-forest-950 focus:outline-none focus:ring-1 focus:ring-forest-600 shadow-xs cursor-pointer hover:border-forest-400 transition-colors"
-                              title="Selecciona la fecha para la próxima labor"
+                              className="w-full text-[11px] sm:text-xs font-semibold px-2 py-1.5 bg-white rounded-md border border-vanilla-300 text-forest-950 focus:outline-none focus:ring-1 focus:ring-forest-600 shadow-2xs cursor-pointer hover:border-forest-400 transition-colors"
+                              title="Fecha para la siguiente labor"
                             />
                           </td>
-                          <td className="py-1.5 sm:py-2 px-1.5 sm:px-3 w-48 sm:w-72">
+
+                          {/* Áreas de Trabajo (Múltiple Selección) */}
+                          <td className="py-2 px-3">
                             <div className="relative">
                               <button
                                 type="button"
                                 onClick={() => setOpenAreaDropdownId(isDropdownOpen ? null : act.id)}
-                                className={`w-full text-left text-[11px] sm:text-xs font-semibold px-2 py-1.5 rounded-lg border transition-all flex items-center justify-between shadow-xs ${
+                                className={`w-full text-left text-[11px] sm:text-xs font-semibold px-2.5 py-1.5 rounded-lg border transition-all flex items-center justify-between shadow-2xs ${
                                   selectedAreas.length > 0
                                     ? "bg-white border-forest-600 text-forest-950 ring-1 ring-forest-600/30 font-bold"
                                     : "bg-white border-vanilla-300 text-forest-500 hover:border-forest-400"
                                 }`}
-                                title={
-                                  selectedAreas.length > 0
-                                    ? `Áreas: ${selectedAreas.join(", ")}`
-                                    : "Clic para seleccionar áreas de trabajo"
-                                }
                               >
                                 <div className="flex items-center space-x-1 min-w-0 pr-1 flex-1">
                                   <MapPin
@@ -791,7 +889,7 @@ export default function InformeGeneralPage() {
                                 </div>
                               </button>
 
-                              {/* MENÚ DESPLEGABLE DESKTOP (sm:) */}
+                              {/* MENÚ DESPLEGABLE DESKTOP */}
                               {isDropdownOpen && (
                                 <>
                                   <div
@@ -801,7 +899,7 @@ export default function InformeGeneralPage() {
 
                                   <div
                                     className={`hidden sm:block absolute z-40 w-64 bg-white rounded-xl shadow-2xl border border-vanilla-300 p-2.5 text-xs ${
-                                      act.id > 10 ? "bottom-full mb-1.5" : "top-full mt-1.5"
+                                      index >= Math.max(3, actividades.length - 2) ? "bottom-full mb-1.5" : "top-full mt-1.5"
                                     } right-0`}
                                     onClick={(e) => e.stopPropagation()}
                                   >
@@ -861,7 +959,7 @@ export default function InformeGeneralPage() {
                                 </>
                               )}
 
-                              {/* MODAL / BOTTOM SHEET MOBILE (< sm) */}
+                              {/* MODAL BOTTOM SHEET MOBILE */}
                               {isDropdownOpen && (
                                 <div
                                   className="sm:hidden fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-end justify-center animate-in fade-in duration-150"
@@ -874,10 +972,10 @@ export default function InformeGeneralPage() {
                                     <div className="flex items-center justify-between pb-2 mb-3 border-b border-vanilla-200">
                                       <div>
                                         <span className="text-[10px] font-bold uppercase tracking-wider text-forest-600 block">
-                                          Actividad N°{act.id}
+                                          Labor N°${index + 1}
                                         </span>
                                         <h4 className="text-sm font-bold text-forest-950">
-                                          {act.nombre}
+                                          {act.nombre || `Actividad ${index + 1}`}
                                         </h4>
                                       </div>
                                       <button
@@ -890,7 +988,7 @@ export default function InformeGeneralPage() {
                                     </div>
 
                                     <p className="text-xs text-forest-700 mb-2.5 font-medium">
-                                      Selecciona una o varias áreas donde se realizó este trabajo:
+                                      Selecciona las áreas donde se realizó esta labor:
                                     </p>
 
                                     <div className="space-y-1.5 mb-4">
@@ -928,27 +1026,29 @@ export default function InformeGeneralPage() {
                                       })}
                                     </div>
 
-                                    <div className="flex items-center justify-between pt-2 border-t border-vanilla-200">
-                                      <button
-                                        type="button"
-                                        onClick={() => clearActividadAreas(act.id)}
-                                        disabled={selectedAreas.length === 0}
-                                        className="text-xs font-semibold text-red-600 hover:text-red-700 disabled:opacity-40 px-2 py-1"
-                                      >
-                                        Limpiar todas
-                                      </button>
-                                      <button
-                                        type="button"
-                                        onClick={() => setOpenAreaDropdownId(null)}
-                                        className="px-5 py-2.5 rounded-xl bg-forest-900 text-white text-xs font-bold shadow-md hover:bg-forest-800 transition-colors"
-                                      >
-                                        Listo ({selectedAreas.length} seleccionada{selectedAreas.length === 1 ? "" : "s"})
-                                      </button>
-                                    </div>
+                                    <button
+                                      type="button"
+                                      onClick={() => setOpenAreaDropdownId(null)}
+                                      className="w-full py-2.5 bg-forest-900 text-white font-bold text-xs rounded-xl shadow-md"
+                                    >
+                                      Confirmar Selección
+                                    </button>
                                   </div>
                                 </div>
                               )}
                             </div>
+                          </td>
+
+                          {/* Botón Eliminar / Limpiar Fila */}
+                          <td className="py-2 px-1 text-center">
+                            <button
+                              type="button"
+                              onClick={() => removeActividadRow(act.id)}
+                              className="p-1.5 rounded-lg text-vanilla-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                              title={actividades.length > 6 ? "Eliminar esta fila" : "Limpiar datos de esta fila"}
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
                           </td>
                         </tr>
                       );
@@ -956,12 +1056,28 @@ export default function InformeGeneralPage() {
                   </tbody>
                 </table>
               </div>
+
+              {/* BOTÓN PARA ADJUNTAR MÁS ESPACIOS DE ACTIVIDADES */}
+              <div className="mt-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-vanilla-50/70 p-3 rounded-xl border border-vanilla-200">
+                <button
+                  type="button"
+                  onClick={addActividadRow}
+                  className="inline-flex items-center justify-center space-x-2 px-4 py-2.5 rounded-xl bg-forest-900 hover:bg-forest-800 text-white font-bold text-xs shadow-sm hover:shadow-md transition-all active:scale-95"
+                >
+                  <Plus className="w-4 h-4 text-vanilla-400" />
+                  <span>Adjuntar Más Espacios para Actividades</span>
+                </button>
+
+                <p className="text-[11px] text-forest-600 text-center sm:text-right">
+                  Mínimo 6 espacios iniciales. Usa el botón para agregar las filas que requieras.
+                </p>
+              </div>
             </div>
 
-            {/* SECCIÓN 4: HERRAMIENTAS UTILIZADAS */}
+            {/* SECCIÓN 3: HERRAMIENTAS UTILIZADAS */}
             <div className="bg-vanilla-50/50 p-5 rounded-xl border border-vanilla-200">
               <h2 className="text-xs font-bold uppercase tracking-wider text-forest-900 mb-3">
-                4. Herramientas Utilizadas (Check de selección)
+                3. Herramientas Utilizadas (Check de selección)
               </h2>
 
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2.5">

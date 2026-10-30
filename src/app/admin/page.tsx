@@ -699,11 +699,12 @@ export default function AdminPage() {
     setUploadingToDriveId(report.id);
     try {
       const { base64, filename } = await generateDailyReportPDF(report, false);
+      const isGeneral = report.tipoReporte === "general" || report.id.startsWith("GEN-");
       const res = await fetch("/api/drive-upload", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          type: "diario",
+          type: isGeneral ? "general" : "diario",
           filename,
           pdfBase64: base64,
           reportId: report.id,
@@ -713,7 +714,7 @@ export default function AdminPage() {
       const data = await res.json();
       if (data.success && data.uploaded) {
         setUploadDriveSuccess((prev) => ({ ...prev, [report.id]: data.driveFileUrl || data.folderUrl }));
-        alert(`✅ ¡Informe ${report.id} subido con éxito a Google Drive!\n\nCarpeta: Informes Diarios`);
+        alert(`✅ ¡Informe ${report.id} subido con éxito a Google Drive!\n\nCarpeta: ${isGeneral ? "Informes Generales" : "Informes Diarios"}`);
       } else if (!data.hasWebhook) {
         alert("⚠️ No tienes vinculado el Webhook de Google Drive todavía.\n\nVe a la pestaña 'Configuración' en este panel para vincularlo en 1 minuto con el script oficial.");
         setActiveTab("configuracion");
@@ -2905,18 +2906,18 @@ export default function AdminPage() {
               </div>
 
               {/* Explicación y Carpetas Ancladas */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="p-4 bg-white rounded-xl border border-emerald-200 shadow-sm flex flex-col justify-between">
                   <div>
                     <div className="flex items-center space-x-2 text-forest-900 font-bold text-xs mb-1">
                       <FolderOpen className="w-4 h-4 text-emerald-600" />
-                      <span>Carpeta Oficial: Informes Diarios</span>
+                      <span>Carpeta: Informes Diarios</span>
                     </div>
                     <p className="text-[11px] text-forest-600 font-mono break-all mb-2">
                       ID: 1gGdDnhpOOM0zhKGEGhTuvXmOfHRYwmpN
                     </p>
                     <p className="text-xs text-forest-700">
-                      Aquí se depositan automáticamente los PDFs de cada informe de campo con sus fotografías optimizadas.
+                      Aquí se depositan automáticamente los PDFs de cada informe de campo diario con carpetas mensuales.
                     </p>
                   </div>
                   <div className="mt-3 pt-3 border-t border-vanilla-100">
@@ -2936,7 +2937,7 @@ export default function AdminPage() {
                   <div>
                     <div className="flex items-center space-x-2 text-forest-900 font-bold text-xs mb-1">
                       <FolderOpen className="w-4 h-4 text-emerald-600" />
-                      <span>Carpeta Oficial: Listado de Actividades</span>
+                      <span>Carpeta: Listado de Actividades</span>
                     </div>
                     <p className="text-[11px] text-forest-600 font-mono break-all mb-2">
                       ID: 1lPouDSEyC3cWQwmDGDaygB_yfJF83qAY
@@ -2948,6 +2949,32 @@ export default function AdminPage() {
                   <div className="mt-3 pt-3 border-t border-vanilla-100">
                     <a
                       href="https://drive.google.com/drive/folders/1lPouDSEyC3cWQwmDGDaygB_yfJF83qAY"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center space-x-1.5 text-xs font-semibold text-emerald-700 hover:text-emerald-900"
+                    >
+                      <ExternalLink className="w-3.5 h-3.5" />
+                      <span>Abrir carpeta en Google Drive ↗</span>
+                    </a>
+                  </div>
+                </div>
+
+                <div className="p-4 bg-white rounded-xl border border-emerald-200 shadow-sm flex flex-col justify-between">
+                  <div>
+                    <div className="flex items-center space-x-2 text-forest-900 font-bold text-xs mb-1">
+                      <FolderOpen className="w-4 h-4 text-emerald-600" />
+                      <span>Carpeta: Informes Generales</span>
+                    </div>
+                    <p className="text-[11px] text-forest-600 font-mono break-all mb-2">
+                      ID: 1xs7qOWiu5O1U0QzxGtQw2jkmWxw4IszM
+                    </p>
+                    <p className="text-xs text-forest-700">
+                      Aquí se guardan automáticamente los Informes Generales con carpetas mensuales organizadas por año y mes.
+                    </p>
+                  </div>
+                  <div className="mt-3 pt-3 border-t border-vanilla-100">
+                    <a
+                      href="https://drive.google.com/drive/folders/1xs7qOWiu5O1U0QzxGtQw2jkmWxw4IszM"
                       target="_blank"
                       rel="noopener noreferrer"
                       className="inline-flex items-center space-x-1.5 text-xs font-semibold text-emerald-700 hover:text-emerald-900"
